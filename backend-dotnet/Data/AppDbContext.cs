@@ -11,9 +11,9 @@ public class AppDbContext : DbContext
 
     public DbSet<User> Users => Set<User>();
     public DbSet<StudentProfile> StudentProfiles => Set<StudentProfile>();
+    public DbSet<CompanyProfile> CompanyProfiles => Set<CompanyProfile>();
     public DbSet<Job> Jobs => Set<Job>();
     public DbSet<Application> Applications => Set<Application>();
-    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -39,6 +39,13 @@ public class AppDbContext : DbContext
             entity.Property(u => u.Role)
                 .HasConversion<string>()
                 .IsRequired();
+
+            entity.Property(u => u.Status)
+                .HasConversion<string>()
+                .IsRequired();
+
+            entity.Property(u => u.CreatedAt)
+                .IsRequired();
         });
 
         // -------------------------------------------------------------
@@ -46,87 +53,127 @@ public class AppDbContext : DbContext
         // -------------------------------------------------------------
         modelBuilder.Entity<StudentProfile>(entity =>
         {
-            entity.HasKey(sp => sp.StudentId);
+            entity.HasKey(sp => sp.UserId);
 
-            entity.Property(sp => sp.Skills)
-                .HasColumnType("text[]");
+            entity.Property(sp => sp.FullName)
+                .IsRequired()
+                .HasMaxLength(255);
 
-            entity.Property(sp => sp.Languages)
-                .HasColumnType("text[]");
+            entity.Property(sp => sp.Phone)
+                .IsRequired()
+                .HasMaxLength(50);
 
             entity.Property(sp => sp.GPA)
                 .HasPrecision(3, 2);
 
-            entity.HasOne(sp => sp.Student)
+            entity.Property(sp => sp.Skills)
+                .HasColumnType("text[]");
+
+            entity.Property(sp => sp.ToolsAndTechnologies)
+                .HasColumnType("text[]");
+
+            entity.Property(sp => sp.InternshipType)
+                .HasColumnType("text[]");
+
+            entity.Property(sp => sp.PreferredLocations)
+                .HasColumnType("text[]");
+
+            entity.HasOne(sp => sp.User)
                 .WithOne(u => u.StudentProfile)
-                .HasForeignKey<StudentProfile>(sp => sp.StudentId)
+                .HasForeignKey<StudentProfile>(sp => sp.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
         // -------------------------------------------------------------
-        // 3. Job Entity Configuration (1:N User(Company) -> Jobs)
+        // 3. CompanyProfile Entity Configuration (1:1 with User)
+        // -------------------------------------------------------------
+        modelBuilder.Entity<CompanyProfile>(entity =>
+        {
+            entity.HasKey(cp => cp.UserId);
+
+            entity.Property(cp => cp.CompanyName)
+                .IsRequired()
+                .HasMaxLength(255);
+
+            entity.Property(cp => cp.Industry)
+                .IsRequired()
+                .HasMaxLength(150);
+
+            entity.Property(cp => cp.ContactPersonEmail)
+                .IsRequired()
+                .HasMaxLength(255);
+
+            entity.HasOne(cp => cp.User)
+                .WithOne(u => u.CompanyProfile)
+                .HasForeignKey<CompanyProfile>(cp => cp.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // -------------------------------------------------------------
+        // 4. Job Entity Configuration (1:N with CompanyProfile)
         // -------------------------------------------------------------
         modelBuilder.Entity<Job>(entity =>
         {
             entity.HasKey(j => j.JobId);
 
-            entity.Property(j => j.Req_Skills)
-                .HasColumnType("text[]");
+            entity.Property(j => j.JobTitle)
+                .IsRequired()
+                .HasMaxLength(255);
 
-            entity.Property(j => j.Req_Languages)
-                .HasColumnType("text[]");
+            entity.Property(j => j.TargetDomain)
+                .IsRequired()
+                .HasMaxLength(150);
 
-            entity.Property(j => j.Min_GPA)
+            entity.Property(j => j.MinimumGPA)
                 .HasPrecision(3, 2);
 
+            entity.Property(j => j.InternshipType)
+                .HasColumnType("text[]");
+
+            entity.Property(j => j.AllowedYearsOfStudy)
+                .HasColumnType("integer[]");
+
+            entity.Property(j => j.MandatorySkills)
+                .HasColumnType("text[]");
+
+            entity.Property(j => j.NiceToHaveSkills)
+                .HasColumnType("text[]");
+
+            entity.Property(j => j.PreferredDegreePrograms)
+                .HasColumnType("text[]");
+
             entity.HasOne(j => j.Company)
-                .WithMany(u => u.PostedJobs)
+                .WithMany(cp => cp.Jobs)
                 .HasForeignKey(j => j.CompanyId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         // -------------------------------------------------------------
-        // 4. Application Entity Configuration (Student + Job Foreign Keys)
+        // 5. Application Entity Configuration (Student + Job Foreign Keys)
         // -------------------------------------------------------------
         modelBuilder.Entity<Application>(entity =>
         {
             entity.HasKey(a => a.AppId);
 
             entity.Property(a => a.SummaryReport)
-                .HasColumnType("jsonb");
+                .HasColumnType("jsonb")
+                .IsRequired();
 
             entity.Property(a => a.Status)
-                .IsRequired()
-                .HasMaxLength(50);
+                .HasConversion<string>()
+                .IsRequired();
 
-            // Student FK (User)
+            // FK to Student (User)
             entity.HasOne(a => a.Student)
                 .WithMany(u => u.Applications)
                 .HasForeignKey(a => a.StudentId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // Job FK
+            // FK to Job
             entity.HasOne(a => a.Job)
                 .WithMany(j => j.Applications)
                 .HasForeignKey(a => a.JobId)
                 .OnDelete(DeleteBehavior.Cascade);
-        });
-
-        // -------------------------------------------------------------
-        // 5. AuditLog Entity Configuration
-        // -------------------------------------------------------------
-        modelBuilder.Entity<AuditLog>(entity =>
-        {
-            entity.HasKey(al => al.LogId);
-
-            entity.Property(al => al.Action)
-                .IsRequired()
-                .HasMaxLength(255);
-
-            entity.HasOne(al => al.Performer)
-                .WithMany()
-                .HasForeignKey(al => al.PerformedBy)
-                .OnDelete(DeleteBehavior.Restrict);
         });
     }
 }
