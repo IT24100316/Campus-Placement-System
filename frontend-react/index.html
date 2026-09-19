@@ -4,9 +4,57 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>frontend-react</title>
+    <title>CampusAI | AI-Driven Candidate Matching &amp; Placement Automation</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Plus+Jakarta+Sans:wght@500;600;700;800&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
+
+    <!-- Tailwind CSS with Design System Configuration -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "surface": "#ffffff",
+              "background": "#ffffff",
+              "on-surface": "#0b1c30",
+              "on-surface-variant": "#5a687d",
+              "outline": "#e2e8f0",
+              "outline-variant": "#edf2f7",
+              "primary": "#004ac6",
+              "primary-container": "#2563eb",
+              "on-primary": "#ffffff",
+              "secondary": "#4b41e1",
+              "surface-container-low": "#f8fafc",
+              "surface-container": "#f1f5f9",
+              "surface-container-lowest": "#ffffff"
+            },
+            fontFamily: {
+              "sans": ["'Inter'", "system-ui", "-apple-system", "sans-serif"],
+              "mono": ["'JetBrains Mono'", "monospace"],
+              "display": ["'Plus Jakarta Sans'", "sans-serif"],
+              "headline-lg": ["'Plus Jakarta Sans'", "sans-serif"],
+              "headline-md": ["'Plus Jakarta Sans'", "sans-serif"],
+              "headline-sm": ["'Plus Jakarta Sans'", "sans-serif"],
+              "body-lg": ["'Inter'", "sans-serif"],
+              "body-md": ["'Inter'", "sans-serif"],
+              "body-sm": ["'Inter'", "sans-serif"],
+              "label-lg": ["'Inter'", "sans-serif"],
+              "label-md": ["'Inter'", "sans-serif"],
+              "label-sm": ["'Inter'", "sans-serif"],
+              "code-md": ["'JetBrains Mono'", "monospace"]
+            }
+          }
+        }
+      };
+    </script>
   </head>
-  <body>
+  <body class="bg-white font-body-md text-on-surface antialiased selection:bg-blue-100 selection:text-primary">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
