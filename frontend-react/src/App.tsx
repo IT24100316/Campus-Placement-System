@@ -2,12 +2,16 @@ import { useState } from 'react';
 import { LandingPage } from './pages/LandingPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { AdminDashboardPage } from './pages/AdminDashboardPage';
+import { LoginModal } from './components/auth/LoginModal';
 import { Sparkles, Shield, UserPlus, Home } from 'lucide-react';
+import type { RegistrationRecord } from './types/auth';
 
 export type AppView = 'landing' | 'register' | 'admin';
 
 function App() {
   const [currentView, setCurrentView] = useState<AppView>('landing');
+  const [isLoginOpen, setIsLoginOpen] = useState(false);
+  const [pendingRecordForView, setPendingRecordForView] = useState<RegistrationRecord | null>(null);
 
   return (
     <div className="relative min-h-screen">
@@ -15,6 +19,7 @@ function App() {
       {currentView === 'landing' && (
         <LandingPage
           onNavigateRegister={() => {
+            setPendingRecordForView(null);
             setCurrentView('register');
             window.scrollTo({ top: 0, behavior: 'smooth' });
           }}
@@ -22,12 +27,16 @@ function App() {
             setCurrentView('admin');
             window.scrollTo({ top: 0, behavior: 'smooth' });
           }}
+          onOpenLogin={() => setIsLoginOpen(true)}
         />
       )}
 
       {currentView === 'register' && (
         <RegisterPage
+          key={pendingRecordForView ? pendingRecordForView.id : 'fresh-reg'}
+          initialPendingRecord={pendingRecordForView}
           onBackToHome={() => {
+            setPendingRecordForView(null);
             setCurrentView('landing');
             window.scrollTo({ top: 0, behavior: 'smooth' });
           }}
@@ -35,6 +44,7 @@ function App() {
             setCurrentView('admin');
             window.scrollTo({ top: 0, behavior: 'smooth' });
           }}
+          onOpenLogin={() => setIsLoginOpen(true)}
         />
       )}
 
@@ -45,11 +55,37 @@ function App() {
             window.scrollTo({ top: 0, behavior: 'smooth' });
           }}
           onNavigateRegister={() => {
+            setPendingRecordForView(null);
             setCurrentView('register');
             window.scrollTo({ top: 0, behavior: 'smooth' });
           }}
         />
       )}
+
+      {/* Global Authentication Modal */}
+      <LoginModal
+        isOpen={isLoginOpen}
+        onClose={() => setIsLoginOpen(false)}
+        onLoginSuccess={(role) => {
+          setIsLoginOpen(false);
+          if (role === 'Admin') {
+            setCurrentView('admin');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }
+        }}
+        onPendingFound={(record) => {
+          setIsLoginOpen(false);
+          setPendingRecordForView(record);
+          setCurrentView('register');
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
+        onNavigateRegister={() => {
+          setIsLoginOpen(false);
+          setPendingRecordForView(null);
+          setCurrentView('register');
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
+      />
 
       {/* Floating Demo View Quick-Switcher */}
       <div className="fixed bottom-4 right-4 z-50 flex items-center gap-1.5 p-1.5 bg-slate-900/90 backdrop-blur-md rounded-full shadow-xl border border-slate-700/60 text-white text-xs">

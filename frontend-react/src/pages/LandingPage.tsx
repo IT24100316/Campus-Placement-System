@@ -10,11 +10,13 @@ import { Footer } from '../components/layout/Footer';
 interface LandingPageProps {
   onNavigateRegister?: () => void;
   onNavigateAdmin?: () => void;
+  onOpenLogin?: () => void;
 }
 
 export const LandingPage: React.FC<LandingPageProps> = ({
   onNavigateRegister,
   onNavigateAdmin,
+  onOpenLogin,
 }) => {
   return (
     <div className="min-h-screen flex flex-col bg-white text-on-surface">
@@ -22,9 +24,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         onNavigateHome={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
         onNavigateRegister={onNavigateRegister}
         onNavigateAdmin={onNavigateAdmin}
+        onOpenLogin={onOpenLogin}
       />
       <main className="flex-1 pt-16">
-        <Hero onNavigateRegister={onNavigateRegister} onNavigateLogin={onNavigateAdmin} />
+        <Hero onNavigateRegister={onNavigateRegister} onNavigateLogin={onOpenLogin || onNavigateAdmin} />
         <Metrics />
         <Features />
         <DualAudience onNavigateRegister={onNavigateRegister} />

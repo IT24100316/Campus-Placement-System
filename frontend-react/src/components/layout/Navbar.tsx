@@ -16,12 +16,14 @@ interface NavbarProps {
   onNavigateHome?: () => void;
   onNavigateRegister?: () => void;
   onNavigateAdmin?: () => void;
+  onOpenLogin?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
   onNavigateHome,
   onNavigateRegister,
   onNavigateAdmin,
+  onOpenLogin,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -87,7 +89,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           </button>
           <button
             type="button"
-            onClick={onNavigateAdmin || onNavigateRegister}
+            onClick={onOpenLogin || onNavigateAdmin || onNavigateRegister}
             className="inline-flex items-center justify-center text-sm font-semibold text-white bg-primary hover:bg-blue-700 px-4 py-2 rounded-lg transition-all shadow-sm focus:ring-2 focus:ring-blue-300 focus:outline-none active:scale-[0.99] cursor-pointer"
           >
             Login to Dashboard
@@ -149,7 +151,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 type="button"
                 onClick={() => {
                   setMobileMenuOpen(false);
-                  (onNavigateAdmin || onNavigateRegister)?.();
+                  (onOpenLogin || onNavigateAdmin || onNavigateRegister)?.();
                 }}
                 className="text-center text-sm font-semibold text-white bg-primary hover:bg-blue-700 py-2 rounded-lg shadow-sm cursor-pointer"
               >

@@ -8,20 +8,34 @@ import { Footer } from '../components/layout/Footer';
 interface RegisterPageProps {
   onBackToHome: () => void;
   onGoToAdmin: () => void;
+  initialPendingRecord?: RegistrationRecord | null;
+  onOpenLogin?: () => void;
 }
 
-export const RegisterPage: React.FC<RegisterPageProps> = ({ onBackToHome, onGoToAdmin }) => {
-  const [submittedRecord, setSubmittedRecord] = useState<RegistrationRecord | null>(null);
+export const RegisterPage: React.FC<RegisterPageProps> = ({
+  onBackToHome,
+  onGoToAdmin,
+  initialPendingRecord = null,
+  onOpenLogin,
+}) => {
+  const [submittedRecord, setSubmittedRecord] = useState<RegistrationRecord | null>(
+    initialPendingRecord
+  );
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-on-surface">
-      <Navbar />
+      <Navbar
+        onNavigateHome={onBackToHome}
+        onNavigateRegister={() => setSubmittedRecord(null)}
+        onNavigateAdmin={onGoToAdmin}
+        onOpenLogin={onOpenLogin}
+      />
 
       <main className="flex-1 pt-20 pb-16">
         {!submittedRecord ? (
           <RegisterForm
             onSuccess={(record) => setSubmittedRecord(record)}
-            onNavigateLogin={onBackToHome}
+            onNavigateLogin={onOpenLogin || onBackToHome}
           />
         ) : (
           <PendingApprovalScreen
