@@ -31,6 +31,7 @@ public class AuthController : ControllerBase
         var user = await _context.Users
             .Include(u => u.CompanyProfile)
             .Include(u => u.CompanyStaffProfile)
+                .ThenInclude(sp => sp!.Company)
             .FirstOrDefaultAsync(u => u.Email.ToLower() == dto.Email.ToLower());
 
         if (user == null)
@@ -40,6 +41,20 @@ public class AuthController : ControllerBase
         if (verifyResult == PasswordVerificationResult.Failed)
             return Unauthorized(new { message = "Invalid email or password credentials." });
 
+        var isStaff = user.CompanyStaffProfile != null;
+        var isHr = user.CompanyProfile != null;
+        var detailedRole = user.Role == UserRole.Admin
+            ? "Admin"
+            : (isStaff ? "CompanyStaff" : (isHr ? "CompanyHR" : user.Role.ToString()));
+
+        var companyName = isStaff
+            ? user.CompanyStaffProfile?.Company?.CompanyName
+            : user.CompanyProfile?.CompanyName;
+
+        var fullName = isStaff
+            ? user.CompanyStaffProfile?.FullName
+            : user.CompanyProfile?.ContactPersonName;
+
         // Check pending approval
         if (user.Status == AccountStatus.Pending)
         {
@@ -48,9 +63,13 @@ public class AuthController : ControllerBase
                 success = false,
                 isPending = true,
                 message = "Your registration application is currently under administrative review.",
-                role = user.Role.ToString(),
+                role = detailedRole,
                 status = user.Status.ToString(),
-                email = user.Email
+                email = user.Email,
+                companyName = companyName,
+                fullName = fullName,
+                staffId = user.CompanyStaffProfile?.StaffId,
+                jobPosition = user.CompanyStaffProfile?.JobPosition
             });
         }
 
@@ -67,8 +86,12 @@ public class AuthController : ControllerBase
         {
             success = true,
             email = user.Email,
-            role = user.Role.ToString(),
+            role = detailedRole,
             status = user.Status.ToString(),
+            companyName = companyName,
+            fullName = fullName,
+            staffId = user.CompanyStaffProfile?.StaffId,
+            jobPosition = user.CompanyStaffProfile?.JobPosition,
             message = "Authentication successful."
         });
     }

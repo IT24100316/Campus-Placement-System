@@ -2,11 +2,12 @@ import { useState } from 'react';
 import { LandingPage } from './pages/LandingPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { AdminDashboardPage } from './pages/AdminDashboardPage';
+import { LoginPage } from './pages/LoginPage';
 import { LoginModal } from './components/auth/LoginModal';
-import { Sparkles, Shield, UserPlus, Home } from 'lucide-react';
+import { Sparkles, Shield, UserPlus, Home, LogIn } from 'lucide-react';
 import type { RegistrationRecord } from './types/auth';
 
-export type AppView = 'landing' | 'register' | 'admin';
+export type AppView = 'landing' | 'register' | 'login' | 'admin';
 
 function App() {
   const [currentView, setCurrentView] = useState<AppView>('landing');
@@ -27,7 +28,10 @@ function App() {
             setCurrentView('admin');
             window.scrollTo({ top: 0, behavior: 'smooth' });
           }}
-          onOpenLogin={() => setIsLoginOpen(true)}
+          onOpenLogin={() => {
+            setCurrentView('login');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
         />
       )}
 
@@ -44,7 +48,39 @@ function App() {
             setCurrentView('admin');
             window.scrollTo({ top: 0, behavior: 'smooth' });
           }}
-          onOpenLogin={() => setIsLoginOpen(true)}
+          onOpenLogin={() => {
+            setCurrentView('login');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+        />
+      )}
+
+      {currentView === 'login' && (
+        <LoginPage
+          onBackHome={() => {
+            setCurrentView('landing');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          onNavigateRegister={() => {
+            setPendingRecordForView(null);
+            setCurrentView('register');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          onLoginSuccess={(role) => {
+            if (role === 'Admin') {
+              setCurrentView('admin');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            } else {
+              // Return home or admin demo
+              setCurrentView('landing');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+          }}
+          onPendingFound={(record) => {
+            setPendingRecordForView(record);
+            setCurrentView('register');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
         />
       )}
 
@@ -123,6 +159,22 @@ function App() {
         >
           <UserPlus className="w-3.5 h-3.5" />
           <span>Register</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setCurrentView('login');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          className={`flex items-center gap-1 px-3 py-1.5 rounded-full transition-all cursor-pointer ${
+            currentView === 'login'
+              ? 'bg-primary text-white font-semibold'
+              : 'text-slate-300 hover:text-white hover:bg-slate-800'
+          }`}
+        >
+          <LogIn className="w-3.5 h-3.5" />
+          <span>Login</span>
         </button>
 
         <button

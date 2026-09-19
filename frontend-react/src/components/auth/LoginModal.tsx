@@ -10,6 +10,7 @@ import {
   Building2,
   ArrowRight,
   Sparkles,
+  Users,
 } from 'lucide-react';
 import { authService } from '../../services/authService';
 import type { RegistrationRecord } from '../../types/auth';
@@ -46,6 +47,12 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   const handleAutofillHr = () => {
     setEmail('c.vance@acmeglobal.tech');
     setPassword('Vanguard#2024Secure!');
+    setErrorMessage('');
+  };
+
+  const handleAutofillStaff = () => {
+    setEmail('d.miller@acmeglobal.tech');
+    setPassword('StaffPass@2025!');
     setErrorMessage('');
   };
 
@@ -96,7 +103,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             Sign in to CampusAI
           </h2>
           <p className="text-xs text-slate-500 mt-1">
-            Access your recruitment cockpit or administrative dashboard
+            Access your corporate recruitment cockpit or administrative dashboard
           </p>
         </div>
 
@@ -106,22 +113,30 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             <Sparkles className="w-3.5 h-3.5 text-amber-500" />
             Instant Demo Credentials:
           </span>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-3 gap-1.5">
             <button
               type="button"
               onClick={handleAutofillAdmin}
-              className="flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-md bg-white border border-slate-200 hover:border-indigo-500 text-indigo-700 text-xs font-semibold shadow-2xs transition-all cursor-pointer"
+              className="flex items-center justify-center gap-1 py-1.5 px-1.5 rounded-md bg-white border border-slate-200 hover:border-indigo-500 text-indigo-700 text-[11px] font-semibold shadow-2xs transition-all cursor-pointer"
             >
-              <Shield className="w-3.5 h-3.5" />
-              <span>Admin Login</span>
+              <Shield className="w-3 h-3" />
+              <span>Admin</span>
             </button>
             <button
               type="button"
               onClick={handleAutofillHr}
-              className="flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-md bg-white border border-slate-200 hover:border-blue-500 text-primary text-xs font-semibold shadow-2xs transition-all cursor-pointer"
+              className="flex items-center justify-center gap-1 py-1.5 px-1.5 rounded-md bg-white border border-slate-200 hover:border-blue-500 text-primary text-[11px] font-semibold shadow-2xs transition-all cursor-pointer"
             >
-              <Building2 className="w-3.5 h-3.5" />
-              <span>HR (Pending)</span>
+              <Building2 className="w-3 h-3" />
+              <span>Company HR</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleAutofillStaff}
+              className="flex items-center justify-center gap-1 py-1.5 px-1.5 rounded-md bg-white border border-slate-200 hover:border-blue-500 text-primary text-[11px] font-semibold shadow-2xs transition-all cursor-pointer"
+            >
+              <Users className="w-3 h-3" />
+              <span>Staff</span>
             </button>
           </div>
         </div>

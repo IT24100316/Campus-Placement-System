@@ -41,6 +41,19 @@ const INITIAL_REGISTRATIONS: RegistrationRecord[] = [
     submittedAt: 'Today, 10:45 AM',
     refCode: 'REG-2025-08492',
   },
+  {
+    id: 'reg-init-2',
+    role: 'staff',
+    fullName: 'David Miller',
+    email: 'd.miller@acmeglobal.tech',
+    phone: '+1 (555) 345-6789',
+    companyName: 'Acme Global Technologies Inc.',
+    staffId: 'ACM-STF-1042',
+    jobPosition: 'Senior Talent Acquisition Lead',
+    status: 'Pending',
+    submittedAt: 'Today, 11:15 AM',
+    refCode: 'STF-2025-01948',
+  },
 ];
 
 const API_BASE = 'http://localhost:5168/api';
@@ -53,7 +66,14 @@ export const authService = {
       return INITIAL_REGISTRATIONS;
     }
     try {
-      return JSON.parse(raw);
+      const parsed: RegistrationRecord[] = JSON.parse(raw);
+      // Ensure demo staff account is available if missing
+      if (!parsed.some((r) => r.email.toLowerCase() === 'd.miller@acmeglobal.tech')) {
+        const withStaff = [...parsed, INITIAL_REGISTRATIONS[1]];
+        localStorage.setItem(STORAGE_KEY_REGISTRATIONS, JSON.stringify(withStaff));
+        return withStaff;
+      }
+      return parsed;
     } catch {
       return INITIAL_REGISTRATIONS;
     }
@@ -108,6 +128,7 @@ export const authService = {
           success: false,
           isPending: true,
           record: userRecord,
+          role: userRecord.role === 'staff' ? 'Company Staff' : 'Company HR',
           message: 'Your registration application is currently under administrative review.',
         };
       }
@@ -119,7 +140,7 @@ export const authService = {
       }
       return {
         success: true,
-        role: userRecord.role === 'hr' ? 'Company HR' : 'Company Staff',
+        role: userRecord.role === 'staff' ? 'Company Staff' : 'Company HR',
         record: userRecord,
         message: 'Welcome back!',
       };
@@ -134,13 +155,36 @@ export const authService = {
       });
       if (res.ok) {
         const data = await res.json();
-        return { success: true, role: data.role };
+        const roleLabel = data.role === 'CompanyStaff' ? 'Company Staff' : (data.role === 'CompanyHR' ? 'Company HR' : data.role);
+        if (data.isPending) {
+          const rec: RegistrationRecord = {
+            id: data.email,
+            role: data.role === 'CompanyStaff' ? 'staff' : 'hr',
+            fullName: data.fullName || (data.role === 'CompanyStaff' ? 'Staff Member' : 'Company HR'),
+            email: data.email,
+            phone: '+1 (555) 000-0000',
+            companyName: data.companyName || 'Enterprise Partner',
+            staffId: data.staffId,
+            jobPosition: data.jobPosition,
+            status: 'Pending',
+            submittedAt: 'Recently',
+            refCode: data.role === 'CompanyStaff' ? 'STF-2025-ONLINE' : 'REG-2025-ONLINE',
+          };
+          return {
+            success: false,
+            isPending: true,
+            role: roleLabel,
+            record: rec,
+            message: data.message || 'Your registration application is currently under administrative review.',
+          };
+        }
+        return { success: true, role: roleLabel, message: data.message };
       }
     } catch {
       // Backend offline fallback
     }
 
-    return { success: false, message: 'Invalid corporate email or password.' };
+    return { success: false, message: 'Invalid corporate or institutional credentials.' };
   },
 
   async registerHr(data: CompanyHrRegistration): Promise<RegistrationRecord> {
