@@ -12,5 +12,6 @@ public class User
     // Navigation properties
     public StudentProfile? StudentProfile { get; set; }
     public CompanyProfile? CompanyProfile { get; set; }
+    public CompanyStaffProfile? CompanyStaffProfile { get; set; }
     public ICollection<Application> Applications { get; set; } = new List<Application>();
 }

@@ -5,10 +5,13 @@ public class CompanyProfile
     public Guid UserId { get; set; }
     public string CompanyName { get; set; } = string.Empty;
     public string Industry { get; set; } = string.Empty;
+    public string ContactPersonName { get; set; } = string.Empty;
     public string ContactPersonEmail { get; set; } = string.Empty;
+    public string Phone { get; set; } = string.Empty;
     public string BusinessRegistrationDocumentUrl { get; set; } = string.Empty;
 
     // Navigation properties
     public User User { get; set; } = null!;
     public ICollection<Job> Jobs { get; set; } = new List<Job>();
+    public ICollection<CompanyStaffProfile> StaffMembers { get; set; } = new List<CompanyStaffProfile>();
 }

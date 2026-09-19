@@ -12,6 +12,7 @@ public class AppDbContext : DbContext
     public DbSet<User> Users => Set<User>();
     public DbSet<StudentProfile> StudentProfiles => Set<StudentProfile>();
     public DbSet<CompanyProfile> CompanyProfiles => Set<CompanyProfile>();
+    public DbSet<CompanyStaffProfile> CompanyStaffProfiles => Set<CompanyStaffProfile>();
     public DbSet<Job> Jobs => Set<Job>();
     public DbSet<Application> Applications => Set<Application>();
 
@@ -99,13 +100,53 @@ public class AppDbContext : DbContext
                 .IsRequired()
                 .HasMaxLength(150);
 
+            entity.Property(cp => cp.ContactPersonName)
+                .IsRequired()
+                .HasMaxLength(255);
+
             entity.Property(cp => cp.ContactPersonEmail)
                 .IsRequired()
                 .HasMaxLength(255);
 
+            entity.Property(cp => cp.Phone)
+                .IsRequired()
+                .HasMaxLength(50);
+
             entity.HasOne(cp => cp.User)
                 .WithOne(u => u.CompanyProfile)
                 .HasForeignKey<CompanyProfile>(cp => cp.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // -------------------------------------------------------------
+        // 3b. CompanyStaffProfile Entity Configuration
+        // -------------------------------------------------------------
+        modelBuilder.Entity<CompanyStaffProfile>(entity =>
+        {
+            entity.HasKey(sp => sp.UserId);
+
+            entity.Property(sp => sp.FullName)
+                .IsRequired()
+                .HasMaxLength(255);
+
+            entity.Property(sp => sp.StaffId)
+                .IsRequired()
+                .HasMaxLength(100);
+
+            entity.Property(sp => sp.JobPosition)
+                .IsRequired()
+                .HasMaxLength(150);
+
+            // 1:1 with User
+            entity.HasOne(sp => sp.User)
+                .WithOne(u => u.CompanyStaffProfile)
+                .HasForeignKey<CompanyStaffProfile>(sp => sp.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // N:1 with CompanyProfile
+            entity.HasOne(sp => sp.Company)
+                .WithMany(cp => cp.StaffMembers)
+                .HasForeignKey(sp => sp.CompanyId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 

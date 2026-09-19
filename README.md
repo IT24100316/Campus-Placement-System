@@ -40,8 +40,7 @@ The following components and foundations were established in the original projec
 
 ---
 
-### 2. Current Development Work (Active Sprint: Landing Page)
-The following functionality and design architecture has been implemented during this sprint:
+### 2. Current Development Work (Active Sprints)
 
 #### 🌐 Landing Page UI & Experience
 - **Design Reference**: Faithfully adapted from the Google Stitch design specification (`UI/LandingPage/DESIGN.md`, `code.html`, and `screen.png`) featuring the *Autonomous Placement Architecture* theme.
@@ -58,24 +57,28 @@ The following functionality and design architecture has been implemented during 
   - `layout/Footer.tsx`: Enterprise footer with brand marks, security, privacy, terms, and copyright.
   - `pages/LandingPage.tsx`: Modular assembly of all landing page components.
 
+#### 🗄️ Backend Data Architecture Expansion
+- **Company Staff Support**:
+  - Created [CompanyStaffProfile.cs](backend-dotnet/Models/CompanyStaffProfile.cs) model linking staff members (`FullName`, `StaffId`, `JobPosition`) to `User` and an existing `CompanyProfile`.
+  - Added `ContactPersonName` (HR Name) and `Phone` (Contact Number) fields to [CompanyProfile.cs](backend-dotnet/Models/CompanyProfile.cs).
+  - Configured fluent mappings, cascade deletes, and navigation properties in [AppDbContext.cs](backend-dotnet/Data/AppDbContext.cs).
+  - Generated and applied EF Core migration `20260919155201_AddCompanyStaffProfileAndContactDetails` to the cloud Supabase PostgreSQL database.
+
 ---
 
-## 🚀 Running the Web Frontend Locally
+## 🚀 Running the Services Locally
 
+### 1. Web Frontend
 ```bash
-# Navigate to the frontend directory
 cd frontend-react
-
-# Install dependencies
 npm install
-
-# Start Vite development server
 npm run dev
-
-# Build for production
-npm run build
-
-# Run linter
-npm run lint
 ```
-The application will be accessible at `http://localhost:5173`.
+
+### 2. Backend Web API
+```bash
+cd backend-dotnet
+dotnet restore
+dotnet run
+```
+Swagger UI will be accessible at `https://localhost:7198/swagger` (or `http://localhost:5168/swagger`).
