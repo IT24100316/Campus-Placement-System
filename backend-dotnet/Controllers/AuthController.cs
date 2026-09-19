@@ -20,6 +20,60 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
+    /// Authenticate User (Admin, Company HR, Company Staff)
+    /// </summary>
+    [HttpPost("login")]
+    public async Task<IActionResult> Login([FromBody] LoginDto dto)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        var user = await _context.Users
+            .Include(u => u.CompanyProfile)
+            .Include(u => u.CompanyStaffProfile)
+            .FirstOrDefaultAsync(u => u.Email.ToLower() == dto.Email.ToLower());
+
+        if (user == null)
+            return Unauthorized(new { message = "Invalid email or password credentials." });
+
+        var verifyResult = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, dto.Password);
+        if (verifyResult == PasswordVerificationResult.Failed)
+            return Unauthorized(new { message = "Invalid email or password credentials." });
+
+        // Check pending approval
+        if (user.Status == AccountStatus.Pending)
+        {
+            return Ok(new
+            {
+                success = false,
+                isPending = true,
+                message = "Your registration application is currently under administrative review.",
+                role = user.Role.ToString(),
+                status = user.Status.ToString(),
+                email = user.Email
+            });
+        }
+
+        if (user.Status == AccountStatus.Rejected)
+        {
+            return StatusCode(403, new
+            {
+                success = false,
+                message = "Your account application has been declined by the administrator."
+            });
+        }
+
+        return Ok(new
+        {
+            success = true,
+            email = user.Email,
+            role = user.Role.ToString(),
+            status = user.Status.ToString(),
+            message = "Authentication successful."
+        });
+    }
+
+    /// <summary>
     /// Register as Company HR (Creates User + CompanyProfile with Pending status)
     /// </summary>
     [HttpPost("register-hr")]
