@@ -55,11 +55,13 @@ The following components and foundations were established in the original projec
 
 #### 📝 Company-Side Registration & Approval Engine
 - **Design References**: Adapted from `UI/registration` and `UI/registration_prending` Google Stitch designs.
-- **Role Switcher**: Seamless tabbed toggle between **Company HR** (administrative authority) and **Company Staff** (technical interviewer).
-- **Form Architecture & Real-Time Validations**:
-  - **Company HR**: Full Name, Corporate Email, Password (with live strength meter), Confirm Password, Registered Company Name, Industry Sector dropdown, Contact Telephone, and Business Registration (BR) Document dropzone (supports PDF/PNG/JPG up to 10MB).
-  - **Company Staff**: Full Name, Corporate Email, Password, Confirm Password, Select Existing Company dropdown (dynamically feeds newly approved entities), Employee ID, and Job Designation.
-  - Inline error notifications under each invalid input with real-time feedback.
+- **Employer / Company Registration**:
+  - Dedicated exclusively to corporate employer onboarding.
+  - Required fields: Representative Full Name, Corporate Email, Password (with live strength meter), Confirm Password, Registered Company Name, Industry Sector dropdown, Contact Telephone, and Business Registration (BR) Document dropzone (supports PDF/PNG/JPG up to 10MB).
+  - Real-time inline field validations & password strength indicator.
+- **Internal Staff Provisioning via Admin Cockpit**:
+  - Staff members and technical interviewers are directly provisioned by institutional administrators via the **`+ Provision Staff Member`** dialog in `AdminApprovalsView.tsx`.
+  - Provisioned staff are immediately assigned `Approved` status, associated with their employer organization, and granted access.
 - **Pending Approval Screen (`PendingApprovalScreen.tsx`)**:
   - Displays **Pending • Waiting for Admin Approval** badge.
   - Generates institutional reference code (`Ref: REG-2025-XXXXX`).
@@ -68,8 +70,9 @@ The following components and foundations were established in the original projec
 - **Admin Approvals Dashboard (`AdminApprovalsView.tsx`)**:
   - Administrative oversight table with KPI counters (*Waiting Approval*, *Company HRs*, *Company Staff*, *Authorized Total*).
   - Role filter tabs (*All*, *Pending*, *HR Accounts*, *Staff Accounts*).
+  - Direct **+ Provision Staff** management action.
   - Full application review modal with BR document inspect view.
-  - Interactive **Approve** and **Reject** actions. Approving an HR user automatically adds their company to the Staff registration dropdown.
+  - Interactive **Approve** and **Reject** actions.
 - **Login Page & Dedicated Authentication Engine (`LoginPage.tsx`, `LoginModal.tsx`)**:
   - **Design Reference**: Faithfully implemented following the Google Stitch design specification (`UI/Login/DESIGN.md`, `code.html`, and `screen.png`).
   - **3-Role Segmented Switcher**:
@@ -79,7 +82,7 @@ The following components and foundations were established in the original projec
   - **Context Guidance**: Role-specific contextual security guidance and dynamic domain badges for each role.
   - **Security Badges & Banners**: 256-bit TLS, FERPA/SOC-2 certifications, MFA indicators, and real-time application lifecycle lookup.
   - **Pending-Detection Routing**: Automatically intercepts pending accounts and routes applicants to their real-time verification lifecycle.
-  - **Direct Cockpit Routing**: Instant navigation into the **Admin Approvals Cockpit** upon administrator login.
+  - **Strict Role-Based Admin Access**: Direct unauthenticated Admin links removed from landing page navbar and dock; Admin dashboard access is secured behind institutional admin login.
 
 #### 🗄️ Backend Data Architecture & API Controllers
 - **Models & Migration**:

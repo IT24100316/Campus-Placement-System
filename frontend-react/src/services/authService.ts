@@ -272,6 +272,36 @@ export const authService = {
     return newRecord;
   },
 
+  addStaffByAdmin(data: {
+    fullName: string;
+    email: string;
+    phone?: string;
+    companyName: string;
+    staffId: string;
+    jobPosition: string;
+  }): RegistrationRecord {
+    const refCode = `STF-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`;
+    const newRecord: RegistrationRecord = {
+      id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+      role: 'staff',
+      fullName: data.fullName,
+      email: data.email,
+      phone: data.phone || '+1 (555) 000-0000',
+      companyName: data.companyName,
+      staffId: data.staffId,
+      jobPosition: data.jobPosition,
+      status: 'Approved', // Pre-authorized directly by Admin
+      submittedAt: 'Today, ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      refCode,
+    };
+
+    const current = this.getRegistrations();
+    const updated = [newRecord, ...current];
+    localStorage.setItem(STORAGE_KEY_REGISTRATIONS, JSON.stringify(updated));
+
+    return newRecord;
+  },
+
   updateStatus(id: string, status: 'Approved' | 'Rejected'): RegistrationRecord[] {
     const current = this.getRegistrations();
     const target = current.find((r) => r.id === id);

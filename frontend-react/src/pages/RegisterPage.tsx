@@ -7,14 +7,12 @@ import { Footer } from '../components/layout/Footer';
 
 interface RegisterPageProps {
   onBackToHome: () => void;
-  onGoToAdmin: () => void;
   initialPendingRecord?: RegistrationRecord | null;
   onOpenLogin?: () => void;
 }
 
 export const RegisterPage: React.FC<RegisterPageProps> = ({
   onBackToHome,
-  onGoToAdmin,
   initialPendingRecord = null,
   onOpenLogin,
 }) => {
@@ -27,7 +25,6 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({
       <Navbar
         onNavigateHome={onBackToHome}
         onNavigateRegister={() => setSubmittedRecord(null)}
-        onNavigateAdmin={onGoToAdmin}
         onOpenLogin={onOpenLogin}
       />
 

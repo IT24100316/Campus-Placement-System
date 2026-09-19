@@ -4,7 +4,7 @@ import { RegisterPage } from './pages/RegisterPage';
 import { AdminDashboardPage } from './pages/AdminDashboardPage';
 import { LoginPage } from './pages/LoginPage';
 import { LoginModal } from './components/auth/LoginModal';
-import { Sparkles, Shield, UserPlus, Home, LogIn } from 'lucide-react';
+import { Sparkles, UserPlus, Home, LogIn } from 'lucide-react';
 import type { RegistrationRecord } from './types/auth';
 
 export type AppView = 'landing' | 'register' | 'login' | 'admin';
@@ -24,10 +24,6 @@ function App() {
             setCurrentView('register');
             window.scrollTo({ top: 0, behavior: 'smooth' });
           }}
-          onNavigateAdmin={() => {
-            setCurrentView('admin');
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-          }}
           onOpenLogin={() => {
             setCurrentView('login');
             window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -42,10 +38,6 @@ function App() {
           onBackToHome={() => {
             setPendingRecordForView(null);
             setCurrentView('landing');
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-          }}
-          onGoToAdmin={() => {
-            setCurrentView('admin');
             window.scrollTo({ top: 0, behavior: 'smooth' });
           }}
           onOpenLogin={() => {
@@ -175,22 +167,6 @@ function App() {
         >
           <LogIn className="w-3.5 h-3.5" />
           <span>Login</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            setCurrentView('admin');
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-          }}
-          className={`flex items-center gap-1 px-3 py-1.5 rounded-full transition-all cursor-pointer ${
-            currentView === 'admin'
-              ? 'bg-primary text-white font-semibold'
-              : 'text-slate-300 hover:text-white hover:bg-slate-800'
-          }`}
-        >
-          <Shield className="w-3.5 h-3.5" />
-          <span>Admin</span>
         </button>
       </div>
     </div>

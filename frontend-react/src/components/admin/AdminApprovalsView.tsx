@@ -12,6 +12,7 @@ import {
   XCircle,
   Filter,
   ArrowLeft,
+  UserPlus,
 } from 'lucide-react';
 import type { RegistrationRecord, AccountApprovalStatus } from '../../types/auth';
 import { authService } from '../../services/authService';
@@ -28,6 +29,15 @@ export const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
   const [records, setRecords] = useState<RegistrationRecord[]>([]);
   const [filter, setFilter] = useState<'all' | 'hr' | 'staff' | 'pending'>('pending');
   const [selectedRecord, setSelectedRecord] = useState<RegistrationRecord | null>(null);
+
+  // Add Staff Modal State
+  const [isAddStaffOpen, setIsAddStaffOpen] = useState(false);
+  const [newStaffName, setNewStaffName] = useState('');
+  const [newStaffEmail, setNewStaffEmail] = useState('');
+  const [newStaffId, setNewStaffId] = useState('');
+  const [newStaffJobPosition, setNewStaffJobPosition] = useState('Placement Coordinator');
+  const [newStaffAffiliation, setNewStaffAffiliation] = useState('University Placement Cell');
+  const [newStaffError, setNewStaffError] = useState('');
 
   useEffect(() => {
     setRecords(authService.getRegistrations());
@@ -99,15 +109,26 @@ export const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
         <div className="flex items-center gap-3">
           <button
             type="button"
-            onClick={onNavigateRegister}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-all shadow-sm cursor-pointer"
+            onClick={() => {
+              setIsAddStaffOpen(true);
+              setNewStaffError('');
+            }}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition-all shadow-sm cursor-pointer"
           >
-            <span>+ Test New Registration</span>
+            <UserPlus className="w-4 h-4" />
+            <span>+ Provision Staff</span>
+          </button>
+          <button
+            type="button"
+            onClick={onNavigateRegister}
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-all shadow-sm cursor-pointer"
+          >
+            <span>+ Register Employer</span>
           </button>
           <button
             type="button"
             onClick={onBackToHome}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary hover:bg-blue-700 text-white text-xs font-semibold transition-all shadow-sm cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-primary hover:bg-blue-700 text-white text-xs font-semibold transition-all shadow-sm cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4" />
             <span>Back to Portal</span>
@@ -469,6 +490,161 @@ export const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Provision Staff Member Modal */}
+      {isAddStaffOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-lg p-6 relative">
+            <button
+              type="button"
+              onClick={() => setIsAddStaffOpen(false)}
+              className="absolute right-4 top-4 p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+                <UserPlus className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-slate-900">Provision Staff Member</h3>
+                <p className="text-xs text-slate-500">
+                  Authorize an internal placement coordinator or company interviewer seat.
+                </p>
+              </div>
+            </div>
+
+            {newStaffError && (
+              <div className="mb-4 p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
+                <XCircle className="w-4 h-4 shrink-0" />
+                <span>{newStaffError}</span>
+              </div>
+            )}
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!newStaffName.trim() || !newStaffEmail.trim() || !newStaffId.trim()) {
+                  setNewStaffError('Please provide staff name, official email, and staff ID.');
+                  return;
+                }
+                authService.addStaffByAdmin({
+                  fullName: newStaffName.trim(),
+                  email: newStaffEmail.trim().toLowerCase(),
+                  staffId: newStaffId.trim(),
+                  jobPosition: newStaffJobPosition.trim() || 'Placement Coordinator',
+                  companyName: newStaffAffiliation.trim() || 'University Placement Cell',
+                });
+                setRecords(authService.getRegistrations());
+                setFilter('staff');
+                setIsAddStaffOpen(false);
+                setNewStaffName('');
+                setNewStaffEmail('');
+                setNewStaffId('');
+              }}
+              className="space-y-4"
+            >
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1" htmlFor="staff-name">
+                  Full Name <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  id="staff-name"
+                  type="text"
+                  required
+                  value={newStaffName}
+                  onChange={(e) => setNewStaffName(e.target.value)}
+                  placeholder="e.g. Dr. Ronald Chen"
+                  className="w-full h-10 px-3.5 rounded-lg border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-600"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1" htmlFor="staff-email">
+                    Staff Email Address <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    id="staff-email"
+                    type="email"
+                    required
+                    value={newStaffEmail}
+                    onChange={(e) => setNewStaffEmail(e.target.value)}
+                    placeholder="r.chen@campusai.edu"
+                    className="w-full h-10 px-3.5 rounded-lg border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-600"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1" htmlFor="staff-id">
+                    Staff / Faculty ID <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    id="staff-id"
+                    type="text"
+                    required
+                    value={newStaffId}
+                    onChange={(e) => setNewStaffId(e.target.value)}
+                    placeholder="e.g. STF-2025-042"
+                    className="w-full h-10 px-3.5 rounded-lg border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-600"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1" htmlFor="staff-role">
+                    Role / Job Designation <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    id="staff-role"
+                    type="text"
+                    required
+                    value={newStaffJobPosition}
+                    onChange={(e) => setNewStaffJobPosition(e.target.value)}
+                    placeholder="Placement Coordinator"
+                    className="w-full h-10 px-3.5 rounded-lg border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-600"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1" htmlFor="staff-dept">
+                    Department / Organization <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    id="staff-dept"
+                    type="text"
+                    required
+                    value={newStaffAffiliation}
+                    onChange={(e) => setNewStaffAffiliation(e.target.value)}
+                    placeholder="University Placement Cell"
+                    className="w-full h-10 px-3.5 rounded-lg border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-600"
+                  />
+                </div>
+              </div>
+
+              <div className="p-3 bg-indigo-50/70 border border-indigo-100 rounded-lg text-[11px] text-indigo-900">
+                <span>Account will be provisioned in <strong>Approved</strong> status immediately. The staff member can sign in under the Staff tab on the login portal.</span>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsAddStaffOpen(false)}
+                  className="px-4 py-2 rounded-lg text-slate-600 hover:bg-slate-100 font-semibold text-xs transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs shadow-sm transition-all cursor-pointer"
+                >
+                  Authorize Staff Member
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

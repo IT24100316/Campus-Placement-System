@@ -155,14 +155,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
               onClick={onNavigateRegister}
               className="text-xs font-semibold text-slate-600 hover:text-primary transition-colors cursor-pointer"
             >
-              Recruiter Onboarding
-            </button>
-            <button
-              type="button"
-              onClick={onNavigateRegister}
-              className="text-xs font-semibold text-slate-600 hover:text-primary transition-colors cursor-pointer"
-            >
-              Candidate Registration
+              Employer Registration
             </button>
           </nav>
 
@@ -467,14 +460,17 @@ export const LoginPage: React.FC<LoginPageProps> = ({
           {/* Registration Redirect Footer */}
           <div className="mt-6 pt-4 text-center border-t border-slate-100">
             <p className="text-xs text-slate-500">
-              Don't have a verified account yet?{' '}
+              Don't have a verified employer account yet?{' '}
               <button
                 type="button"
                 onClick={onNavigateRegister}
                 className="font-bold text-primary hover:underline ml-0.5 cursor-pointer"
               >
-                Register your company or staff &rarr;
+                Register your company &rarr;
               </button>
+            </p>
+            <p className="text-[11px] text-slate-400 mt-1">
+              (Company Staff accounts are provisioned directly by placement administration)
             </p>
           </div>
         </div>

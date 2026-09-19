@@ -79,7 +79,7 @@ src/
 - React 19 + TypeScript + Vite boilerplate.
 
 ### Completed Work (Current Development)
-- [x] Configure Google Fonts (`Plus Jakarta Sans`, `Inter`, `Material Symbols Outlined`).
+- [x] Configure Google Fonts (`Plus Jakarta Sans`, `Inter`, `JetBrains Mono`, `Material Symbols Outlined`).
 - [x] Configure Tailwind CSS design tokens and theme extensions.
 - [x] Responsive Navigation Bar with mobile toggle drawer.
 - [x] Hero section with university trust strip and Candidate Match Preview card.
@@ -89,15 +89,19 @@ src/
 - [x] Call-To-Action conversion section.
 - [x] Enterprise Footer.
 - [x] Page composition and responsive layout integration.
-- [x] **Recruiter Registration Flow**:
-  - [x] Tabbed Role Switcher (**Company HR** vs **Company Staff**).
-  - [x] Tailored fields for HR (Company, Industry, Phone, BR Document upload).
-  - [x] Tailored fields for Staff (Dynamic Company dropdown, Staff ID, Job Title).
+- [x] **Employer / Company Registration Flow**:
+  - [x] Dedicated employer registration with Representative Info, Company Details & BR Document upload.
   - [x] Real-time inline field validations & password strength indicator.
+  - [x] Internal staff provisioning moved to Admin Approvals Cockpit (`+ Provision Staff Member`).
+  - [x] Role-based admin access protection (unauthenticated shortcuts removed).
 - [x] **Pending Approval Screen**:
   - [x] Reference code generator (`Ref: REG-2025-XXXXX`).
   - [x] 4-stage verification lifecycle stepper.
   - [x] Submitted profile summary card with attached document pill.
+- [x] **Dedicated 3-Role Login Portal**:
+  - [x] Full-page view supporting Company HR, Company Staff, and Institutional Admin.
+  - [x] Real credential validation with no demo auto-fill shortcuts.
+  - [x] Consistent typography (`Inter` & `JetBrains Mono`).
 - [x] **Admin Approvals Dashboard**:
   - [x] KPI statistics banner (*Waiting Approval*, *Company HRs*, *Company Staff*, *Authorized Total*).
   - [x] Filter tabs (*Pending*, *All*, *HR*, *Staff*).
