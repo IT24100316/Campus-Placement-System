@@ -1,75 +1,87 @@
-# React + TypeScript + Vite
+# 💻 Campus Placement System — Web Frontend (`frontend-react`)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Modern web portal for the Campus Placement System, built with **React 19**, **TypeScript**, **Vite**, and **Tailwind CSS**.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 🎨 Design System & Reference
 
-## React Compiler
+The UI design is adapted from the Google Stitch design reference located in [`UI/LandingPage`](../UI/LandingPage/):
+- **Design Specification**: `UI/LandingPage/DESIGN.md` (*Autonomous Placement Architecture*)
+- **Layout & Structure Reference**: `UI/LandingPage/code.html`
+- **Visual Reference**: `UI/LandingPage/screen.png`
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### Typography & Colors
+- **Display & Headings**: `Plus Jakarta Sans` (weights 500, 600, 700, 800) with kerning `-0.01em` to `-0.02em`.
+- **Body & Metadata**: `Inter` (weights 400, 500, 600, 700).
+- **Icons**: `Material Symbols Outlined`.
+- **Color Palette**:
+  - `primary`: `#004ac6` / `#2563eb` (Royal Blue)
+  - `secondary`: `#4b41e1` (Indigo)
+  - `on-surface`: `#0b1c30` / `#0f172a` (Slate 900)
+  - `on-surface-variant`: `#5a687d` / `#334155` (Slate 700)
+  - `outline`: `#e2e8f0` (Slate 200 hairline borders)
+  - `surface-container-low`: `#f8fafc` (Slate 50 canvas)
+  - `surface`: `#ffffff` (Card background)
 
-## Expanding the ESLint configuration
+---
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## 📂 Component Architecture
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```text
+src/
+├── components/
+│   ├── layout/
+│   │   ├── Navbar.tsx         # Fixed blur navigation with branding, anchor links, and mobile drawer
+│   │   └── Footer.tsx         # Lightweight enterprise footer with policies & copyright
+│   └── landing/
+│       ├── Hero.tsx           # Value proposition, trust strip, and candidate match card
+│       ├── Metrics.tsx        # 4-column statistical milestones banner
+│       ├── Features.tsx       # 3 clean feature cards (Matching, Summarization, Scheduling)
+│       ├── DualAudience.tsx   # Two-column value props for Company HRs vs University Admins
+│       └── CallToAction.tsx   # Conversion block with registration and contact actions
+├── pages/
+│   └── LandingPage.tsx        # Page composition combining layout & landing sections
+├── App.tsx                    # Root application component
+├── index.css                  # Base layout resets, typography tokens & scroll behaviors
+└── main.tsx                   # Application bootstrap
 ```
 
-You can also install [eslint-plugin-react-x](https://npmx.dev/package/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://npmx.dev/package/eslint-plugin-react-dom) for React-specific lint rules:
+---
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## 📌 Implementation Status
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### Cloned Setup (Pre-existing)
+- React 19 + TypeScript + Vite boilerplate.
 
+### Completed Work (Current Development)
+- [x] Configure Google Fonts (`Plus Jakarta Sans`, `Inter`, `Material Symbols Outlined`).
+- [x] Configure Tailwind CSS design tokens and theme extensions.
+- [x] Responsive Navigation Bar with mobile toggle drawer.
+- [x] Hero section with university trust strip and Candidate Match Preview card.
+- [x] Metrics ribbon with placement milestones.
+- [x] Core Features grid.
+- [x] Dual-Audience section for Company HRs & University Admins.
+- [x] Call-To-Action conversion section.
+- [x] Enterprise Footer.
+- [x] Page composition and responsive layout integration.
+
+---
+
+## 🛠️ Available Scripts
+
+In the `frontend-react` directory, you can run:
+
+```bash
+# Start local development server (http://localhost:5173)
+npm run dev
+
+# Build for production with TypeScript type-checking
+npm run build
+
+# Run ESLint validation
+npm run lint
+
+# Preview the production build locally
+npm run preview
 ```
