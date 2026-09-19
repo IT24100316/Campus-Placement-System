@@ -269,7 +269,7 @@ export const PendingApprovalScreen: React.FC<PendingApprovalScreenProps> = ({
           className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs transition-all cursor-pointer"
         >
           <UserPlus className="w-4 h-4" />
-          <span>Register Another</span>
+          <span>Register Another Company</span>
         </button>
       </div>
     </div>
