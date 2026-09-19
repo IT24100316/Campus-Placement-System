@@ -1,20 +1,20 @@
 # 💻 Campus Placement System — Web Frontend (`frontend-react`)
 
-Modern web portal for the Campus Placement System, built with **React 19**, **TypeScript**, **Vite**, and **Tailwind CSS**.
+Modern web portal for the Campus Placement System, built with **React 19**, **TypeScript**, **Vite**, **Tailwind CSS**, and **Lucide React**.
 
 ---
 
 ## 🎨 Design System & Reference
 
-The UI design is adapted from the Google Stitch design reference located in [`UI/LandingPage`](../UI/LandingPage/):
-- **Design Specification**: `UI/LandingPage/DESIGN.md` (*Autonomous Placement Architecture*)
-- **Layout & Structure Reference**: `UI/LandingPage/code.html`
-- **Visual Reference**: `UI/LandingPage/screen.png`
+The UI design is adapted from the Google Stitch design references:
+- **Landing Page**: `UI/LandingPage/` (*Autonomous Placement Architecture*)
+- **Recruiter Registration**: `UI/registration/`
+- **Pending Approval Screen**: `UI/registration_prending/`
 
 ### Typography & Colors
 - **Display & Headings**: `Plus Jakarta Sans` (weights 500, 600, 700, 800) with kerning `-0.01em` to `-0.02em`.
 - **Body & Metadata**: `Inter` (weights 400, 500, 600, 700).
-- **Icons**: `Material Symbols Outlined`.
+- **Icons**: `Lucide React` and `Material Symbols Outlined`.
 - **Color Palette**:
   - `primary`: `#004ac6` / `#2563eb` (Royal Blue)
   - `secondary`: `#4b41e1` (Indigo)
@@ -30,19 +30,30 @@ The UI design is adapted from the Google Stitch design reference located in [`UI
 
 ```text
 src/
+├── types/
+│   └── auth.ts                # TypeScript interfaces for HR, Staff, Status, and Companies
+├── services/
+│   └── authService.ts         # Persistent data layer with .NET backend API sync & fallback
 ├── components/
 │   ├── layout/
-│   │   ├── Navbar.tsx         # Fixed blur navigation with branding, anchor links, and mobile drawer
+│   │   ├── Navbar.tsx         # Fixed blur navigation with brand logo, anchor links, and mobile drawer
 │   │   └── Footer.tsx         # Lightweight enterprise footer with policies & copyright
-│   └── landing/
-│       ├── Hero.tsx           # Value proposition, trust strip, and candidate match card
-│       ├── Metrics.tsx        # 4-column statistical milestones banner
-│       ├── Features.tsx       # 3 clean feature cards (Matching, Summarization, Scheduling)
-│       ├── DualAudience.tsx   # Two-column value props for Company HRs vs University Admins
-│       └── CallToAction.tsx   # Conversion block with registration and contact actions
+│   ├── landing/
+│   │   ├── Hero.tsx           # Value proposition, trust strip, and candidate match card
+│   │   ├── Metrics.tsx        # 4-column statistical milestones banner
+│   │   ├── Features.tsx       # 3 clean feature cards (Matching, Summarization, Scheduling)
+│   │   ├── DualAudience.tsx   # Two-column value props for Company HRs vs University Admins
+│   │   └── CallToAction.tsx   # Conversion block with registration actions
+│   ├── auth/
+│   │   ├── RegisterForm.tsx   # Recruiter registration with HR vs Staff tab toggle & validations
+│   │   └── PendingApprovalScreen.tsx # 4-step verification stepper & profile summary card
+│   └── admin/
+│       └── AdminApprovalsView.tsx # Administrative oversight table to review, approve & reject accounts
 ├── pages/
-│   └── LandingPage.tsx        # Page composition combining layout & landing sections
-├── App.tsx                    # Root application component
+│   ├── LandingPage.tsx        # Full landing page layout
+│   ├── RegisterPage.tsx       # Registration flow manager (Form -> Pending screen)
+│   └── AdminDashboardPage.tsx # Admin review portal
+├── App.tsx                    # Top-level view routing & floating navigation switcher
 ├── index.css                  # Base layout resets, typography tokens & scroll behaviors
 └── main.tsx                   # Application bootstrap
 ```
@@ -65,6 +76,21 @@ src/
 - [x] Call-To-Action conversion section.
 - [x] Enterprise Footer.
 - [x] Page composition and responsive layout integration.
+- [x] **Recruiter Registration Flow**:
+  - [x] Tabbed Role Switcher (**Company HR** vs **Company Staff**).
+  - [x] Tailored fields for HR (Company, Industry, Phone, BR Document upload).
+  - [x] Tailored fields for Staff (Dynamic Company dropdown, Staff ID, Job Title).
+  - [x] Real-time inline field validations & password strength indicator.
+- [x] **Pending Approval Screen**:
+  - [x] Reference code generator (`Ref: REG-2025-XXXXX`).
+  - [x] 4-stage verification lifecycle stepper.
+  - [x] Submitted profile summary card with attached document pill.
+- [x] **Admin Approvals Dashboard**:
+  - [x] KPI statistics banner (*Waiting Approval*, *Company HRs*, *Company Staff*, *Authorized Total*).
+  - [x] Filter tabs (*Pending*, *All*, *HR*, *Staff*).
+  - [x] Document preview modal with one-click **Approve** and **Reject** actions.
+  - [x] Approving an HR company automatically populates it into the Staff registration dropdown!
+- [x] Seamless navigation routing between Landing Page, Registration, and Admin Portal.
 
 ---
 

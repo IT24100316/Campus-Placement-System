@@ -44,25 +44,47 @@ The following components and foundations were established in the original projec
 
 #### 🌐 Landing Page UI & Experience
 - **Design Reference**: Faithfully adapted from the Google Stitch design specification (`UI/LandingPage/DESIGN.md`, `code.html`, and `screen.png`) featuring the *Autonomous Placement Architecture* theme.
-- **Design Tokens & Typography**:
-  - Configured Google Fonts: **Plus Jakarta Sans** (Headlines & Display), **Inter** (Body & Labels), and **Material Symbols Outlined**.
-  - Tailwind CSS integration with curated institutional color palette (`primary`: `#004ac6`, `primary-container`: `#2563eb`, `secondary`: `#4b41e1`, `surface-container-low`: `#f8fafc`, crisp 1px hairline borders).
-- **Component Architecture (`frontend-react/src/components/`)**:
-  - `layout/Navbar.tsx`: Sticky top navigation bar with blur backdrop, brand identity, section anchor links, action buttons, and responsive mobile toggle drawer.
-  - `landing/Hero.tsx`: High-impact hero section with value proposition pill, call-to-action buttons, university trust strip (`IIT Delhi`, `BITS Pilani`, `Stanford CS`, `IIT Bombay`, `NUS Singapore`), and interactive **Candidate Match Preview Card** featuring confidence score, skill chips, benchmark rankings, and auto-scheduling indicator.
-  - `landing/Metrics.tsx`: 4-column statistical milestone banner (`36 Hours` time to offer, `94.2%` retention, `120K+` verified profiles, `0 Bias` evaluations).
-  - `landing/Features.tsx`: 3 clean purpose-built feature cards (*Semantic Skill Matching*, *AI CV Summarization*, *Automated Interview Scheduling*).
-  - `landing/DualAudience.tsx`: Two-column value proposition section distinguishing benefits and tailored actions for **Company HRs** and **University Admins**.
-  - `landing/CallToAction.tsx`: Bottom conversion section encouraging company registration and sales inquiries.
-  - `layout/Footer.tsx`: Enterprise footer with brand marks, security, privacy, terms, and copyright.
-  - `pages/LandingPage.tsx`: Modular assembly of all landing page components.
+- **Component Architecture (`frontend-react/src/components/landing/`)**:
+  - `Navbar.tsx`: Sticky top navigation bar with blur backdrop, brand identity, anchor links, action buttons, and responsive drawer.
+  - `Hero.tsx`: High-impact hero section with value proposition pill, call-to-action buttons, university trust strip, and interactive **Candidate Match Preview Card**.
+  - `Metrics.tsx`: 4-column statistical milestone banner (`36 Hours`, `94.2%`, `120K+`, `0 Bias`).
+  - `Features.tsx`: 3 clean purpose-built feature cards (*Semantic Skill Matching*, *AI CV Summarization*, *Automated Interview Scheduling*).
+  - `DualAudience.tsx`: Two-column value proposition distinguishing benefits for **Company HRs** and **University Admins**.
+  - `CallToAction.tsx`: Bottom conversion section.
+  - `Footer.tsx`: Enterprise footer with policies and copyright.
 
-#### 🗄️ Backend Data Architecture Expansion
-- **Company Staff Support**:
+#### 📝 Company-Side Registration & Approval Engine
+- **Design References**: Adapted from `UI/registration` and `UI/registration_prending` Google Stitch designs.
+- **Role Switcher**: Seamless tabbed toggle between **Company HR** (administrative authority) and **Company Staff** (technical interviewer).
+- **Form Architecture & Real-Time Validations**:
+  - **Company HR**: Full Name, Corporate Email, Password (with live strength meter), Confirm Password, Registered Company Name, Industry Sector dropdown, Contact Telephone, and Business Registration (BR) Document dropzone (supports PDF/PNG/JPG up to 10MB).
+  - **Company Staff**: Full Name, Corporate Email, Password, Confirm Password, Select Existing Company dropdown (dynamically feeds newly approved entities), Employee ID, and Job Designation.
+  - Inline error notifications under each invalid input with real-time feedback.
+- **Pending Approval Screen (`PendingApprovalScreen.tsx`)**:
+  - Displays **Pending • Waiting for Admin Approval** badge.
+  - Generates institutional reference code (`Ref: REG-2025-XXXXX`).
+  - Verification Stepper: 4-stage lifecycle (Application Submitted, Document Verification, Admin Sign-off, Account Activation).
+  - Profile Summary Card detailing applicant details, company metadata, and encrypted document preview.
+- **Admin Approvals Dashboard (`AdminApprovalsView.tsx`)**:
+  - Administrative oversight table with KPI counters (*Waiting Approval*, *Company HRs*, *Company Staff*, *Authorized Total*).
+  - Role filter tabs (*All*, *Pending*, *HR Accounts*, *Staff Accounts*).
+  - Full application review modal with BR document inspect view.
+  - Interactive **Approve** and **Reject** actions. Approving an HR user automatically adds their company to the Staff registration dropdown.
+
+#### 🗄️ Backend Data Architecture & API Controllers
+- **Models & Migration**:
   - Created [CompanyStaffProfile.cs](backend-dotnet/Models/CompanyStaffProfile.cs) model linking staff members (`FullName`, `StaffId`, `JobPosition`) to `User` and an existing `CompanyProfile`.
-  - Added `ContactPersonName` (HR Name) and `Phone` (Contact Number) fields to [CompanyProfile.cs](backend-dotnet/Models/CompanyProfile.cs).
-  - Configured fluent mappings, cascade deletes, and navigation properties in [AppDbContext.cs](backend-dotnet/Data/AppDbContext.cs).
-  - Generated and applied EF Core migration `20260919155201_AddCompanyStaffProfileAndContactDetails` to the cloud Supabase PostgreSQL database.
+  - Added `ContactPersonName` and `Phone` fields to [CompanyProfile.cs](backend-dotnet/Models/CompanyProfile.cs).
+  - Applied EF Core migration `20260919155201_AddCompanyStaffProfileAndContactDetails` to the cloud Supabase PostgreSQL database.
+- **Controllers & DTOs**:
+  - [AuthController.cs](backend-dotnet/Controllers/AuthController.cs):
+    - `POST /api/auth/register-hr`: Validates unique email, hashes password with `PasswordHasher<User>`, creates `User` + `CompanyProfile` with `Pending` status.
+    - `POST /api/auth/register-staff`: Links staff member to selected company with `Pending` status.
+    - `GET /api/auth/companies`: Provides approved company directory for staff registration.
+  - [AdminController.cs](backend-dotnet/Controllers/AdminController.cs):
+    - `GET /api/admin/pending-approvals`: Lists all pending registrations with profile and document data.
+    - `POST /api/admin/approve/{userId}`: Sets user status to `Approved`.
+    - `POST /api/admin/reject/{userId}`: Sets user status to `Rejected`.
 
 ---
 
@@ -74,6 +96,7 @@ cd frontend-react
 npm install
 npm run dev
 ```
+Accessible at `http://localhost:5173`. Use the bottom-right floating switcher or the Navbar "Register" / "Login to Dashboard" buttons to navigate across the **Landing Page**, **Registration Flow**, and **Admin Approvals Dashboard**.
 
 ### 2. Backend Web API
 ```bash
@@ -81,4 +104,4 @@ cd backend-dotnet
 dotnet restore
 dotnet run
 ```
-Swagger UI will be accessible at `https://localhost:7198/swagger` (or `http://localhost:5168/swagger`).
+Swagger UI will be accessible at `http://localhost:5168/swagger`.
