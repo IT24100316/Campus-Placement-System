@@ -42,7 +42,6 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({
             record={submittedRecord}
             onBackHome={onBackToHome}
             onRegisterAnother={() => setSubmittedRecord(null)}
-            onGoToAdmin={onGoToAdmin}
           />
         )}
       </main>

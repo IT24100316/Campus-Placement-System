@@ -17,14 +17,12 @@ interface PendingApprovalScreenProps {
   record: RegistrationRecord;
   onBackHome: () => void;
   onRegisterAnother: () => void;
-  onGoToAdmin: () => void;
 }
 
 export const PendingApprovalScreen: React.FC<PendingApprovalScreenProps> = ({
   record,
   onBackHome,
   onRegisterAnother,
-  onGoToAdmin,
 }) => {
   return (
     <div className="w-full max-w-2xl mx-auto py-8 px-4 sm:px-0 flex flex-col gap-6">
@@ -265,25 +263,14 @@ export const PendingApprovalScreen: React.FC<PendingApprovalScreenProps> = ({
           <span>Return to Home</span>
         </button>
 
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={onRegisterAnother}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs transition-all cursor-pointer"
-          >
-            <UserPlus className="w-4 h-4" />
-            <span>Register Another</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={onGoToAdmin}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary hover:bg-blue-700 text-white font-semibold text-xs transition-all shadow-sm cursor-pointer"
-          >
-            <ShieldCheck className="w-4 h-4" />
-            <span>Admin Review Panel &rarr;</span>
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={onRegisterAnother}
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs transition-all cursor-pointer"
+        >
+          <UserPlus className="w-4 h-4" />
+          <span>Register Another</span>
+        </button>
       </div>
     </div>
   );
