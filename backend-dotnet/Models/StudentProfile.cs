@@ -6,7 +6,6 @@ public class StudentProfile
     public string FullName { get; set; } = string.Empty;
     public string Phone { get; set; } = string.Empty;
     public string CampusIdPhotoUrl { get; set; } = string.Empty;
-    public string? PortfolioUrl { get; set; }
     public string UniversityName { get; set; } = string.Empty;
     public string AcademicStatus { get; set; } = string.Empty;
     public string DegreeProgram { get; set; } = string.Empty;
@@ -19,8 +18,6 @@ public class StudentProfile
     public string[] Skills { get; set; } = Array.Empty<string>();
     public string[] ToolsAndTechnologies { get; set; } = Array.Empty<string>();
     public string[] InternshipType { get; set; } = Array.Empty<string>();
-    public string LectureScheduleType { get; set; } = string.Empty;
-    public string[] PreferredLocations { get; set; } = Array.Empty<string>();
     public string CvPdfUrl { get; set; } = string.Empty;
 
     // Navigation property
