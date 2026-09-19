@@ -70,6 +70,11 @@ The following components and foundations were established in the original projec
   - Role filter tabs (*All*, *Pending*, *HR Accounts*, *Staff Accounts*).
   - Full application review modal with BR document inspect view.
   - Interactive **Approve** and **Reject** actions. Approving an HR user automatically adds their company to the Staff registration dropdown.
+- **Login Modal & Authentication Engine (`LoginModal.tsx`)**:
+  - Global authentication modal triggered from the Navbar and Hero buttons.
+  - Instant 1-click autofill chips for demo accounts (Institutional Admin & Pending Company HR).
+  - Pending-detection routing: attempts to sign in with an unapproved account gracefully route the user back to their active **Pending Approval Screen**.
+  - Direct routing into the **Admin Approvals Cockpit** upon institutional admin authentication.
 
 #### 🗄️ Backend Data Architecture & API Controllers
 - **Models & Migration**:
@@ -78,6 +83,7 @@ The following components and foundations were established in the original projec
   - Applied EF Core migration `20260919155201_AddCompanyStaffProfileAndContactDetails` to the cloud Supabase PostgreSQL database.
 - **Controllers & DTOs**:
   - [AuthController.cs](backend-dotnet/Controllers/AuthController.cs):
+    - `POST /api/auth/login`: Authenticates institutional administrators, Company HRs, and Staff users. Verifies hashed passwords and intercepts pending/rejected applications.
     - `POST /api/auth/register-hr`: Validates unique email, hashes password with `PasswordHasher<User>`, creates `User` + `CompanyProfile` with `Pending` status.
     - `POST /api/auth/register-staff`: Links staff member to selected company with `Pending` status.
     - `GET /api/auth/companies`: Provides approved company directory for staff registration.
@@ -85,6 +91,21 @@ The following components and foundations were established in the original projec
     - `GET /api/admin/pending-approvals`: Lists all pending registrations with profile and document data.
     - `POST /api/admin/approve/{userId}`: Sets user status to `Approved`.
     - `POST /api/admin/reject/{userId}`: Sets user status to `Rejected`.
+- **In-Built Admin Account Seeding**:
+  - `Program.cs` automatically seeds a single institutional administrator on service startup if one does not already exist:
+    - **Email**: `admin@campusai.edu`
+    - **Role**: `UserRole.Admin`
+    - **Status**: `AccountStatus.Approved`
+    - **Password**: `Admin@2025` (PBKDF2 SHA-256 hashed)
+
+---
+
+## 🔑 Demo & Test Credentials
+
+| Role | Email | Password | Behavior / Destination |
+| :--- | :--- | :--- | :--- |
+| **Institutional Admin** | `admin@campusai.edu` | `Admin@2025` | Authenticates directly into the **Admin Approvals Dashboard** |
+| **Pending Recruiter (HR)** | `c.vance@acmeglobal.tech` | `Vanguard#2024Secure!` | Intercepted & routed to the **Pending Approval Screen** |
 
 ---
 

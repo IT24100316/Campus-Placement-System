@@ -46,17 +46,27 @@ src/
 │   │   └── CallToAction.tsx   # Conversion block with registration actions
 │   ├── auth/
 │   │   ├── RegisterForm.tsx   # Recruiter registration with HR vs Staff tab toggle & validations
-│   │   └── PendingApprovalScreen.tsx # 4-step verification stepper & profile summary card
+│   │   ├── PendingApprovalScreen.tsx # 4-step verification stepper & profile summary card
+│   │   └── LoginModal.tsx     # Sign-in modal with instant 1-click autofill for Admin & Pending HR
 │   └── admin/
 │       └── AdminApprovalsView.tsx # Administrative oversight table to review, approve & reject accounts
 ├── pages/
 │   ├── LandingPage.tsx        # Full landing page layout
 │   ├── RegisterPage.tsx       # Registration flow manager (Form -> Pending screen)
 │   └── AdminDashboardPage.tsx # Admin review portal
-├── App.tsx                    # Top-level view routing & floating navigation switcher
+├── App.tsx                    # Top-level view routing, login modal host & floating switcher
 ├── index.css                  # Base layout resets, typography tokens & scroll behaviors
 └── main.tsx                   # Application bootstrap
 ```
+
+---
+
+## 🔑 Demo & Test Credentials
+
+| Role | Email | Password | Destination |
+| :--- | :--- | :--- | :--- |
+| **Institutional Admin** | `admin@campusai.edu` | `Admin@2025` | **Admin Approvals Dashboard** |
+| **Pending Recruiter (HR)** | `c.vance@acmeglobal.tech` | `Vanguard#2024Secure!` | **Pending Approval Screen** |
 
 ---
 
@@ -90,6 +100,10 @@ src/
   - [x] Filter tabs (*Pending*, *All*, *HR*, *Staff*).
   - [x] Document preview modal with one-click **Approve** and **Reject** actions.
   - [x] Approving an HR company automatically populates it into the Staff registration dropdown!
+- [x] **Authentication & Sign-in**:
+  - [x] Global login modal triggered from "Login to Dashboard" buttons.
+  - [x] 1-click autofill for Institutional Admin and Pending HR demo records.
+  - [x] Smart route handling: logs Admin into the Admin Dashboard; routes pending applicants to their Pending Approval status screen.
 - [x] Seamless navigation routing between Landing Page, Registration, and Admin Portal.
 
 ---
