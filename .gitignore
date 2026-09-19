@@ -1,0 +1,185 @@
+# ==========================================
+# Comprehensive .gitignore for Campus-Placement-System
+# Covers: .NET Core Backend, React Frontend, Flutter Frontend, Python AI Service, IDEs, and OS Files
+# ==========================================
+
+# ------------------------------------------
+# Environment & Secret Files (CRITICAL)
+# ------------------------------------------
+*.env
+*.env.local
+*.env.development.local
+*.env.test.local
+*.env.production.local
+appsettings.Development.json
+appsettings.Production.json
+appsettings.*.json
+!appsettings.json
+
+# ------------------------------------------
+# Python (ai-service-python)
+# ------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Environments
+.venv/
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# ------------------------------------------
+# .NET Core (backend-dotnet)
+# ------------------------------------------
+bin/
+obj/
+[Log]/
+[logs]/
+*.user
+*.userosscache
+*.sln.docstates
+*.userprefs
+*.suo
+
+# Entity Framework & SQL Server LocalDB / SQLite DBs
+*.db
+*.sqlite
+*.sqlite3
+
+# ------------------------------------------
+# Node / React Frontend (frontend-react)
+# ------------------------------------------
+node_modules/
+jspm_packages/
+.npm
+.eslintcache
+.stylelintcache
+.node_repl_history
+*.tgz
+.yarn-integrity
+.next/
+out/
+build/
+.cache/
+
+# ------------------------------------------
+# Flutter / Dart (frontend_flutter)
+# ------------------------------------------
+.dart_tool/
+.fvm/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+
+# Android specific (Flutter)
+**/android/app/debug/
+**/android/app/profile/
+**/android/app/release/
+**/android/app/build/
+**/android/.gradle/
+**/android/captures/
+**/android/gradlew
+**/android/gradlew.bat
+**/android/local.properties
+**/android/key.properties
+**/android/*.iml
+**/android/.idea/
+
+# iOS specific (Flutter)
+**/ios/Pods/
+**/ios/.symlinks/
+**/ios/profile/
+**/ios/debug/
+**/ios/Runner.xcworkspace/xcuserdata/
+**/ios/Runner.xcodeproj/xcuserdata/
+**/ios/Runner.xcodeproj/project.xcworkspace/xcuserdata/
+**/ios/.generated/
+**/ios/DerivedData/
+
+# Linux/macOS/Windows specific (Flutter desktop)
+**/windows/flutter/ephemeral/
+**/linux/flutter/ephemeral/
+**/macos/flutter/ephemeral/
+
+# ------------------------------------------
+# IDEs and Editors
+# ------------------------------------------
+# VS Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# Visual Studio
+.vs/
+
+# JetBrains (Rider, PyCharm, WebStorm, etc.)
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# Xcode
+*.moved-aside
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+*.hmap
+*.xccheckout
+*.moved-aside
+
+# ------------------------------------------
+# Operating System Files
+# ------------------------------------------
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msu
+*.deb
+*.dmg
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.Trashes
