@@ -1,6 +1,10 @@
 import React from 'react';
 
-export const DualAudience: React.FC = () => {
+interface DualAudienceProps {
+  onNavigateRegister?: () => void;
+}
+
+export const DualAudience: React.FC<DualAudienceProps> = ({ onNavigateRegister }) => {
   return (
     <section id="dual-audience" className="border-t border-slate-100 bg-slate-50/40 py-24">
       <div className="max-w-7xl mx-auto px-6">
@@ -51,15 +55,16 @@ export const DualAudience: React.FC = () => {
               </ul>
             </div>
             <div>
-              <a
-                href="#register-company"
-                className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:text-blue-700 group focus:outline-none"
+              <button
+                type="button"
+                onClick={onNavigateRegister}
+                className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:text-blue-700 group focus:outline-none cursor-pointer"
               >
                 <span>Register as Employer</span>
                 <span className="material-symbols-outlined text-[16px] group-hover:translate-x-0.5 transition-transform">
                   chevron_right
                 </span>
-              </a>
+              </button>
             </div>
           </div>
 

@@ -12,14 +12,28 @@ const navLinks: NavLink[] = [
   { label: 'Metrics', href: '#metrics' },
 ];
 
-export const Navbar: React.FC = () => {
+interface NavbarProps {
+  onNavigateHome?: () => void;
+  onNavigateRegister?: () => void;
+  onNavigateAdmin?: () => void;
+}
+
+export const Navbar: React.FC<NavbarProps> = ({
+  onNavigateHome,
+  onNavigateRegister,
+  onNavigateAdmin,
+}) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
     <header className="fixed top-0 left-0 w-full z-50 bg-white/90 backdrop-blur-md border-b border-slate-100 transition-all">
       <div className="h-16 w-full max-w-7xl mx-auto px-6 flex items-center justify-between">
         {/* Brand Logo */}
-        <a href="#" className="flex items-center gap-2.5 group focus:outline-none">
+        <button
+          type="button"
+          onClick={onNavigateHome}
+          className="flex items-center gap-2.5 group focus:outline-none cursor-pointer"
+        >
           <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white shadow-sm transition-transform group-hover:scale-105">
             <svg
               className="w-5 h-5"
@@ -38,7 +52,7 @@ export const Navbar: React.FC = () => {
           <span className="font-display text-lg font-bold tracking-tight text-on-surface">
             CampusAI
           </span>
-        </a>
+        </button>
 
         {/* Desktop Navigation Links */}
         <nav className="hidden md:flex items-center gap-8">
@@ -51,29 +65,40 @@ export const Navbar: React.FC = () => {
               {link.label}
             </a>
           ))}
+          {onNavigateAdmin && (
+            <button
+              type="button"
+              onClick={onNavigateAdmin}
+              className="text-sm font-semibold text-indigo-600 hover:text-indigo-800 transition-colors cursor-pointer"
+            >
+              Admin Approvals
+            </button>
+          )}
         </nav>
 
         {/* Action Buttons */}
         <div className="hidden sm:flex items-center gap-3">
-          <a
-            href="#cta"
-            className="text-sm font-medium text-slate-700 hover:text-primary px-3 py-2 rounded-md transition-colors focus:outline-none"
+          <button
+            type="button"
+            onClick={onNavigateRegister}
+            className="text-sm font-medium text-slate-700 hover:text-primary px-3 py-2 rounded-md transition-colors focus:outline-none cursor-pointer"
           >
             Register
-          </a>
-          <a
-            href="#login"
-            className="inline-flex items-center justify-center text-sm font-semibold text-white bg-primary hover:bg-blue-700 px-4 py-2 rounded-lg transition-all shadow-sm focus:ring-2 focus:ring-blue-300 focus:outline-none active:scale-[0.99]"
+          </button>
+          <button
+            type="button"
+            onClick={onNavigateAdmin || onNavigateRegister}
+            className="inline-flex items-center justify-center text-sm font-semibold text-white bg-primary hover:bg-blue-700 px-4 py-2 rounded-lg transition-all shadow-sm focus:ring-2 focus:ring-blue-300 focus:outline-none active:scale-[0.99] cursor-pointer"
           >
             Login to Dashboard
-          </a>
+          </button>
         </div>
 
         {/* Mobile Menu Toggle Button */}
         <button
           type="button"
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="md:hidden inline-flex items-center justify-center p-2 rounded-md text-slate-600 hover:text-slate-900 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-primary"
+          className="md:hidden inline-flex items-center justify-center p-2 rounded-md text-slate-600 hover:text-slate-900 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer"
           aria-expanded={mobileMenuOpen}
           aria-label="Toggle navigation menu"
         >
@@ -85,7 +110,7 @@ export const Navbar: React.FC = () => {
 
       {/* Mobile Dropdown Menu */}
       {mobileMenuOpen && (
-        <div className="md:hidden border-b border-slate-200 bg-white px-6 pt-3 pb-6 shadow-lg animate-in slide-in-from-top-2">
+        <div className="md:hidden border-b border-slate-200 bg-white px-6 pt-3 pb-6 shadow-lg">
           <div className="flex flex-col space-y-3">
             {navLinks.map((link) => (
               <a
@@ -97,21 +122,39 @@ export const Navbar: React.FC = () => {
                 {link.label}
               </a>
             ))}
+            {onNavigateAdmin && (
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  onNavigateAdmin();
+                }}
+                className="text-left text-sm font-semibold text-indigo-600 hover:text-indigo-800 py-1.5 transition-colors cursor-pointer"
+              >
+                Admin Approvals
+              </button>
+            )}
             <div className="pt-3 border-t border-slate-100 flex flex-col gap-2.5">
-              <a
-                href="#cta"
-                onClick={() => setMobileMenuOpen(false)}
-                className="text-center text-sm font-medium text-slate-700 hover:text-primary py-2 rounded-md border border-slate-200"
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  onNavigateRegister?.();
+                }}
+                className="text-center text-sm font-medium text-slate-700 hover:text-primary py-2 rounded-md border border-slate-200 cursor-pointer"
               >
                 Register
-              </a>
-              <a
-                href="#login"
-                onClick={() => setMobileMenuOpen(false)}
-                className="text-center text-sm font-semibold text-white bg-primary hover:bg-blue-700 py-2 rounded-lg shadow-sm"
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  (onNavigateAdmin || onNavigateRegister)?.();
+                }}
+                className="text-center text-sm font-semibold text-white bg-primary hover:bg-blue-700 py-2 rounded-lg shadow-sm cursor-pointer"
               >
                 Login to Dashboard
-              </a>
+              </button>
             </div>
           </div>
         </div>

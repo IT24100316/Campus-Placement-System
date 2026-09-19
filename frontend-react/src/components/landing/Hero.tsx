@@ -8,7 +8,12 @@ const universityPartners = [
   'NUS Singapore',
 ];
 
-export const Hero: React.FC = () => {
+interface HeroProps {
+  onNavigateRegister?: () => void;
+  onNavigateLogin?: () => void;
+}
+
+export const Hero: React.FC<HeroProps> = ({ onNavigateRegister, onNavigateLogin }) => {
   return (
     <section className="max-w-7xl mx-auto px-6 pt-16 pb-20 lg:pt-24 lg:pb-28">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
@@ -29,19 +34,21 @@ export const Hero: React.FC = () => {
           </p>
 
           <div className="flex flex-wrap items-center gap-4 mb-14 w-full sm:w-auto">
-            <a
-              href="#login"
-              className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-primary hover:bg-blue-700 text-white font-medium text-sm transition-all shadow-sm active:scale-[0.99]"
+            <button
+              type="button"
+              onClick={onNavigateLogin || onNavigateRegister}
+              className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-primary hover:bg-blue-700 text-white font-medium text-sm transition-all shadow-sm active:scale-[0.99] cursor-pointer"
             >
               <span>Login to Dashboard</span>
               <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
-            </a>
-            <a
-              href="#register-company"
-              className="inline-flex items-center justify-center px-6 py-3 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-medium text-sm transition-all active:scale-[0.99]"
+            </button>
+            <button
+              type="button"
+              onClick={onNavigateRegister}
+              className="inline-flex items-center justify-center px-6 py-3 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-medium text-sm transition-all active:scale-[0.99] cursor-pointer"
             >
               Register Company
-            </a>
+            </button>
           </div>
 
           {/* University Trust Strip */}

@@ -7,16 +7,28 @@ import { DualAudience } from '../components/landing/DualAudience';
 import { CallToAction } from '../components/landing/CallToAction';
 import { Footer } from '../components/layout/Footer';
 
-export const LandingPage: React.FC = () => {
+interface LandingPageProps {
+  onNavigateRegister?: () => void;
+  onNavigateAdmin?: () => void;
+}
+
+export const LandingPage: React.FC<LandingPageProps> = ({
+  onNavigateRegister,
+  onNavigateAdmin,
+}) => {
   return (
     <div className="min-h-screen flex flex-col bg-white text-on-surface">
-      <Navbar />
+      <Navbar
+        onNavigateHome={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+        onNavigateRegister={onNavigateRegister}
+        onNavigateAdmin={onNavigateAdmin}
+      />
       <main className="flex-1 pt-16">
-        <Hero />
+        <Hero onNavigateRegister={onNavigateRegister} onNavigateLogin={onNavigateAdmin} />
         <Metrics />
         <Features />
-        <DualAudience />
-        <CallToAction />
+        <DualAudience onNavigateRegister={onNavigateRegister} />
+        <CallToAction onNavigateRegister={onNavigateRegister} />
       </main>
       <Footer />
     </div>

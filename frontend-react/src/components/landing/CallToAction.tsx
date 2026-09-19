@@ -1,6 +1,10 @@
 import React from 'react';
 
-export const CallToAction: React.FC = () => {
+interface CallToActionProps {
+  onNavigateRegister?: () => void;
+}
+
+export const CallToAction: React.FC<CallToActionProps> = ({ onNavigateRegister }) => {
   return (
     <section id="cta" className="max-w-7xl mx-auto px-6 py-24 text-center">
       <div className="max-w-2xl mx-auto">
@@ -12,12 +16,13 @@ export const CallToAction: React.FC = () => {
           and speed.
         </p>
         <div className="flex flex-wrap items-center justify-center gap-4">
-          <a
-            href="#register-company"
-            className="inline-flex items-center justify-center px-6 py-3 rounded-lg bg-primary hover:bg-blue-700 text-white font-semibold text-sm transition-all shadow-sm active:scale-[0.99]"
+          <button
+            type="button"
+            onClick={onNavigateRegister}
+            className="inline-flex items-center justify-center px-6 py-3 rounded-lg bg-primary hover:bg-blue-700 text-white font-semibold text-sm transition-all shadow-sm active:scale-[0.99] cursor-pointer"
           >
             Register Company
-          </a>
+          </button>
           <a
             href="#contact"
             className="inline-flex items-center justify-center px-6 py-3 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-medium text-sm transition-all active:scale-[0.99]"
