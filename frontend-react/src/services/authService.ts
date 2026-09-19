@@ -72,6 +72,77 @@ export const authService = {
     }
   },
 
+  async login(
+    email: string,
+    password: string
+  ): Promise<{
+    success: boolean;
+    role?: string;
+    isPending?: boolean;
+    message?: string;
+    record?: RegistrationRecord;
+  }> {
+    const normalizedEmail = email.trim().toLowerCase();
+
+    // 1. Check for seeded Admin credentials
+    if (normalizedEmail === 'admin@campusai.edu' && password === 'Admin@2025') {
+      try {
+        await fetch(`${API_BASE}/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: normalizedEmail, password }),
+        });
+      } catch {
+        // Backend offline fallback
+      }
+      return { success: true, role: 'Admin', message: 'Logged in as Institutional Administrator' };
+    }
+
+    // 2. Check in registered user records
+    const records = this.getRegistrations();
+    const userRecord = records.find((r) => r.email.toLowerCase() === normalizedEmail);
+
+    if (userRecord) {
+      if (userRecord.status === 'Pending') {
+        return {
+          success: false,
+          isPending: true,
+          record: userRecord,
+          message: 'Your registration application is currently under administrative review.',
+        };
+      }
+      if (userRecord.status === 'Rejected') {
+        return {
+          success: false,
+          message: 'Your registration application has been declined by the administrator.',
+        };
+      }
+      return {
+        success: true,
+        role: userRecord.role === 'hr' ? 'Company HR' : 'Company Staff',
+        record: userRecord,
+        message: 'Welcome back!',
+      };
+    }
+
+    // 3. Fallback backend call
+    try {
+      const res = await fetch(`${API_BASE}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: normalizedEmail, password }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return { success: true, role: data.role };
+      }
+    } catch {
+      // Backend offline fallback
+    }
+
+    return { success: false, message: 'Invalid corporate email or password.' };
+  },
+
   async registerHr(data: CompanyHrRegistration): Promise<RegistrationRecord> {
     const refCode = `REG-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`;
     const newRecord: RegistrationRecord = {
@@ -105,10 +176,9 @@ export const authService = {
         }),
       });
     } catch {
-      // Backend offline fallback - gracefully continues
+      // Backend offline fallback
     }
 
-    // Save to local storage for instant state responsiveness
     const current = this.getRegistrations();
     const updated = [newRecord, ...current];
     localStorage.setItem(STORAGE_KEY_REGISTRATIONS, JSON.stringify(updated));
@@ -148,7 +218,7 @@ export const authService = {
         }),
       });
     } catch {
-      // Backend offline fallback - gracefully continues
+      // Backend offline fallback
     }
 
     const current = this.getRegistrations();
