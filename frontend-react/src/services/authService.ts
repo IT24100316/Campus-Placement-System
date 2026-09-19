@@ -1,4 +1,5 @@
 import type {
+  AccountApprovalStatus,
   ApprovedCompanyOption,
   CompanyHrRegistration,
   CompanyStaffRegistration,
@@ -272,34 +273,148 @@ export const authService = {
     return newRecord;
   },
 
-  addStaffByAdmin(data: {
+  async registerEmployeeByAdmin(data: {
     fullName: string;
     email: string;
-    phone?: string;
-    companyName: string;
+    password?: string;
+    companyId?: string;
+    companyName?: string;
     staffId: string;
     jobPosition: string;
-  }): RegistrationRecord {
-    const refCode = `STF-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`;
-    const newRecord: RegistrationRecord = {
-      id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
-      role: 'staff',
-      fullName: data.fullName,
-      email: data.email,
-      phone: data.phone || '+1 (555) 000-0000',
-      companyName: data.companyName,
-      staffId: data.staffId,
-      jobPosition: data.jobPosition,
-      status: 'Approved', // Pre-authorized directly by Admin
-      submittedAt: 'Today, ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      refCode,
-    };
+  }): Promise<{ success: boolean; message: string; record?: RegistrationRecord }> {
+    const refCode = `EMP-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`;
 
-    const current = this.getRegistrations();
-    const updated = [newRecord, ...current];
-    localStorage.setItem(STORAGE_KEY_REGISTRATIONS, JSON.stringify(updated));
+    try {
+      const res = await fetch(`${API_BASE}/admin/register-employee`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fullName: data.fullName,
+          email: data.email,
+          password: data.password || 'StaffPass@2025!',
+          companyId: data.companyId && data.companyId !== 'other' ? data.companyId : null,
+          companyName: data.companyName,
+          staffId: data.staffId,
+          jobPosition: data.jobPosition,
+        }),
+      });
 
-    return newRecord;
+      const json = await res.json();
+      if (!res.ok) {
+        return {
+          success: false,
+          message: json.message || 'Failed to register employee on backend.',
+        };
+      }
+
+      const newRecord: RegistrationRecord = {
+        id: json.userId || (crypto.randomUUID ? crypto.randomUUID() : String(Date.now())),
+        role: 'staff',
+        fullName: json.fullName || data.fullName,
+        email: json.email || data.email,
+        phone: '+1 (555) 000-0000',
+        companyName: json.companyName || data.companyName || 'Enterprise Employer',
+        staffId: json.staffId || data.staffId,
+        jobPosition: json.jobPosition || data.jobPosition,
+        status: 'Approved',
+        submittedAt: 'Today, ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        refCode,
+      };
+
+      const current = this.getRegistrations();
+      const updated = [newRecord, ...current.filter((r) => r.email.toLowerCase() !== newRecord.email.toLowerCase())];
+      localStorage.setItem(STORAGE_KEY_REGISTRATIONS, JSON.stringify(updated));
+
+      return {
+        success: true,
+        message: 'Employee registered and saved to database successfully.',
+        record: newRecord,
+      };
+    } catch {
+      // Offline fallback
+      const newRecord: RegistrationRecord = {
+        id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+        role: 'staff',
+        fullName: data.fullName,
+        email: data.email,
+        phone: '+1 (555) 000-0000',
+        companyName: data.companyName || 'Enterprise Employer',
+        staffId: data.staffId,
+        jobPosition: data.jobPosition,
+        status: 'Approved',
+        submittedAt: 'Today, ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        refCode,
+      };
+
+      const current = this.getRegistrations();
+      const updated = [newRecord, ...current];
+      localStorage.setItem(STORAGE_KEY_REGISTRATIONS, JSON.stringify(updated));
+
+      return {
+        success: true,
+        message: 'Employee registered locally (backend service unreachable).',
+        record: newRecord,
+      };
+    }
+  },
+
+  async syncRegistrationsFromBackend(): Promise<RegistrationRecord[]> {
+    try {
+      const res = await fetch(`${API_BASE}/admin/pending-approvals`);
+      if (res.ok) {
+        const backendUsers: any[] = await res.json();
+        const mapped: RegistrationRecord[] = backendUsers.map((u) => ({
+          id: u.userId,
+          role: u.role === 'Company HR' ? 'hr' : 'staff',
+          fullName: u.fullName,
+          email: u.email,
+          phone: u.phone || '+1 (555) 000-0000',
+          companyName: u.companyName,
+          industry: u.industry,
+          staffId: u.staffId,
+          jobPosition: u.jobPosition,
+          status: u.status as AccountApprovalStatus,
+          submittedAt: new Date(u.createdAt).toLocaleDateString() + ' ' + new Date(u.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          refCode: `REG-${u.userId.substring(0, 8).toUpperCase()}`,
+        }));
+
+        if (mapped.length > 0) {
+          const local = this.getRegistrations();
+          const merged = [...mapped];
+          for (const item of local) {
+            if (!merged.some((m) => m.email.toLowerCase() === item.email.toLowerCase())) {
+              merged.push(item);
+            }
+          }
+          localStorage.setItem(STORAGE_KEY_REGISTRATIONS, JSON.stringify(merged));
+          return merged;
+        }
+      }
+    } catch {
+      // Ignore network errors
+    }
+    return this.getRegistrations();
+  },
+
+  async fetchCompanies(): Promise<ApprovedCompanyOption[]> {
+    try {
+      const res = await fetch(`${API_BASE}/auth/companies`);
+      if (res.ok) {
+        const list: any[] = await res.json();
+        if (list && list.length > 0) {
+          const mapped: ApprovedCompanyOption[] = list.map((c) => ({
+            id: c.id,
+            name: c.name,
+            industry: c.industry || 'Technology',
+          }));
+          localStorage.setItem(STORAGE_KEY_COMPANIES, JSON.stringify(mapped));
+          return mapped;
+        }
+      }
+    } catch {
+      // fallback
+    }
+    return this.getCompanies();
   },
 
   updateStatus(id: string, status: 'Approved' | 'Rejected'): RegistrationRecord[] {

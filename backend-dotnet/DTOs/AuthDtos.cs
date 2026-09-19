@@ -84,3 +84,25 @@ public class PendingUserDto
     public string? BusinessRegistrationDocumentUrl { get; set; }
     public DateTime CreatedAt { get; set; }
 }
+
+public class AdminRegisterEmployeeDto
+{
+    [Required]
+    public string FullName { get; set; } = string.Empty;
+
+    [Required]
+    [EmailAddress]
+    public string Email { get; set; } = string.Empty;
+
+    public string? Password { get; set; }
+
+    public Guid? CompanyId { get; set; }
+
+    public string? CompanyName { get; set; }
+
+    [Required]
+    public string StaffId { get; set; } = string.Empty;
+
+    [Required]
+    public string JobPosition { get; set; } = string.Empty;
+}
