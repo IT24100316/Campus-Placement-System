@@ -70,11 +70,16 @@ The following components and foundations were established in the original projec
   - Role filter tabs (*All*, *Pending*, *HR Accounts*, *Staff Accounts*).
   - Full application review modal with BR document inspect view.
   - Interactive **Approve** and **Reject** actions. Approving an HR user automatically adds their company to the Staff registration dropdown.
-- **Login Modal & Authentication Engine (`LoginModal.tsx`)**:
-  - Global authentication modal triggered from the Navbar and Hero buttons.
-  - Instant 1-click autofill chips for demo accounts (Institutional Admin & Pending Company HR).
-  - Pending-detection routing: attempts to sign in with an unapproved account gracefully route the user back to their active **Pending Approval Screen**.
-  - Direct routing into the **Admin Approvals Cockpit** upon institutional admin authentication.
+- **Login Page & Dedicated Authentication Engine (`LoginPage.tsx`, `LoginModal.tsx`)**:
+  - **Design Reference**: Faithfully implemented following the Google Stitch design specification (`UI/Login/DESIGN.md`, `code.html`, and `screen.png`).
+  - **3-Role Segmented Switcher**:
+    - **Company HR**: Corporate administrative access (`c.vance@acmeglobal.tech` / `Vanguard#2024Secure!`).
+    - **Company Staff**: Technical recruiter and employee credentials (`d.miller@acmeglobal.tech` / `StaffPass@2025!`, Staff ID: `ACM-STF-1042`).
+    - **Institutional Admin**: University placement director controls (`admin@campusai.edu` / `Admin@2025`).
+  - **Context Helper & ⚡ Demo Auto-fill**: Instant 1-click credential population with dynamic email domain tags and contextual guidance for each role.
+  - **Security Badges & Banners**: 256-bit TLS, FERPA/SOC-2 certifications, MFA indicators, and real-time application lifecycle lookup.
+  - **Pending-Detection Routing**: Automatically intercepts pending accounts and routes applicants to their real-time verification lifecycle.
+  - **Direct Cockpit Routing**: Instant navigation into the **Admin Approvals Cockpit** upon administrator login.
 
 #### 🗄️ Backend Data Architecture & API Controllers
 - **Models & Migration**:
@@ -83,7 +88,7 @@ The following components and foundations were established in the original projec
   - Applied EF Core migration `20260919155201_AddCompanyStaffProfileAndContactDetails` to the cloud Supabase PostgreSQL database.
 - **Controllers & DTOs**:
   - [AuthController.cs](backend-dotnet/Controllers/AuthController.cs):
-    - `POST /api/auth/login`: Authenticates institutional administrators, Company HRs, and Staff users. Verifies hashed passwords and intercepts pending/rejected applications.
+    - `POST /api/auth/login`: Authenticates institutional administrators, Company HRs, and Company Staff users. Returns differentiated role metadata (`CompanyStaff`, `CompanyHR`, `Admin`), associated company profile data, and intercepts pending/rejected applications.
     - `POST /api/auth/register-hr`: Validates unique email, hashes password with `PasswordHasher<User>`, creates `User` + `CompanyProfile` with `Pending` status.
     - `POST /api/auth/register-staff`: Links staff member to selected company with `Pending` status.
     - `GET /api/auth/companies`: Provides approved company directory for staff registration.

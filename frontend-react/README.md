@@ -10,6 +10,7 @@ The UI design is adapted from the Google Stitch design references:
 - **Landing Page**: `UI/LandingPage/` (*Autonomous Placement Architecture*)
 - **Recruiter Registration**: `UI/registration/`
 - **Pending Approval Screen**: `UI/registration_prending/`
+- **Login Portal**: `UI/Login/` (*Recruitment Cockpit & Multi-Role Authentication*)
 
 ### Typography & Colors
 - **Display & Headings**: `Plus Jakarta Sans` (weights 500, 600, 700, 800) with kerning `-0.01em` to `-0.02em`.
@@ -47,14 +48,15 @@ src/
 │   ├── auth/
 │   │   ├── RegisterForm.tsx   # Recruiter registration with HR vs Staff tab toggle & validations
 │   │   ├── PendingApprovalScreen.tsx # 4-step verification stepper & profile summary card
-│   │   └── LoginModal.tsx     # Sign-in modal with instant 1-click autofill for Admin & Pending HR
+│   │   └── LoginModal.tsx     # Sign-in modal with 1-click autofill for Admin, HR & Staff
 │   └── admin/
 │       └── AdminApprovalsView.tsx # Administrative oversight table to review, approve & reject accounts
 ├── pages/
 │   ├── LandingPage.tsx        # Full landing page layout
 │   ├── RegisterPage.tsx       # Registration flow manager (Form -> Pending screen)
+│   ├── LoginPage.tsx          # Dedicated 3-Role login page matching UI/login specification
 │   └── AdminDashboardPage.tsx # Admin review portal
-├── App.tsx                    # Top-level view routing, login modal host & floating switcher
+├── App.tsx                    # Top-level view routing, login navigation & floating dock
 ├── index.css                  # Base layout resets, typography tokens & scroll behaviors
 └── main.tsx                   # Application bootstrap
 ```
@@ -63,10 +65,11 @@ src/
 
 ## 🔑 Demo & Test Credentials
 
-| Role | Email | Password | Destination |
+| Role | Email | Password | Details / Destination |
 | :--- | :--- | :--- | :--- |
-| **Institutional Admin** | `admin@campusai.edu` | `Admin@2025` | **Admin Approvals Dashboard** |
-| **Pending Recruiter (HR)** | `c.vance@acmeglobal.tech` | `Vanguard#2024Secure!` | **Pending Approval Screen** |
+| **Institutional Admin** | `admin@campusai.edu` | `Admin@2025` | **Admin Approvals Dashboard** (Full oversight & approval controls) |
+| **Company HR (Employer)** | `c.vance@acmeglobal.tech` | `Vanguard#2024Secure!` | **Pending Approval Screen** (Corporate incorporation review) |
+| **Company Staff (Recruiter)** | `d.miller@acmeglobal.tech` | `StaffPass@2025!` | **Pending Approval Screen** (Employee ID `ACM-STF-1042`, Talent Acquisition) |
 
 ---
 
