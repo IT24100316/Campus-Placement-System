@@ -6,11 +6,7 @@ import {
   EyeOff,
   AlertCircle,
   X,
-  Shield,
-  Building2,
   ArrowRight,
-  Sparkles,
-  Users,
 } from 'lucide-react';
 import { authService } from '../../services/authService';
 import type { RegistrationRecord } from '../../types/auth';
@@ -37,24 +33,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   const [isLoading, setIsLoading] = useState(false);
 
   if (!isOpen) return null;
-
-  const handleAutofillAdmin = () => {
-    setEmail('admin@campusai.edu');
-    setPassword('Admin@2025');
-    setErrorMessage('');
-  };
-
-  const handleAutofillHr = () => {
-    setEmail('c.vance@acmeglobal.tech');
-    setPassword('Vanguard#2024Secure!');
-    setErrorMessage('');
-  };
-
-  const handleAutofillStaff = () => {
-    setEmail('d.miller@acmeglobal.tech');
-    setPassword('StaffPass@2025!');
-    setErrorMessage('');
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -105,40 +83,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           <p className="text-xs text-slate-500 mt-1">
             Access your corporate recruitment cockpit or administrative dashboard
           </p>
-        </div>
-
-        {/* Demo Quick-Autofill Helpers */}
-        <div className="mb-5 p-3 rounded-xl bg-slate-50 border border-slate-200/80">
-          <span className="flex items-center gap-1.5 text-[11px] font-bold text-slate-700 uppercase tracking-wide mb-2">
-            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-            Instant Demo Credentials:
-          </span>
-          <div className="grid grid-cols-3 gap-1.5">
-            <button
-              type="button"
-              onClick={handleAutofillAdmin}
-              className="flex items-center justify-center gap-1 py-1.5 px-1.5 rounded-md bg-white border border-slate-200 hover:border-indigo-500 text-indigo-700 text-[11px] font-semibold shadow-2xs transition-all cursor-pointer"
-            >
-              <Shield className="w-3 h-3" />
-              <span>Admin</span>
-            </button>
-            <button
-              type="button"
-              onClick={handleAutofillHr}
-              className="flex items-center justify-center gap-1 py-1.5 px-1.5 rounded-md bg-white border border-slate-200 hover:border-blue-500 text-primary text-[11px] font-semibold shadow-2xs transition-all cursor-pointer"
-            >
-              <Building2 className="w-3 h-3" />
-              <span>Company HR</span>
-            </button>
-            <button
-              type="button"
-              onClick={handleAutofillStaff}
-              className="flex items-center justify-center gap-1 py-1.5 px-1.5 rounded-md bg-white border border-slate-200 hover:border-blue-500 text-primary text-[11px] font-semibold shadow-2xs transition-all cursor-pointer"
-            >
-              <Users className="w-3 h-3" />
-              <span>Staff</span>
-            </button>
-          </div>
         </div>
 
         {/* Form Body */}

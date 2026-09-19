@@ -76,7 +76,7 @@ The following components and foundations were established in the original projec
     - **Company HR**: Corporate administrative access (`c.vance@acmeglobal.tech` / `Vanguard#2024Secure!`).
     - **Company Staff**: Technical recruiter and employee credentials (`d.miller@acmeglobal.tech` / `StaffPass@2025!`, Staff ID: `ACM-STF-1042`).
     - **Institutional Admin**: University placement director controls (`admin@campusai.edu` / `Admin@2025`).
-  - **Context Helper & ⚡ Demo Auto-fill**: Instant 1-click credential population with dynamic email domain tags and contextual guidance for each role.
+  - **Context Guidance**: Role-specific contextual security guidance and dynamic domain badges for each role.
   - **Security Badges & Banners**: 256-bit TLS, FERPA/SOC-2 certifications, MFA indicators, and real-time application lifecycle lookup.
   - **Pending-Detection Routing**: Automatically intercepts pending accounts and routes applicants to their real-time verification lifecycle.
   - **Direct Cockpit Routing**: Instant navigation into the **Admin Approvals Cockpit** upon administrator login.

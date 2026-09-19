@@ -8,7 +8,6 @@ import {
   Eye,
   EyeOff,
   ArrowRight,
-  Sparkles,
   CheckCircle2,
   AlertCircle,
   Clock,
@@ -36,8 +35,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({
   onPendingFound,
 }) => {
   const [selectedRole, setSelectedRole] = useState<LoginRole>('recruiter');
-  const [email, setEmail] = useState('c.vance@acmeglobal.tech');
-  const [password, setPassword] = useState('Vanguard#2024Secure!');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberDevice, setRememberDevice] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
@@ -52,32 +51,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({
   const handleRoleSelect = (role: LoginRole) => {
     setSelectedRole(role);
     setAuthAlert(null);
-
-    if (role === 'recruiter') {
-      setEmail('c.vance@acmeglobal.tech');
-      setPassword('Vanguard#2024Secure!');
-    } else if (role === 'staff') {
-      setEmail('d.miller@acmeglobal.tech');
-      setPassword('StaffPass@2025!');
-    } else {
-      setEmail('admin@campusai.edu');
-      setPassword('Admin@2025');
-    }
-  };
-
-  // Instant Demo Auto-fill Helper
-  const handleDemoAutofill = () => {
-    setAuthAlert(null);
-    if (selectedRole === 'recruiter') {
-      setEmail('c.vance@acmeglobal.tech');
-      setPassword('Vanguard#2024Secure!');
-    } else if (selectedRole === 'staff') {
-      setEmail('d.miller@acmeglobal.tech');
-      setPassword('StaffPass@2025!');
-    } else {
-      setEmail('admin@campusai.edu');
-      setPassword('Admin@2025');
-    }
   };
 
   // Submit Handler
@@ -286,37 +259,28 @@ export const LoginPage: React.FC<LoginPageProps> = ({
             </button>
           </div>
 
-          {/* Context Helper Strip & Demo Auto-fill */}
-          <div className="mt-3 px-1 flex items-center justify-between text-xs">
-            <span className="text-slate-500 flex items-center gap-1.5 text-[11px] truncate pr-2">
+          {/* Context Helper Strip */}
+          <div className="mt-3 px-1 flex items-center text-xs">
+            <span className="text-slate-500 flex items-center gap-1.5 text-[11px]">
               {selectedRole === 'recruiter' && (
                 <>
                   <Building2 className="w-3.5 h-3.5 text-primary shrink-0" />
-                  <span className="truncate">Sign in with corporate HR admin email</span>
+                  <span>Sign in with your corporate HR administrator email</span>
                 </>
               )}
               {selectedRole === 'staff' && (
                 <>
                   <Users className="w-3.5 h-3.5 text-primary shrink-0" />
-                  <span className="truncate">Sign in with company staff / employee ID credentials</span>
+                  <span>Sign in with your verified company staff / employee ID credentials</span>
                 </>
               )}
               {selectedRole === 'admin' && (
                 <>
                   <ShieldCheck className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-                  <span className="truncate">Sign in with institutional admin clearance</span>
+                  <span>Sign in with institutional placement admin clearance</span>
                 </>
               )}
             </span>
-
-            <button
-              type="button"
-              onClick={handleDemoAutofill}
-              className="text-primary hover:text-blue-800 font-bold text-[11px] flex items-center gap-1 cursor-pointer shrink-0 transition-colors"
-            >
-              <Sparkles className="w-3 h-3 text-amber-500" />
-              <span>Demo Auto-fill</span>
-            </button>
           </div>
 
           {/* Login Form */}
@@ -331,7 +295,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                   <span className="text-rose-500 ml-0.5">*</span>
                 </label>
                 <span className="font-mono text-[11px] text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
-                  {selectedRole === 'admin' ? '@campusai.edu' : '@acmeglobal.tech'}
+                  {selectedRole === 'admin' ? '@campusai.edu' : 'Enterprise ID'}
                 </span>
               </div>
               <div className="relative flex items-center">
@@ -344,9 +308,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder={
                     selectedRole === 'recruiter'
-                      ? 'c.vance@acmeglobal.tech'
+                      ? 'hr.director@company.com'
                       : selectedRole === 'staff'
-                      ? 'd.miller@acmeglobal.tech'
+                      ? 'talent.recruiter@company.com'
                       : 'admin@campusai.edu'
                   }
                   className="w-full h-11 pl-10 pr-3.5 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-blue-100 focus:border-primary transition-all"
@@ -367,7 +331,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                     setAuthAlert({
                       type: 'error',
                       title: 'Password Recovery',
-                      message: 'For campus placement security, please contact institutional support or use the Demo Auto-fill button.',
+                      message: 'Password reset requests are authenticated through institutional single sign-on. Please contact your system administrator.',
                     });
                   }}
                   className="text-[11px] font-semibold text-primary hover:underline"

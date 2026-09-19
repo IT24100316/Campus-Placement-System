@@ -48,7 +48,7 @@ src/
 │   ├── auth/
 │   │   ├── RegisterForm.tsx   # Recruiter registration with HR vs Staff tab toggle & validations
 │   │   ├── PendingApprovalScreen.tsx # 4-step verification stepper & profile summary card
-│   │   └── LoginModal.tsx     # Sign-in modal with 1-click autofill for Admin, HR & Staff
+│   │   └── LoginModal.tsx     # Enterprise sign-in modal for Admin, HR & Staff
 │   └── admin/
 │       └── AdminApprovalsView.tsx # Administrative oversight table to review, approve & reject accounts
 ├── pages/
@@ -105,7 +105,7 @@ src/
   - [x] Approving an HR company automatically populates it into the Staff registration dropdown!
 - [x] **Authentication & Sign-in**:
   - [x] Global login modal triggered from "Login to Dashboard" buttons.
-  - [x] 1-click autofill for Institutional Admin and Pending HR demo records.
+  - [x] Clean enterprise 3-role authentication for Institutional Admin, Company HR, and Company Staff.
   - [x] Smart route handling: logs Admin into the Admin Dashboard; routes pending applicants to their Pending Approval status screen.
 - [x] Seamless navigation routing between Landing Page, Registration, and Admin Portal.
 
