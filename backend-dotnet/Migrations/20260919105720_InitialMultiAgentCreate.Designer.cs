@@ -12,8 +12,8 @@ using backend_dotnet.Data;
 namespace backend_dotnet.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260918230810_InitialCreate")]
-    partial class InitialCreate
+    [Migration("20260919105720_InitialMultiAgentCreate")]
+    partial class InitialMultiAgentCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -48,8 +48,7 @@ namespace backend_dotnet.Migrations
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
+                        .HasColumnType("text");
 
                     b.Property<Guid>("StudentId")
                         .HasColumnType("uuid");
@@ -67,28 +66,33 @@ namespace backend_dotnet.Migrations
                     b.ToTable("Applications");
                 });
 
-            modelBuilder.Entity("backend_dotnet.Models.AuditLog", b =>
+            modelBuilder.Entity("backend_dotnet.Models.CompanyProfile", b =>
                 {
-                    b.Property<Guid>("LogId")
-                        .ValueGeneratedOnAdd()
+                    b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("Action")
+                    b.Property<string>("BusinessRegistrationDocumentUrl")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("CompanyName")
                         .IsRequired()
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)");
 
-                    b.Property<Guid>("PerformedBy")
-                        .HasColumnType("uuid");
+                    b.Property<string>("ContactPersonEmail")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
 
-                    b.Property<DateTime>("Timestamp")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<string>("Industry")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
 
-                    b.HasKey("LogId");
+                    b.HasKey("UserId");
 
-                    b.HasIndex("PerformedBy");
-
-                    b.ToTable("AuditLogs");
+                    b.ToTable("CompanyProfiles");
                 });
 
             modelBuilder.Entity("backend_dotnet.Models.Job", b =>
@@ -97,31 +101,62 @@ namespace backend_dotnet.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<int[]>("AllowedYearsOfStudy")
+                        .IsRequired()
+                        .HasColumnType("integer[]");
+
+                    b.Property<DateTime>("ApplicationDeadline")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<Guid>("CompanyId")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("JobTitle")
+                    b.Property<int>("DurationMonths")
+                        .HasColumnType("integer");
+
+                    b.Property<string[]>("InternshipType")
+                        .IsRequired()
+                        .HasColumnType("text[]");
+
+                    b.Property<string>("JobDescriptionSummary")
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<decimal>("Min_GPA")
+                    b.Property<string>("JobTitle")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("LocationCity")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string[]>("MandatorySkills")
+                        .IsRequired()
+                        .HasColumnType("text[]");
+
+                    b.Property<decimal>("MinimumGPA")
                         .HasPrecision(3, 2)
                         .HasColumnType("numeric(3,2)");
 
-                    b.Property<string>("Req_Degree")
+                    b.Property<string[]>("NiceToHaveSkills")
                         .IsRequired()
+                        .HasColumnType("text[]");
+
+                    b.Property<string[]>("PreferredDegreePrograms")
+                        .IsRequired()
+                        .HasColumnType("text[]");
+
+                    b.Property<string>("StipendAmountOrDetails")
                         .HasColumnType("text");
 
-                    b.Property<string[]>("Req_Languages")
-                        .IsRequired()
-                        .HasColumnType("text[]");
+                    b.Property<bool>("StipendOffered")
+                        .HasColumnType("boolean");
 
-                    b.Property<string[]>("Req_Skills")
+                    b.Property<string>("TargetDomain")
                         .IsRequired()
-                        .HasColumnType("text[]");
-
-                    b.Property<int>("Target_Year")
-                        .HasColumnType("integer");
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
 
                     b.HasKey("JobId");
 
@@ -132,33 +167,85 @@ namespace backend_dotnet.Migrations
 
             modelBuilder.Entity("backend_dotnet.Models.StudentProfile", b =>
                 {
-                    b.Property<Guid>("StudentId")
+                    b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("CV_Url")
+                    b.Property<string>("AcademicStatus")
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<string>("Degree")
+                    b.Property<string>("CampusIdPhotoUrl")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<string>("CareerObjectivesSummary")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("CurrentYearOfStudy")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("CvPdfUrl")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("DegreeProgram")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("DesiredJobTitle")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("ExpectedGraduationDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("FullName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
 
                     b.Property<decimal>("GPA")
                         .HasPrecision(3, 2)
                         .HasColumnType("numeric(3,2)");
 
-                    b.Property<string[]>("Languages")
+                    b.Property<string[]>("InternshipType")
                         .IsRequired()
                         .HasColumnType("text[]");
+
+                    b.Property<string>("LectureScheduleType")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Phone")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("PortfolioUrl")
+                        .HasColumnType("text");
+
+                    b.Property<string[]>("PreferredLocations")
+                        .IsRequired()
+                        .HasColumnType("text[]");
+
+                    b.Property<string>("PrimaryDomain")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<string[]>("Skills")
                         .IsRequired()
                         .HasColumnType("text[]");
 
-                    b.Property<int>("Year")
-                        .HasColumnType("integer");
+                    b.Property<string[]>("ToolsAndTechnologies")
+                        .IsRequired()
+                        .HasColumnType("text[]");
 
-                    b.HasKey("StudentId");
+                    b.Property<string>("UniversityName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("UserId");
 
                     b.ToTable("StudentProfiles");
                 });
@@ -168,6 +255,9 @@ namespace backend_dotnet.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Email")
                         .IsRequired()
@@ -179,6 +269,10 @@ namespace backend_dotnet.Migrations
                         .HasColumnType("text");
 
                     b.Property<string>("Role")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("text");
 
@@ -209,23 +303,23 @@ namespace backend_dotnet.Migrations
                     b.Navigation("Student");
                 });
 
-            modelBuilder.Entity("backend_dotnet.Models.AuditLog", b =>
+            modelBuilder.Entity("backend_dotnet.Models.CompanyProfile", b =>
                 {
-                    b.HasOne("backend_dotnet.Models.User", "Performer")
-                        .WithMany()
-                        .HasForeignKey("PerformedBy")
-                        .OnDelete(DeleteBehavior.Restrict)
+                    b.HasOne("backend_dotnet.Models.User", "User")
+                        .WithOne("CompanyProfile")
+                        .HasForeignKey("backend_dotnet.Models.CompanyProfile", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Performer");
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("backend_dotnet.Models.Job", b =>
                 {
-                    b.HasOne("backend_dotnet.Models.User", "Company")
-                        .WithMany("PostedJobs")
+                    b.HasOne("backend_dotnet.Models.CompanyProfile", "Company")
+                        .WithMany("Jobs")
                         .HasForeignKey("CompanyId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Company");
@@ -233,13 +327,18 @@ namespace backend_dotnet.Migrations
 
             modelBuilder.Entity("backend_dotnet.Models.StudentProfile", b =>
                 {
-                    b.HasOne("backend_dotnet.Models.User", "Student")
+                    b.HasOne("backend_dotnet.Models.User", "User")
                         .WithOne("StudentProfile")
-                        .HasForeignKey("backend_dotnet.Models.StudentProfile", "StudentId")
+                        .HasForeignKey("backend_dotnet.Models.StudentProfile", "UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Student");
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("backend_dotnet.Models.CompanyProfile", b =>
+                {
+                    b.Navigation("Jobs");
                 });
 
             modelBuilder.Entity("backend_dotnet.Models.Job", b =>
@@ -251,7 +350,7 @@ namespace backend_dotnet.Migrations
                 {
                     b.Navigation("Applications");
 
-                    b.Navigation("PostedJobs");
+                    b.Navigation("CompanyProfile");
 
                     b.Navigation("StudentProfile");
                 });

@@ -2,16 +2,24 @@ namespace backend_dotnet.Models;
 
 public class Job
 {
-    public Guid JobId { get; set; }
+    public Guid JobId { get; set; } = Guid.NewGuid();
     public Guid CompanyId { get; set; }
     public string JobTitle { get; set; } = string.Empty;
-    public string[] Req_Skills { get; set; } = Array.Empty<string>();
-    public string[] Req_Languages { get; set; } = Array.Empty<string>();
-    public string Req_Degree { get; set; } = string.Empty;
-    public decimal Min_GPA { get; set; }
-    public int Target_Year { get; set; }
+    public string TargetDomain { get; set; } = string.Empty;
+    public string JobDescriptionSummary { get; set; } = string.Empty;
+    public string[] InternshipType { get; set; } = Array.Empty<string>();
+    public string LocationCity { get; set; } = string.Empty;
+    public decimal MinimumGPA { get; set; }
+    public int[] AllowedYearsOfStudy { get; set; } = Array.Empty<int>();
+    public string[] MandatorySkills { get; set; } = Array.Empty<string>();
+    public string[] NiceToHaveSkills { get; set; } = Array.Empty<string>();
+    public string[] PreferredDegreePrograms { get; set; } = Array.Empty<string>();
+    public bool StipendOffered { get; set; }
+    public string? StipendAmountOrDetails { get; set; }
+    public int DurationMonths { get; set; }
+    public DateTime ApplicationDeadline { get; set; }
 
     // Navigation properties
-    public User Company { get; set; } = null!;
+    public CompanyProfile Company { get; set; } = null!;
     public ICollection<Application> Applications { get; set; } = new List<Application>();
 }
