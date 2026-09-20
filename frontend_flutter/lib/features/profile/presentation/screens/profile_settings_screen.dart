@@ -225,7 +225,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text('Campus ID Verification', style: TextStyle(color: AppColors.textSecondaryLight, fontSize: 11)),
-                          Text('CS-2022-8941', style: TextStyle(color: AppColors.textPrimaryLight, fontSize: 13, fontWeight: FontWeight.bold, fontFamily: 'monospace')),
+                          
                         ],
                       ),
                     ],
