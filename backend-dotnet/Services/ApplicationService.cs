@@ -111,9 +111,27 @@ public class ApplicationService : IApplicationService
         return application;
     }
 
-    public Task<Application> ScheduleInterviewAsync(Guid appId, ScheduleInterviewRequestDto request)
+    /// <summary>
+    /// Schedules an interview for a specific application by updating its InterviewDate and InterviewTime properties.
+    /// Acts as a trigger point for invoking external AI agent scheduling logic.
+    /// </summary>
+    public async Task<Application> ScheduleInterviewAsync(Guid appId, ScheduleInterviewRequestDto request)
     {
-        throw new NotImplementedException();
+        var application = await _context.Applications.FindAsync(appId);
+        
+        if (application == null)
+        {
+            throw new KeyNotFoundException("Application not found");
+        }
+
+        application.InterviewDate = request.InterviewDate;
+        application.InterviewTime = request.InterviewTime;
+        
+        await _context.SaveChangesAsync();
+        
+        // TODO: Construct Agent4InterviewPayload DTO and call Python Agent 4 (FastAPI) here.
+        
+        return application;
     }
 
     public Task<string> GetCvDownloadUrlAsync(Guid appId)
