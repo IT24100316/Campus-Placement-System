@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import '../../../../features/jobs/presentation/screens/job_feed_screen.dart';
-import '../../../../features/applications/presentation/screens/applications_tracking_screen.dart';
-import '../../../../features/profile/presentation/screens/profile_screen.dart';
 import '../widgets/bottom_nav_bar.dart';
+import '../../../../features/jobs/presentation/screens/job_feed_screen.dart';
+import '../../../../features/profile/presentation/screens/profile_screen.dart';
+import '../../../../features/profile/presentation/screens/profile_settings_screen.dart';
+import '../../../../features/applications/presentation/screens/applications_tracking_screen.dart';
 
 class DashboardShellScreen extends StatefulWidget {
   const DashboardShellScreen({super.key});
@@ -12,15 +13,16 @@ class DashboardShellScreen extends StatefulWidget {
 }
 
 class _DashboardShellScreenState extends State<DashboardShellScreen> {
-  int _currentIndex = 1; // Default to My Resume tab for development
+  int _currentIndex = 0;
 
   @override
   Widget build(BuildContext context) {
+    // Re-initialize screens here so they reflect hot-reloads properly when developing
     final List<Widget> screens = const [
       JobFeedScreen(),
-      ProfileScreen(), // This is actually the "My Resume" screen we built
+      ProfileScreen(),
       ApplicationsTrackingScreen(),
-      Scaffold(body: Center(child: Text("Profile Settings Screen"))), // Placeholder for actual Profile
+      ProfileSettingsScreen(), // Now using the actual Profile Settings Screen
     ];
 
     return Scaffold(
