@@ -85,7 +85,33 @@ using (var scope = app.Services.CreateScope())
 
     foreach (var c in defaultCompanies)
     {
-        if (!dbContext.Users.Any(u => u.Email.ToLower() == c.Email.ToLower()))
+        var existingUser = dbContext.Users.Include(u => u.CompanyProfile).FirstOrDefault(u => u.Email.ToLower() == c.Email.ToLower());
+        if (existingUser != null)
+        {
+            // Ensure status is Approved so it cannot be trapped in a Pending loop
+            if (existingUser.Status != AccountStatus.Approved)
+            {
+                existingUser.Status = AccountStatus.Approved;
+                dbContext.SaveChanges();
+            }
+
+            if (existingUser.CompanyProfile == null)
+            {
+                var companyProfile = new CompanyProfile
+                {
+                    UserId = existingUser.Id,
+                    CompanyName = c.CompanyName,
+                    Industry = c.Industry,
+                    ContactPersonName = c.ContactPerson,
+                    ContactPersonEmail = c.Email.ToLower(),
+                    Phone = c.Phone,
+                    BusinessRegistrationDocumentUrl = $"{c.CompanyName.Replace(" ", "_")}_BR.pdf"
+                };
+                dbContext.CompanyProfiles.Add(companyProfile);
+                dbContext.SaveChanges();
+            }
+        }
+        else
         {
             var companyUser = new User
             {
@@ -111,71 +137,72 @@ using (var scope = app.Services.CreateScope())
             dbContext.Users.Add(companyUser);
             dbContext.CompanyProfiles.Add(companyProfile);
             dbContext.SaveChanges();
+        }
 
-            // Add sample placement job drives for this company
-            if (!dbContext.Jobs.Any(j => j.CompanyId == companyProfile.UserId))
-            {
-                dbContext.Jobs.AddRange(
-                    new Job
-                    {
-                        JobId = Guid.NewGuid(),
-                        CompanyId = companyProfile.UserId,
-                        JobTitle = "Backend Engineering Co-op",
-                        TargetDomain = "Distributed Systems & Cloud APIs",
-                        JobDescriptionSummary = "Join our platform core team building high-throughput microservices and real-time event pipelines.",
-                        InternshipType = new[] { "Full-time", "Hybrid" },
-                        LocationCity = "San Jose, CA / Remote",
-                        MinimumGPA = 3.5m,
-                        AllowedYearsOfStudy = new[] { 3, 4 },
-                        MandatorySkills = new[] { "Python", "Go", "PostgreSQL", "Docker" },
-                        NiceToHaveSkills = new[] { "Kubernetes", "gRPC", "Redis" },
-                        PreferredDegreePrograms = new[] { "B.S. Computer Science", "B.S. Software Engineering" },
-                        StipendOffered = true,
-                        StipendAmountOrDetails = "$45 / hr + Housing Stipend",
-                        DurationMonths = 6,
-                        ApplicationDeadline = DateTime.UtcNow.AddDays(45)
-                    },
-                    new Job
-                    {
-                        JobId = Guid.NewGuid(),
-                        CompanyId = companyProfile.UserId,
-                        JobTitle = "Associate Machine Learning Engineer",
-                        TargetDomain = "AI Infrastructure & Agent Systems",
-                        JobDescriptionSummary = "Build and optimize autonomous model evaluation pipelines, vector search indexing, and neural models.",
-                        InternshipType = new[] { "Full-time" },
-                        LocationCity = "Austin, TX / Hybrid",
-                        MinimumGPA = 3.6m,
-                        AllowedYearsOfStudy = new[] { 4 },
-                        MandatorySkills = new[] { "PyTorch", "Python", "CUDA", "FastAPI" },
-                        NiceToHaveSkills = new[] { "LangChain", "Vector DBs", "Triton" },
-                        PreferredDegreePrograms = new[] { "M.S. Machine Learning", "B.S. Computer Science" },
-                        StipendOffered = true,
-                        StipendAmountOrDetails = "$55 / hr + Relocation",
-                        DurationMonths = 6,
-                        ApplicationDeadline = DateTime.UtcNow.AddDays(30)
-                    },
-                    new Job
-                    {
-                        JobId = Guid.NewGuid(),
-                        CompanyId = companyProfile.UserId,
-                        JobTitle = "Hardware Systems Intern",
-                        TargetDomain = "Embedded Firmware & Robotics",
-                        JobDescriptionSummary = "Develop low-level embedded software, real-time operating systems, and interface drivers.",
-                        InternshipType = new[] { "Full-time", "On-site" },
-                        LocationCity = "Boston, MA",
-                        MinimumGPA = 3.4m,
-                        AllowedYearsOfStudy = new[] { 3, 4 },
-                        MandatorySkills = new[] { "C++", "Verilog", "RTOS", "Linux" },
-                        NiceToHaveSkills = new[] { "Altium", "ARM Cortex", "UART/SPI" },
-                        PreferredDegreePrograms = new[] { "B.S. Electrical & Computer Eng", "B.S. Robotics" },
-                        StipendOffered = true,
-                        StipendAmountOrDetails = "$40 / hr",
-                        DurationMonths = 4,
-                        ApplicationDeadline = DateTime.UtcNow.AddDays(60)
-                    }
-                );
-                dbContext.SaveChanges();
-            }
+        // Ensure sample placement job drives exist for this company
+        var targetCompany = dbContext.CompanyProfiles.FirstOrDefault(cp => cp.ContactPersonEmail.ToLower() == c.Email.ToLower());
+        if (targetCompany != null && !dbContext.Jobs.Any(j => j.CompanyId == targetCompany.UserId))
+        {
+            dbContext.Jobs.AddRange(
+                new Job
+                {
+                    JobId = Guid.NewGuid(),
+                    CompanyId = targetCompany.UserId,
+                    JobTitle = "Backend Engineering Co-op",
+                    TargetDomain = "Distributed Systems & Cloud APIs",
+                    JobDescriptionSummary = "Join our platform core team building high-throughput microservices and real-time event pipelines.",
+                    InternshipType = new[] { "Full-time", "Hybrid" },
+                    LocationCity = "San Jose, CA / Remote",
+                    MinimumGPA = 3.5m,
+                    AllowedYearsOfStudy = new[] { 3, 4 },
+                    MandatorySkills = new[] { "Python", "Go", "PostgreSQL", "Docker" },
+                    NiceToHaveSkills = new[] { "Kubernetes", "gRPC", "Redis" },
+                    PreferredDegreePrograms = new[] { "B.S. Computer Science", "B.S. Software Engineering" },
+                    StipendOffered = true,
+                    StipendAmountOrDetails = "$45 / hr + Housing Stipend",
+                    DurationMonths = 6,
+                    ApplicationDeadline = DateTime.UtcNow.AddDays(45)
+                },
+                new Job
+                {
+                    JobId = Guid.NewGuid(),
+                    CompanyId = targetCompany.UserId,
+                    JobTitle = "Associate Machine Learning Engineer",
+                    TargetDomain = "AI Infrastructure & Agent Systems",
+                    JobDescriptionSummary = "Build and optimize autonomous model evaluation pipelines, vector search indexing, and neural models.",
+                    InternshipType = new[] { "Full-time" },
+                    LocationCity = "Austin, TX / Hybrid",
+                    MinimumGPA = 3.6m,
+                    AllowedYearsOfStudy = new[] { 4 },
+                    MandatorySkills = new[] { "PyTorch", "Python", "CUDA", "FastAPI" },
+                    NiceToHaveSkills = new[] { "LangChain", "Vector DBs", "Triton" },
+                    PreferredDegreePrograms = new[] { "M.S. Machine Learning", "B.S. Computer Science" },
+                    StipendOffered = true,
+                    StipendAmountOrDetails = "$55 / hr + Relocation",
+                    DurationMonths = 6,
+                    ApplicationDeadline = DateTime.UtcNow.AddDays(30)
+                },
+                new Job
+                {
+                    JobId = Guid.NewGuid(),
+                    CompanyId = targetCompany.UserId,
+                    JobTitle = "Hardware Systems Intern",
+                    TargetDomain = "Embedded Firmware & Robotics",
+                    JobDescriptionSummary = "Develop low-level embedded software, real-time operating systems, and interface drivers.",
+                    InternshipType = new[] { "Full-time", "On-site" },
+                    LocationCity = "Boston, MA",
+                    MinimumGPA = 3.4m,
+                    AllowedYearsOfStudy = new[] { 3, 4 },
+                    MandatorySkills = new[] { "C++", "Verilog", "RTOS", "Linux" },
+                    NiceToHaveSkills = new[] { "Altium", "ARM Cortex", "UART/SPI" },
+                    PreferredDegreePrograms = new[] { "B.S. Electrical & Computer Eng", "B.S. Robotics" },
+                    StipendOffered = true,
+                    StipendAmountOrDetails = "$40 / hr",
+                    DurationMonths = 4,
+                    ApplicationDeadline = DateTime.UtcNow.AddDays(60)
+                }
+            );
+            dbContext.SaveChanges();
         }
     }
 }

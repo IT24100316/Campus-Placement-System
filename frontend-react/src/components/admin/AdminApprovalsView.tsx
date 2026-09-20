@@ -49,8 +49,8 @@ export const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
     });
   }, []);
 
-  const handleAction = (id: string, newStatus: 'Approved' | 'Rejected') => {
-    const updated = authService.updateStatus(id, newStatus);
+  const handleAction = async (id: string, newStatus: 'Approved' | 'Rejected') => {
+    const updated = await authService.updateStatus(id, newStatus);
     setRecords([...updated]);
     if (selectedRecord && selectedRecord.id === id) {
       setSelectedRecord({ ...selectedRecord, status: newStatus });

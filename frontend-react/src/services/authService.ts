@@ -166,6 +166,14 @@ export const authService = {
             message: data.message || 'Your registration application is currently under administrative review.',
           };
         }
+        // Synchronize local storage if backend confirmed Approved status
+        const currentRecords = this.getRegistrations();
+        const localMatch = currentRecords.find((r) => r.email.toLowerCase() === normalizedEmail);
+        if (localMatch && localMatch.status !== 'Approved') {
+          localMatch.status = 'Approved';
+          localStorage.setItem(STORAGE_KEY_REGISTRATIONS, JSON.stringify(currentRecords));
+        }
+
         return { 
           success: true, 
           role: roleLabel, 
@@ -442,11 +450,32 @@ export const authService = {
     return this.getCompanies();
   },
 
-  updateStatus(id: string, status: 'Approved' | 'Rejected'): RegistrationRecord[] {
+  async updateStatus(id: string, status: 'Approved' | 'Rejected'): Promise<RegistrationRecord[]> {
     const current = this.getRegistrations();
-    const target = current.find((r) => r.id === id);
+    const target = current.find((r) => r.id === id || r.email.toLowerCase() === id.toLowerCase());
+    const email = target?.email || id;
 
-    const updated = current.map((r) => (r.id === id ? { ...r, status } : r));
+    // 1. Send status update to Backend API (sync directly with PostgreSQL)
+    const endpoint = status === 'Approved' ? 'approve' : 'reject';
+    try {
+      let res = await fetch(`${API_BASE}/admin/${endpoint}/${encodeURIComponent(id)}`, {
+        method: 'POST',
+      });
+      if (!res.ok && email) {
+        res = await fetch(`${API_BASE}/admin/${endpoint}/${encodeURIComponent(email)}`, {
+          method: 'POST',
+        });
+      }
+    } catch {
+      // Backend offline fallback
+    }
+
+    // 2. Update local state
+    const updated = current.map((r) => 
+      r.id === id || (email && r.email.toLowerCase() === email.toLowerCase()) 
+        ? { ...r, status } 
+        : r
+    );
     localStorage.setItem(STORAGE_KEY_REGISTRATIONS, JSON.stringify(updated));
 
     // If HR approved, add their company to approved companies list for staff selection!

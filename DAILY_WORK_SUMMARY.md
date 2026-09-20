@@ -103,25 +103,42 @@ Today's development sprint focused on overhauling the corporate authentication a
   * Created `CompanyController.cs` with endpoint `GET /api/company/profile` to return company profile metadata, job drive counts, and shortlisted student dossiers.
   * Enhanced `Program.cs` startup seeder to auto-provision default approved corporate accounts in PostgreSQL (`Virtusa Corporation`, `Pasi Tech Global`, `Acme Global Technologies Inc.`) along with their active job drives.
 
+### 7. Bugfix: Persistent Approval Synchronization & Pending Loop Elimination
+* **Root Cause Analysis**:
+  * When an administrator approved a company in `AdminApprovalsView.tsx`, `authService.updateStatus` only updated client-side `localStorage`.
+  * Because the status was never updated in PostgreSQL, two problems occurred:
+    1. Calling `POST /api/auth/login` checked PostgreSQL, which still had `Status = Pending`, triggering the *"Your registration application is currently under administrative review"* banner.
+    2. Background syncing via `syncRegistrationsFromBackend()` fetched `Status: "Pending"` from PostgreSQL and continually overwrote `localStorage` back to `Pending`.
+* **Full-Stack Resolution**:
+  * **Backend (`AdminController.cs`)**:
+    * Enhanced `POST /api/admin/approve/{identifier}` and `POST /api/admin/reject/{identifier}` to accept either a `Guid` or `email` string.
+    * Updates `User.Status = AccountStatus.Approved` (or `Rejected`) and immediately commits `await _context.SaveChangesAsync()`.
+    * Automatically provisions initial active job drives for the company if none exist so the HR cockpit is populated.
+  * **Frontend Service (`authService.ts`)**:
+    * Made `updateStatus` asynchronous: immediately issues `POST /api/admin/approve/{identifier}` (with email fallback) to PostgreSQL.
+    * Added auto-reconciliation during `authService.login`: when backend confirms `isPending = false`, local storage records are healed to `Approved`.
+  * **Admin Cockpit (`AdminApprovalsView.tsx`)**:
+    * Made `handleAction` asynchronous, awaiting real-time database persistence before updating local view state.
+  * **Startup Seeder (`Program.cs`)**:
+    * Added auto-reconciliation: checks if `Virtusa@Company.com` or default company accounts already exist with `Pending` status and automatically upgrades them to `AccountStatus.Approved`.
+
 ---
 
 ## 📂 Modified & Created Files
 
 | File | Type | Changes |
 | :--- | :--- | :--- |
+| `backend-dotnet/Controllers/AdminController.cs` | Backend | Supported string identifier (Guid or Email) for `approve` and `reject` with DB commit |
+| `backend-dotnet/Program.cs` | Backend | Reconciled existing accounts to `Approved` and provisioned initial job drives |
+| `frontend-react/src/services/authService.ts` | Frontend | Made `updateStatus` async calling backend API, healed local storage on login |
+| `frontend-react/src/components/admin/AdminApprovalsView.tsx` | Frontend | Made `handleAction` async and awaited backend database status update |
 | `frontend-react/src/pages/HrLandingPage.tsx` | Frontend | **New**: Authenticated outside company HR landing page matching `UI/HR-LandingPage` |
 | `frontend-react/src/services/companyService.ts` | Frontend | **New**: Service to fetch live company profile and dashboard data from backend DB |
 | `frontend-react/src/types/company.ts` | Frontend | **New**: TypeScript contracts for company dashboard, drives, and student dossiers |
 | `backend-dotnet/Controllers/CompanyController.cs` | Backend | **New**: Endpoint `GET /api/company/profile` returning DB company profile & stats |
-| `backend-dotnet/Program.cs` | Backend | Added startup seeding for approved corporate accounts (`Virtusa`, `Pasi Tech`, `Acme`) & job drives |
 | `frontend-react/src/App.tsx` | Frontend | Added `'hr'` route, outside HR login redirect, and floating switcher dock support |
 | `frontend-react/src/pages/LoginPage.tsx` | Frontend | Passed email and companyName upon successful login |
 | `frontend-react/src/components/auth/LoginModal.tsx` | Frontend | Passed email and companyName upon successful modal login |
-| `frontend-react/src/services/authService.ts` | Frontend | Propagated live DB companyName and preferred backend login verification |
-| `frontend-react/src/components/layout/Navbar.tsx` | Frontend | Enforced Admin navigation isolation, removed Login/Register for Admin, added Logout |
-| `frontend-react/src/pages/AdminDashboardPage.tsx` | Frontend | Streamlined Admin Navbar props and removed public register handler |
-| `frontend-react/src/components/admin/AdminApprovalsView.tsx` | Frontend | Locked employee organization field to CampusAI default |
-| `backend-dotnet/Controllers/AdminController.cs` | Backend | Added `POST register-employee` endpoint with password hashing & DB persistence |
 | `DAILY_WORK_SUMMARY.md` | Docs | Comprehensive technical summary of today's work |
 
 ---
@@ -131,17 +148,16 @@ Today's development sprint focused on overhauling the corporate authentication a
 1. **Frontend Production Build**:
    ```bash
    npm run build
-   # Output: tsc -b && vite build -> Built in ~500ms (0 errors)
+   # Output: tsc -b && vite build -> Built in ~410ms (0 errors)
    ```
 2. **Backend Compilation**:
    ```bash
    dotnet build
    # Output: Build succeeded. 0 Warning(s), 0 Error(s)
    ```
-3. **End-to-End Authentication & Redirection**:
-   - Outside Company HR Login (`Virtusa@Company.com` / `Virtusa123@`) &rarr; Redirects to dedicated HR Landing Page.
-   - Dynamic DB Title &rarr; Prominently displays `"Welcome back, Virtusa Corporation"`.
-   - Logout Option &rarr; Admin-styled Logout button terminates session cleanly and returns to public portal.
+3. **End-to-End Approval & Authentication**:
+   - Admin approves `Virtusa@Company.com` &rarr; Persists directly to PostgreSQL.
+   - `Virtusa@Company.com` / `Virtusa123@` signs in &rarr; Verified instantly, redirecting directly to HR Landing Page without any pending verification loops.
 
 ---
 
@@ -152,7 +168,8 @@ Today's development sprint focused on overhauling the corporate authentication a
 4. `feat(auth): isolate employer onboarding, move staff provisioning to admin, and enforce role-based access`
 5. `feat(admin): simplify employee registration and persist staff directly to database`
 6. `feat(admin): enforce admin navbar logout state and default employee organization to CampusAI`
-7. `feat(hr): implement outside company HR landing page with DB company title and consistent logout` *(this commit)*
+7. `feat(hr): implement outside company HR landing page with DB company title and consistent logout`
+8. `fix(auth): eliminate approval loop by persisting admin approvals directly to database` *(this commit)*
 
 
 <br>
