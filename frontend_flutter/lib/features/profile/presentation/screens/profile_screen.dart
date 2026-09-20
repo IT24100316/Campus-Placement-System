@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import '../../../../core/constants/app_colors.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -14,12 +17,70 @@ class _ProfileScreenState extends State<ProfileScreen> {
   
   final TextEditingController _skillController = TextEditingController();
   final TextEditingController _toolController = TextEditingController();
+  final TextEditingController _gpaController = TextEditingController(text: '3.88');
 
   final Set<String> _selectedWorkArrangements = {'Remote', 'Hybrid'};
+  final Set<String> _selectedLocations = {'Colombo', 'Remote'};
+  String _selectedSchedule = 'Weekday';
+  String? _selectedDegree;
 
   bool _isSaving = false;
   String _saveButtonText = 'Save Resume';
   IconData _saveButtonIcon = Icons.verified;
+
+  final String _baseUrl = 'http://127.0.0.1:5168';
+
+  List<dynamic> _domains = [];
+  List<dynamic> _jobTitles = [];
+  bool _isLoadingDomains = false;
+  bool _isLoadingTitles = false;
+  int? _selectedDomainId;
+  int? _selectedJobTitleId;
+
+  static const List<String> degreePrograms = ['BSc (Hons) Information Technology', 'BSc (Hons) Software Engineering', 'BSc (Hons) Computer Science', 'BSc (Hons) Data Science', 'BSc (Hons) Cyber Security'];
+  static const List<String> internshipTypes = ['OnSite', 'Hybrid', 'Remote'];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchDomains();
+  }
+
+  Future<void> _fetchDomains() async {
+    setState(() => _isLoadingDomains = true);
+    try {
+      final response = await http.get(Uri.parse('$_baseUrl/api/Jobs/reference/domains'));
+      if (response.statusCode == 200) {
+        setState(() {
+          _domains = json.decode(response.body);
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching domains: $e');
+    } finally {
+      if (mounted) setState(() => _isLoadingDomains = false);
+    }
+  }
+
+  Future<void> _fetchJobTitles(int domainId) async {
+    setState(() {
+      _isLoadingTitles = true;
+      _jobTitles = [];
+      _selectedJobTitleId = null;
+    });
+    try {
+      final response = await http.get(Uri.parse('$_baseUrl/api/Jobs/reference/titles?domainId=$domainId'));
+      if (response.statusCode == 200) {
+        setState(() {
+          _jobTitles = json.decode(response.body);
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching job titles: $e');
+    } finally {
+      if (mounted) setState(() => _isLoadingTitles = false);
+    }
+  }
 
   void _addSkill() {
     final text = _skillController.text.trim();
@@ -63,6 +124,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void dispose() {
     _skillController.dispose();
     _toolController.dispose();
+    _gpaController.dispose();
     super.dispose();
   }
 
@@ -213,7 +275,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   children: [
                     _buildInputField('University / Institution', Icons.account_balance, 'Stanford University / National Institute of Technology'),
                     const SizedBox(height: 16),
-                    _buildDropdownField('Degree Program', Icons.menu_book, ['B.Tech Computer Science & Engineering', 'M.S. Data Science', 'B.S. AI & Robotics']),
+                    _buildDegreeDropdown(),
                     const SizedBox(height: 16),
                     Row(
                       children: [
@@ -225,11 +287,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     const SizedBox(height: 16),
                     Row(
                       children: [
-                        Expanded(child: _buildInputField('Cumulative GPA', Icons.grade, '3.88 / 4.00')),
+                        Expanded(child: _buildGpaField()),
                         const SizedBox(width: 12),
                         Expanded(child: _buildInputField('Expected Grad', Icons.event, 'June 2026')),
                       ],
                     ),
+                    const SizedBox(height: 16),
+                    _buildScheduleDropdown(),
                   ],
                 ),
                 const SizedBox(height: 24),
@@ -239,13 +303,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   icon: Icons.track_changes,
                   title: 'Career Goals & Preferences',
                   children: [
-                    _buildInputField('Target Job Title', Icons.badge, 'Full Stack Engineer / AI Systems Developer'),
+                    _buildInputField('Portfolio URL', Icons.link, 'https://github.com/alexmorgan'),
                     const SizedBox(height: 16),
-                    _buildInputField('Primary Domain', Icons.hub, 'Artificial Intelligence & Distributed Systems'),
+                    _buildDomainDropdown(),
+                    const SizedBox(height: 16),
+                    _buildJobTitleDropdown(),
                     const SizedBox(height: 16),
                     _buildTextAreaField('Career Objectives Summary', 'Passionate software engineer focused on building robust scalable systems and generative AI infrastructure. Seeking summer internship or graduate engineering role.'),
                     const SizedBox(height: 16),
                     _buildInternshipTypeChips(),
+                    const SizedBox(height: 16),
+                    _buildPreferredLocationsChips(),
                   ],
                 ),
                 const SizedBox(height: 24),
@@ -633,6 +701,90 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  Widget _buildScheduleDropdown() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Lecture Schedule Type', style: TextStyle(fontSize: 11, color: AppColors.textSecondaryLight)),
+        const SizedBox(height: 4),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+          decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
+          child: DropdownButtonFormField<String>(
+            value: _selectedSchedule,
+            icon: const Icon(Icons.expand_more, color: Colors.grey, size: 18),
+            decoration: const InputDecoration(
+              icon: Icon(Icons.calendar_month, color: Colors.grey, size: 20),
+              border: InputBorder.none,
+              isDense: true,
+              contentPadding: EdgeInsets.symmetric(vertical: 10),
+            ),
+            style: const TextStyle(fontSize: 13, color: AppColors.textPrimaryLight),
+            dropdownColor: Colors.white,
+            items: ['Weekday', 'Weekend'].map((String value) {
+              return DropdownMenuItem<String>(
+                value: value,
+                child: Text(value),
+              );
+            }).toList(),
+            onChanged: (newValue) {
+              if (newValue != null) {
+                setState(() => _selectedSchedule = newValue);
+              }
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPreferredLocationsChips() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Preferred Work Locations', style: TextStyle(fontSize: 11, color: AppColors.textSecondaryLight)),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: ['Colombo', 'Gampaha', 'Kandy', 'Remote'].map((location) {
+            final isSelected = _selectedLocations.contains(location);
+            return FilterChip(
+              label: Text(
+                location,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  color: isSelected ? Colors.white : AppColors.textPrimaryLight,
+                ),
+              ),
+              selected: isSelected,
+              onSelected: (bool selected) {
+                setState(() {
+                  if (selected) {
+                    _selectedLocations.add(location);
+                  } else {
+                    _selectedLocations.remove(location);
+                  }
+                });
+              },
+              backgroundColor: Colors.grey.shade100,
+              selectedColor: AppColors.primary,
+              checkmarkColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+                side: BorderSide.none,
+              ),
+              showCheckmark: true,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
   Widget _buildInternshipTypeChips() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -642,47 +794,200 @@ class _ProfileScreenState extends State<ProfileScreen> {
         Wrap(
           spacing: 8,
           runSpacing: 8,
-          children: ['Remote', 'Hybrid', 'On-site'].map((type) {
+          children: internshipTypes.map((type) {
             final isSelected = _selectedWorkArrangements.contains(type);
-            return GestureDetector(
-              onTap: () {
+            return FilterChip(
+              label: Text(
+                type,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  color: isSelected ? Colors.white : AppColors.textPrimaryLight,
+                ),
+              ),
+              selected: isSelected,
+              onSelected: (bool selected) {
                 setState(() {
-                  if (isSelected) {
-                    _selectedWorkArrangements.remove(type);
-                  } else {
+                  if (selected) {
                     _selectedWorkArrangements.add(type);
+                  } else {
+                    _selectedWorkArrangements.remove(type);
                   }
                 });
               },
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: isSelected ? AppColors.primary : Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: isSelected ? [BoxShadow(color: AppColors.primary.withValues(alpha: 0.3), blurRadius: 4, offset: const Offset(0, 2))] : null,
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      isSelected ? Icons.check : Icons.location_on_outlined,
-                      size: 16,
-                      color: isSelected ? Colors.white : AppColors.textPrimaryLight,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      type,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                        color: isSelected ? Colors.white : AppColors.textPrimaryLight,
-                      ),
-                    ),
-                  ],
-                ),
+              backgroundColor: Colors.grey.shade100,
+              selectedColor: AppColors.primary,
+              checkmarkColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+                side: BorderSide.none,
               ),
+              showCheckmark: true,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
             );
           }).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGpaField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Cumulative GPA', style: TextStyle(fontSize: 11, color: AppColors.textSecondaryLight)),
+        const SizedBox(height: 4),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+          decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
+          child: TextFormField(
+            controller: _gpaController,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            style: const TextStyle(fontSize: 14, color: AppColors.textPrimaryLight),
+            decoration: const InputDecoration(
+              icon: Icon(Icons.grade, color: Colors.grey, size: 20),
+              border: InputBorder.none,
+              isDense: true,
+              contentPadding: EdgeInsets.symmetric(vertical: 12),
+            ),
+            validator: (value) {
+              if (value == null || value.isEmpty) return null;
+              final numValue = double.tryParse(value);
+              if (numValue == null || numValue < 0.0 || numValue > 4.0) {
+                return 'Invalid';
+              }
+              return null;
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDegreeDropdown() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Degree Program', style: TextStyle(fontSize: 11, color: AppColors.textSecondaryLight)),
+        const SizedBox(height: 4),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+          decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
+          child: DropdownButtonFormField<String>(
+            value: _selectedDegree,
+            hint: const Text('Select Degree Program', style: TextStyle(fontSize: 13, color: AppColors.textSecondaryLight)),
+            icon: const Icon(Icons.expand_more, color: Colors.grey, size: 18),
+            decoration: const InputDecoration(
+              icon: Icon(Icons.menu_book, color: Colors.grey, size: 20),
+              border: InputBorder.none,
+              isDense: true,
+              contentPadding: EdgeInsets.symmetric(vertical: 10),
+            ),
+            isExpanded: true,
+            style: const TextStyle(fontSize: 13, color: AppColors.textPrimaryLight),
+            dropdownColor: Colors.white,
+            items: degreePrograms.map((String value) {
+              return DropdownMenuItem<String>(
+                value: value,
+                child: Text(value, overflow: TextOverflow.ellipsis),
+              );
+            }).toList(),
+            onChanged: (newValue) {
+              setState(() => _selectedDegree = newValue);
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDomainDropdown() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Primary Domain', style: TextStyle(fontSize: 11, color: AppColors.textSecondaryLight)),
+        const SizedBox(height: 4),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+          decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
+          child: DropdownButtonFormField<int>(
+            value: _selectedDomainId,
+            hint: _isLoadingDomains
+                ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Text('Select Domain', style: TextStyle(fontSize: 13, color: AppColors.textSecondaryLight)),
+            icon: const Icon(Icons.expand_more, color: Colors.grey, size: 18),
+            decoration: const InputDecoration(
+              icon: Icon(Icons.hub, color: Colors.grey, size: 20),
+              border: InputBorder.none,
+              isDense: true,
+              contentPadding: EdgeInsets.symmetric(vertical: 10),
+            ),
+            isExpanded: true,
+            style: const TextStyle(fontSize: 13, color: AppColors.textPrimaryLight),
+            dropdownColor: Colors.white,
+            items: _domains.isEmpty 
+              ? [const DropdownMenuItem<int>(value: -1, child: Text('No Domains (Backend Offline?)', style: TextStyle(color: Colors.red)))]
+              : _domains.map<DropdownMenuItem<int>>((dynamic domain) {
+                  return DropdownMenuItem<int>(
+                    value: domain['id'],
+                    child: Text(domain['name'].toString(), overflow: TextOverflow.ellipsis),
+                  );
+                }).toList(),
+            onChanged: (newValue) {
+              if (newValue != null && newValue != -1 && newValue != _selectedDomainId) {
+                setState(() {
+                  _selectedDomainId = newValue;
+                });
+                _fetchJobTitles(newValue);
+              }
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildJobTitleDropdown() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Target Job Title', style: TextStyle(fontSize: 11, color: AppColors.textSecondaryLight)),
+        const SizedBox(height: 4),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+          decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
+          child: DropdownButtonFormField<int>(
+            value: _selectedJobTitleId,
+            hint: _isLoadingTitles
+                ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Text('Select Job Title', style: TextStyle(fontSize: 13, color: AppColors.textSecondaryLight)),
+            icon: const Icon(Icons.expand_more, color: Colors.grey, size: 18),
+            decoration: const InputDecoration(
+              icon: Icon(Icons.badge, color: Colors.grey, size: 20),
+              border: InputBorder.none,
+              isDense: true,
+              contentPadding: EdgeInsets.symmetric(vertical: 10),
+            ),
+            isExpanded: true,
+            style: const TextStyle(fontSize: 13, color: AppColors.textPrimaryLight),
+            dropdownColor: Colors.white,
+            items: _jobTitles.isEmpty
+              ? [const DropdownMenuItem<int>(value: -1, child: Text('No Titles Found', style: TextStyle(color: Colors.red)))]
+              : _jobTitles.map<DropdownMenuItem<int>>((dynamic title) {
+                  return DropdownMenuItem<int>(
+                    value: title['id'],
+                    child: Text(title['title'].toString(), overflow: TextOverflow.ellipsis),
+                  );
+                }).toList(),
+            onChanged: _selectedDomainId == null ? null : (newValue) {
+              if (newValue != -1) {
+                setState(() {
+                  _selectedJobTitleId = newValue;
+                });
+              }
+            },
+          ),
         ),
       ],
     );
