@@ -14,7 +14,7 @@ import type { RegistrationRecord } from '../../types/auth';
 interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onLoginSuccess: (role: string) => void;
+  onLoginSuccess: (role: string, email?: string, companyName?: string) => void;
   onPendingFound: (record: RegistrationRecord) => void;
   onNavigateRegister: () => void;
 }
@@ -48,7 +48,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       const res = await authService.login(email, password);
       if (res.success) {
         onClose();
-        onLoginSuccess(res.role || 'Admin');
+        onLoginSuccess(res.role || 'Admin', email.trim(), res.companyName);
       } else if (res.isPending && res.record) {
         onClose();
         onPendingFound(res.record);

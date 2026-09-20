@@ -73,22 +73,83 @@ Today's development sprint focused on overhauling the corporate authentication a
 
 ---
 
+### 5. Admin Navbar Session Isolation & Organization Defaulting
+* **Admin Navbar State Isolation (`Navbar.tsx`, `App.tsx`)**:
+  * Enforced strict RBAC in the navigation bar: whenever an Admin is authenticated, all public marketing/onboarding actions (`Login to Dashboard`, `Register`) are completely suppressed.
+  * Implemented dedicated Admin navigation controls: "Approvals Dashboard" and "Platform Home" in both desktop and mobile drawer views.
+  * Added prominent **Logout** button with icon and hover styling across both the top Navbar and floating dock.
+  * Standardized `isAdmin` role detection to be case-insensitive (`currentUser?.role?.toLowerCase() === 'admin'`).
+* **Defaulted Employee Registration Organization (`AdminApprovalsView.tsx`)**:
+  * Removed any prompt or dropdown asking the administrator to specify or select an employer organization.
+  * Locked the organization field to **CampusAI** (our platform organization) by default, displaying a dedicated `Platform Org` badge and helper text clarifying that internal staff provisioned by Admin work for our organization.
+
+---
+
+### 6. Outside Company HR Landing Page & Database Synchronization
+* **Design Reference & Visual Fidelity (`UI/HR-LandingPage`)**:
+  * Built [HrLandingPage.tsx](file:///d:/se_project/Campus-Placement-System/frontend-react/src/pages/HrLandingPage.tsx) faithfully reproducing the design in `UI/HR-LandingPage` (`DESIGN.md`, `code.html`, and `screen.png`).
+  * Features the complete corporate employer cockpit: Live Academic Session status banner, 2 primary fast-action hub cards (*Post a Job Opportunity* & *View Selected Students*), 4 KPI metric cards, Active Placement Drives grid, Candidate Shortlist & AI-Screened Student Queue table, and Institutional Placement Officer Support Desk.
+* **Dynamic Registered Company Name from Database**:
+  * Displays the verified company name in the page title: `Welcome back, <span className="text-primary">{companyName}</span>`.
+  * Company identity pill in navbar shows the corporate initials avatar (`VIR` / `AG`), registered company name, and verified employer checkmark.
+  * Dynamically queries the database on mount via `companyService.getDashboardData(email)`, calling `GET /api/company/profile?email={email}` to pull records from the `CompanyProfiles` table in PostgreSQL.
+* **Consistent Admin-Style Logout Option**:
+  * Integrated the exact same styled **Logout** button used in the Admin dashboard:
+    `inline-flex items-center gap-1.5 text-xs font-semibold text-rose-600 hover:text-white hover:bg-rose-600 border border-rose-200 hover:border-rose-600 px-3.5 py-2 rounded-lg transition-all shadow-xs focus:ring-2 focus:ring-rose-200 focus:outline-none cursor-pointer` with `LogOut` icon.
+  * Supported in both the top navigation bar and the floating switcher dock in [App.tsx](file:///d:/se_project/Campus-Placement-System/frontend-react/src/App.tsx).
+* **Automatic Redirection on Sign-in**:
+  * Updated [LoginPage.tsx](file:///d:/se_project/Campus-Placement-System/frontend-react/src/pages/LoginPage.tsx) and [App.tsx](file:///d:/se_project/Campus-Placement-System/frontend-react/src/App.tsx): When a Company HR signs in (e.g. `Virtusa@Company.com`, `pasi@Company.com`, or `c.vance@acmeglobal.tech`), they are automatically redirected to their dedicated HR Landing Page (`currentView = 'hr'`).
+* **Backend Controller & Database Seeder (`CompanyController.cs`, `Program.cs`)**:
+  * Created `CompanyController.cs` with endpoint `GET /api/company/profile` to return company profile metadata, job drive counts, and shortlisted student dossiers.
+  * Enhanced `Program.cs` startup seeder to auto-provision default approved corporate accounts in PostgreSQL (`Virtusa Corporation`, `Pasi Tech Global`, `Acme Global Technologies Inc.`) along with their active job drives.
+
+### 7. Bugfix: Persistent Approval Synchronization & Pending Loop Elimination
+* **Root Cause Analysis**:
+  * When an administrator approved a company in `AdminApprovalsView.tsx`, `authService.updateStatus` only updated client-side `localStorage`.
+  * Because the status was never updated in PostgreSQL, two problems occurred:
+    1. Calling `POST /api/auth/login` checked PostgreSQL, which still had `Status = Pending`, triggering the *"Your registration application is currently under administrative review"* banner.
+    2. Background syncing via `syncRegistrationsFromBackend()` fetched `Status: "Pending"` from PostgreSQL and continually overwrote `localStorage` back to `Pending`.
+* **Full-Stack Resolution**:
+  * **Backend (`AdminController.cs`)**:
+    * Enhanced `POST /api/admin/approve/{identifier}` and `POST /api/admin/reject/{identifier}` to accept either a `Guid` or `email` string.
+    * Updates `User.Status = AccountStatus.Approved` (or `Rejected`) and immediately commits `await _context.SaveChangesAsync()`.
+    * Automatically provisions initial active job drives for the company if none exist so the HR cockpit is populated.
+  * **Frontend Service (`authService.ts`)**:
+    * Made `updateStatus` asynchronous: immediately issues `POST /api/admin/approve/{identifier}` (with email fallback) to PostgreSQL.
+    * Added auto-reconciliation during `authService.login`: when backend confirms `isPending = false`, local storage records are healed to `Approved`.
+  * **Admin Cockpit (`AdminApprovalsView.tsx`)**:
+    * Made `handleAction` asynchronous, awaiting real-time database persistence before updating local view state.
+  * **Startup Seeder (`Program.cs`)**:
+    * Added auto-reconciliation: checks if `Virtusa@Company.com` or default company accounts already exist with `Pending` status and automatically upgrades them to `AccountStatus.Approved`.
+
+### 8. Strict Role-Gated Category Tab Validation on Login
+* **Problem Statement**:
+  * On the 3-role login portal (`LoginPage.tsx`), entering Company HR credentials while focused on other category tabs (e.g. **Institutional Admin** or **Company Staff**) succeeded and redirected the user to the HR landing page.
+  * This compromised role boundaries because each tab is designed to serve a distinct user persona.
+* **Implementation Details**:
+  * Implemented `validateRoleTab(actualRole, tab)` in `LoginPage.tsx`:
+    * **Company HR Tab (`recruiter`)**: Strictly gates entry to accounts with `Company HR` (or `Company`) role. Prevents Admin or Staff accounts with clear guidance (*"This account has Institutional Administrator clearance. Please select the 'Admin' tab to sign in."*).
+    * **Company Staff Tab (`staff`)**: Strictly gates entry to accounts with `Company Staff` role. Prevents Company HR accounts with clear guidance (*"This account is registered as Company HR. Please switch to the 'Company HR' tab to sign in."*).
+    * **Institutional Admin Tab (`admin`)**: Strictly gates entry to accounts with `Admin` role. Corporate accounts receive *"Access Denied: Only Institutional Administrators can sign in through this tab."*
+  * Added validation checks to both the active authentication flow and the pending verification stepper.
+
+---
+
 ## 📂 Modified & Created Files
 
 | File | Type | Changes |
 | :--- | :--- | :--- |
-| `backend-dotnet/Controllers/AdminController.cs` | Backend | Added `POST register-employee` endpoint with password hashing & DB persistence |
-| `backend-dotnet/DTOs/AuthDtos.cs` | Backend | Added `AdminRegisterEmployeeDto` definition |
-| `frontend-react/index.html` | Frontend | Added Google Font imports for `Inter` and `JetBrains Mono` |
-| `frontend-react/src/App.tsx` | Frontend | Removed public admin navigation dock button; enforced role-based redirection |
-| `frontend-react/src/pages/LandingPage.tsx` | Frontend | Removed unauthenticated admin navigation links from public view |
-| `frontend-react/src/pages/LoginPage.tsx` | Frontend | Implemented dedicated 3-role login page matching `UI/login` specification |
-| `frontend-react/src/pages/RegisterPage.tsx` | Frontend | Isolated flow purely for employer onboarding |
-| `frontend-react/src/components/auth/RegisterForm.tsx` | Frontend | Removed public staff tab; focused 100% on employer registration |
-| `frontend-react/src/components/auth/PendingApprovalScreen.tsx` | Frontend | Clarified employer-focused lifecycle tracking |
-| `frontend-react/src/components/admin/AdminApprovalsView.tsx` | Frontend | Simplified employee registration modal with direct database persistence |
-| `frontend-react/src/services/authService.ts` | Frontend | Added backend API synchronization for registrations, companies & staff creation |
-| `README.md` & `frontend-react/README.md` | Docs | Updated architecture overview, credentials, and sprint checklists |
+| `frontend-react/src/pages/LoginPage.tsx` | Frontend | Enforced strict role-gated category tab validation on login |
+| `backend-dotnet/Controllers/AdminController.cs` | Backend | Supported string identifier (Guid or Email) for `approve` and `reject` with DB commit |
+| `backend-dotnet/Program.cs` | Backend | Reconciled existing accounts to `Approved` and provisioned initial job drives |
+| `frontend-react/src/services/authService.ts` | Frontend | Made `updateStatus` async calling backend API, healed local storage on login |
+| `frontend-react/src/components/admin/AdminApprovalsView.tsx` | Frontend | Made `handleAction` async and awaited backend database status update |
+| `frontend-react/src/pages/HrLandingPage.tsx` | Frontend | **New**: Authenticated outside company HR landing page matching `UI/HR-LandingPage` |
+| `frontend-react/src/services/companyService.ts` | Frontend | **New**: Service to fetch live company profile and dashboard data from backend DB |
+| `frontend-react/src/types/company.ts` | Frontend | **New**: TypeScript contracts for company dashboard, drives, and student dossiers |
+| `backend-dotnet/Controllers/CompanyController.cs` | Backend | **New**: Endpoint `GET /api/company/profile` returning DB company profile & stats |
+| `frontend-react/src/App.tsx` | Frontend | Added `'hr'` route, outside HR login redirect, and floating switcher dock support |
+| `frontend-react/src/components/auth/LoginModal.tsx` | Frontend | Passed email and companyName upon successful modal login |
 | `DAILY_WORK_SUMMARY.md` | Docs | Comprehensive technical summary of today's work |
 
 ---
@@ -98,17 +159,17 @@ Today's development sprint focused on overhauling the corporate authentication a
 1. **Frontend Production Build**:
    ```bash
    npm run build
-   # Output: tsc -b && vite build -> Built in ~400ms (0 errors)
+   # Output: tsc -b && vite build -> Built in ~500ms (0 errors)
    ```
 2. **Backend Compilation**:
    ```bash
    dotnet build
    # Output: Build succeeded. 0 Warning(s), 0 Error(s)
    ```
-3. **End-to-End Authentication**:
-   - Company HR Login &rarr; Verified.
-   - Company Staff Login (newly registered in DB) &rarr; Verified.
-   - Institutional Admin Login &rarr; Verified.
+3. **Role-Gating Verification**:
+   - Company HR credentials entered in **Admin** tab &rarr; Blocked with *"Access Denied: This account is registered as Company HR. Please use the 'Company HR' tab to sign in."*
+   - Company HR credentials entered in **Company Staff** tab &rarr; Blocked with *"This account is registered as Company HR. Please switch to the 'Company HR' tab to sign in."*
+   - Company HR credentials entered in **Company HR** tab &rarr; Authenticated successfully and routed to HR Landing Page.
 
 ---
 
@@ -118,7 +179,11 @@ Today's development sprint focused on overhauling the corporate authentication a
 3. `refactor(auth): remove demo autofill helpers for clean professional enterprise login`
 4. `feat(auth): isolate employer onboarding, move staff provisioning to admin, and enforce role-based access`
 5. `feat(admin): simplify employee registration and persist staff directly to database`
-6. `docs: add comprehensive daily work summary for sprint completion` *(this commit)*
+6. `feat(admin): enforce admin navbar logout state and default employee organization to CampusAI`
+7. `feat(hr): implement outside company HR landing page with DB company title and consistent logout`
+8. `fix(auth): eliminate approval loop by persisting admin approvals directly to database`
+9. `fix(auth): enforce strict role-gated category tab validation on login page` *(this commit)*
+
 
 <br>
 

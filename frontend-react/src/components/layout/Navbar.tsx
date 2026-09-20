@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { LogOut, ShieldCheck } from 'lucide-react';
 
 interface NavLink {
   label: string;
@@ -17,6 +18,9 @@ interface NavbarProps {
   onNavigateRegister?: () => void;
   onNavigateAdmin?: () => void;
   onOpenLogin?: () => void;
+  isAdmin?: boolean;
+  onLogout?: () => void;
+  userEmail?: string;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -24,6 +28,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   onNavigateRegister,
   onNavigateAdmin,
   onOpenLogin,
+  isAdmin = false,
+  onLogout,
+  userEmail,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -58,42 +65,80 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Desktop Navigation Links */}
         <nav className="hidden md:flex items-center gap-8">
-          {navLinks.map((link) => (
-            <a
-              key={link.label}
-              href={link.href}
-              className="text-sm font-medium text-on-surface-variant hover:text-primary transition-colors focus:outline-none"
-            >
-              {link.label}
-            </a>
-          ))}
-          {onNavigateAdmin && (
-            <button
-              type="button"
-              onClick={onNavigateAdmin}
-              className="text-sm font-semibold text-indigo-600 hover:text-indigo-800 transition-colors cursor-pointer"
-            >
-              Admin Approvals
-            </button>
+          {isAdmin ? (
+            <>
+              {onNavigateAdmin && (
+                <button
+                  type="button"
+                  onClick={onNavigateAdmin}
+                  className="text-sm font-semibold text-indigo-600 hover:text-indigo-800 transition-colors cursor-pointer flex items-center gap-1.5"
+                >
+                  <ShieldCheck className="w-4 h-4 text-indigo-600" />
+                  <span>Approvals Dashboard</span>
+                </button>
+              )}
+              {onNavigateHome && (
+                <button
+                  type="button"
+                  onClick={onNavigateHome}
+                  className="text-sm font-medium text-slate-600 hover:text-primary transition-colors cursor-pointer"
+                >
+                  Platform Home
+                </button>
+              )}
+            </>
+          ) : (
+            <>
+              {navLinks.map((link) => (
+                <a
+                  key={link.label}
+                  href={link.href}
+                  className="text-sm font-medium text-on-surface-variant hover:text-primary transition-colors focus:outline-none"
+                >
+                  {link.label}
+                </a>
+              ))}
+            </>
           )}
         </nav>
 
         {/* Action Buttons */}
         <div className="hidden sm:flex items-center gap-3">
-          <button
-            type="button"
-            onClick={onNavigateRegister}
-            className="text-sm font-medium text-slate-700 hover:text-primary px-3 py-2 rounded-md transition-colors focus:outline-none cursor-pointer"
-          >
-            Register
-          </button>
-          <button
-            type="button"
-            onClick={onOpenLogin || onNavigateAdmin || onNavigateRegister}
-            className="inline-flex items-center justify-center text-sm font-semibold text-white bg-primary hover:bg-blue-700 px-4 py-2 rounded-lg transition-all shadow-sm focus:ring-2 focus:ring-blue-300 focus:outline-none active:scale-[0.99] cursor-pointer"
-          >
-            Login to Dashboard
-          </button>
+          {isAdmin ? (
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50/80 border border-indigo-100 text-indigo-800 text-xs font-semibold">
+                <ShieldCheck className="w-4 h-4 text-indigo-600" />
+                <span className="hidden lg:inline">{userEmail || 'admin@campusai.edu'}</span>
+                <span className="lg:hidden">Admin Portal</span>
+              </div>
+              <button
+                type="button"
+                onClick={onLogout}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-rose-600 hover:text-white hover:bg-rose-600 border border-rose-200 hover:border-rose-600 px-3.5 py-2 rounded-lg transition-all shadow-xs focus:ring-2 focus:ring-rose-200 focus:outline-none cursor-pointer"
+                title="Sign out of Admin Session"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>Logout</span>
+              </button>
+            </div>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={onNavigateRegister}
+                className="text-sm font-medium text-slate-700 hover:text-primary px-3 py-2 rounded-md transition-colors focus:outline-none cursor-pointer"
+              >
+                Register
+              </button>
+              <button
+                type="button"
+                onClick={onOpenLogin || onNavigateAdmin || onNavigateRegister}
+                className="inline-flex items-center justify-center text-sm font-semibold text-white bg-primary hover:bg-blue-700 px-4 py-2 rounded-lg transition-all shadow-sm focus:ring-2 focus:ring-blue-300 focus:outline-none active:scale-[0.99] cursor-pointer"
+              >
+                Login to Dashboard
+              </button>
+            </>
+          )}
         </div>
 
         {/* Mobile Menu Toggle Button */}
@@ -114,49 +159,92 @@ export const Navbar: React.FC<NavbarProps> = ({
       {mobileMenuOpen && (
         <div className="md:hidden border-b border-slate-200 bg-white px-6 pt-3 pb-6 shadow-lg">
           <div className="flex flex-col space-y-3">
-            {navLinks.map((link) => (
-              <a
-                key={link.label}
-                href={link.href}
-                onClick={() => setMobileMenuOpen(false)}
-                className="text-sm font-medium text-slate-700 hover:text-primary py-1.5 transition-colors"
-              >
-                {link.label}
-              </a>
-            ))}
-            {onNavigateAdmin && (
-              <button
-                type="button"
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  onNavigateAdmin();
-                }}
-                className="text-left text-sm font-semibold text-indigo-600 hover:text-indigo-800 py-1.5 transition-colors cursor-pointer"
-              >
-                Admin Approvals
-              </button>
+            {isAdmin ? (
+              <>
+                {onNavigateAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      onNavigateAdmin();
+                    }}
+                    className="text-left text-sm font-semibold text-indigo-600 hover:text-indigo-800 py-1.5 transition-colors cursor-pointer flex items-center gap-2"
+                  >
+                    <ShieldCheck className="w-4 h-4 text-indigo-600" />
+                    <span>Approvals Dashboard</span>
+                  </button>
+                )}
+                {onNavigateHome && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      onNavigateHome();
+                    }}
+                    className="text-left text-sm font-medium text-slate-700 hover:text-primary py-1.5 transition-colors cursor-pointer"
+                  >
+                    Platform Home
+                  </button>
+                )}
+              </>
+            ) : (
+              <>
+                {navLinks.map((link) => (
+                  <a
+                    key={link.label}
+                    href={link.href}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="text-sm font-medium text-slate-700 hover:text-primary py-1.5 transition-colors"
+                  >
+                    {link.label}
+                  </a>
+                ))}
+              </>
             )}
+
             <div className="pt-3 border-t border-slate-100 flex flex-col gap-2.5">
-              <button
-                type="button"
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  onNavigateRegister?.();
-                }}
-                className="text-center text-sm font-medium text-slate-700 hover:text-primary py-2 rounded-md border border-slate-200 cursor-pointer"
-              >
-                Register
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  (onOpenLogin || onNavigateAdmin || onNavigateRegister)?.();
-                }}
-                className="text-center text-sm font-semibold text-white bg-primary hover:bg-blue-700 py-2 rounded-lg shadow-sm cursor-pointer"
-              >
-                Login to Dashboard
-              </button>
+              {isAdmin ? (
+                <>
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-indigo-50 border border-indigo-100 text-indigo-800 text-xs font-semibold">
+                    <ShieldCheck className="w-4 h-4 text-indigo-600" />
+                    <span>{userEmail || 'admin@campusai.edu'}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      onLogout?.();
+                    }}
+                    className="flex items-center justify-center gap-2 text-center text-sm font-semibold text-rose-600 hover:bg-rose-50 border border-rose-200 py-2.5 rounded-lg shadow-xs cursor-pointer transition-colors"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span>Logout</span>
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      onNavigateRegister?.();
+                    }}
+                    className="text-center text-sm font-medium text-slate-700 hover:text-primary py-2 rounded-md border border-slate-200 cursor-pointer"
+                  >
+                    Register
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      (onOpenLogin || onNavigateAdmin || onNavigateRegister)?.();
+                    }}
+                    className="text-center text-sm font-semibold text-white bg-primary hover:bg-blue-700 py-2 rounded-lg shadow-sm cursor-pointer"
+                  >
+                    Login to Dashboard
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
