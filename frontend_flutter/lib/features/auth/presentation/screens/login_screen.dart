@@ -21,10 +21,29 @@ class _LoginScreenState extends State<LoginScreen> {
       appBar: AppBar(
         backgroundColor: AppColors.backgroundLight,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.textPrimaryLight),
-          onPressed: () => Navigator.pop(context),
+        leading: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: InkWell(
+            onTap: () => Navigator.pop(context),
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.borderLight),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.03),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: const Icon(Icons.arrow_back_ios_new, size: 18, color: AppColors.textPrimaryLight),
+            ),
+          ),
         ),
+        leadingWidth: 64,
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -150,9 +169,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     // Sign In Button
                     ElevatedButton(
                       onPressed: () {
-                        Navigator.pushReplacement(
+                        Navigator.pushAndRemoveUntil(
                           context,
                           MaterialPageRoute(builder: (_) => const DashboardShellScreen()),
+                          (route) => false,
                         );
                       },
                       style: ElevatedButton.styleFrom(
