@@ -4,12 +4,13 @@ import { RegisterPage } from './pages/RegisterPage';
 import { AdminDashboardPage } from './pages/AdminDashboardPage';
 import { LoginPage } from './pages/LoginPage';
 import { HrLandingPage } from './pages/HrLandingPage';
+import { ApplicationsPage } from './pages/ApplicationsPage';
 import { JobPostingForm } from './components/company/JobPostingForm';
 import { LoginModal } from './components/auth/LoginModal';
 import { Sparkles, UserPlus, Home, LogIn, ShieldCheck, LogOut, Building2, PlusCircle } from 'lucide-react';
 import type { RegistrationRecord } from './types/auth';
 
-export type AppView = 'landing' | 'register' | 'login' | 'admin' | 'hr' | 'hr-post-job';
+export type AppView = 'landing' | 'register' | 'login' | 'admin' | 'hr' | 'hr-post-job' | 'applications';
 
 function App() {
   const [currentView, setCurrentView] = useState<AppView>('landing');
@@ -154,6 +155,10 @@ function App() {
             setCurrentView('hr-post-job');
             window.scrollTo({ top: 0, behavior: 'smooth' });
           }}
+          onNavigateApplications={() => {
+            setCurrentView('applications');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
         />
       )}
 
@@ -169,6 +174,15 @@ function App() {
             if (createdJob?.jobId) {
               setNewlyCreatedJobId(createdJob.jobId);
             }
+            setCurrentView('hr');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+        />
+      )}
+
+      {currentView === 'applications' && (
+        <ApplicationsPage 
+          onNavigateDashboard={() => {
             setCurrentView('hr');
             window.scrollTo({ top: 0, behavior: 'smooth' });
           }}
@@ -277,6 +291,21 @@ function App() {
             >
               <PlusCircle className="w-3.5 h-3.5 text-blue-400" />
               <span>Post Job</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setCurrentView('applications');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-full transition-all cursor-pointer ${
+                currentView === 'applications'
+                  ? 'bg-primary text-white font-semibold'
+                  : 'text-blue-300 hover:text-white hover:bg-slate-800'
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5 text-blue-400" />
+              <span>Applications</span>
             </button>
             <button
               type="button"
