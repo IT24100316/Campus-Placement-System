@@ -11,6 +11,11 @@ const STORAGE_KEY_COMPANIES = 'campusai_approved_companies';
 
 const INITIAL_COMPANIES: ApprovedCompanyOption[] = [
   {
+    id: 'campusai-platform',
+    name: 'CampusAI',
+    industry: 'Platform & Campus Placement Operations',
+  },
+  {
     id: 'acme-001',
     name: 'Acme Global Technologies Inc.',
     industry: 'Software, Cloud & Artificial Intelligence',
@@ -101,6 +106,8 @@ export const authService = {
     role?: string;
     isPending?: boolean;
     message?: string;
+    companyName?: string;
+    fullName?: string;
     record?: RegistrationRecord;
   }> {
     const normalizedEmail = email.trim().toLowerCase();
@@ -116,38 +123,16 @@ export const authService = {
       } catch {
         // Backend offline fallback
       }
-      return { success: true, role: 'Admin', message: 'Logged in as Institutional Administrator' };
-    }
-
-    // 2. Check in registered user records
-    const records = this.getRegistrations();
-    const userRecord = records.find((r) => r.email.toLowerCase() === normalizedEmail);
-
-    if (userRecord) {
-      if (userRecord.status === 'Pending') {
-        return {
-          success: false,
-          isPending: true,
-          record: userRecord,
-          role: userRecord.role === 'staff' ? 'Company Staff' : 'Company HR',
-          message: 'Your registration application is currently under administrative review.',
-        };
-      }
-      if (userRecord.status === 'Rejected') {
-        return {
-          success: false,
-          message: 'Your registration application has been declined by the administrator.',
-        };
-      }
-      return {
-        success: true,
-        role: userRecord.role === 'staff' ? 'Company Staff' : 'Company HR',
-        record: userRecord,
-        message: 'Welcome back!',
+      return { 
+        success: true, 
+        role: 'Admin', 
+        companyName: 'CampusAI',
+        fullName: 'Institutional Placement Administrator',
+        message: 'Logged in as Institutional Administrator' 
       };
     }
 
-    // 3. Fallback backend call
+    // 2. Attempt real backend authentication first (Direct DB integration)
     try {
       const res = await fetch(`${API_BASE}/auth/login`, {
         method: 'POST',
@@ -176,13 +161,61 @@ export const authService = {
             isPending: true,
             role: roleLabel,
             record: rec,
+            companyName: data.companyName,
+            fullName: data.fullName,
             message: data.message || 'Your registration application is currently under administrative review.',
           };
         }
-        return { success: true, role: roleLabel, message: data.message };
+        // Synchronize local storage if backend confirmed Approved status
+        const currentRecords = this.getRegistrations();
+        const localMatch = currentRecords.find((r) => r.email.toLowerCase() === normalizedEmail);
+        if (localMatch && localMatch.status !== 'Approved') {
+          localMatch.status = 'Approved';
+          localStorage.setItem(STORAGE_KEY_REGISTRATIONS, JSON.stringify(currentRecords));
+        }
+
+        return { 
+          success: true, 
+          role: roleLabel, 
+          companyName: data.companyName,
+          fullName: data.fullName,
+          message: data.message 
+        };
       }
     } catch {
-      // Backend offline fallback
+      // Backend offline fallback - continue to local records
+    }
+
+    // 3. Fallback to local storage registered user records
+    const records = this.getRegistrations();
+    const userRecord = records.find((r) => r.email.toLowerCase() === normalizedEmail);
+
+    if (userRecord) {
+      if (userRecord.status === 'Pending') {
+        return {
+          success: false,
+          isPending: true,
+          record: userRecord,
+          role: userRecord.role === 'staff' ? 'Company Staff' : 'Company HR',
+          companyName: userRecord.companyName,
+          fullName: userRecord.fullName,
+          message: 'Your registration application is currently under administrative review.',
+        };
+      }
+      if (userRecord.status === 'Rejected') {
+        return {
+          success: false,
+          message: 'Your registration application has been declined by the administrator.',
+        };
+      }
+      return {
+        success: true,
+        role: userRecord.role === 'staff' ? 'Company Staff' : 'Company HR',
+        record: userRecord,
+        companyName: userRecord.companyName,
+        fullName: userRecord.fullName,
+        message: 'Welcome back!',
+      };
     }
 
     return { success: false, message: 'Invalid corporate or institutional credentials.' };
@@ -293,7 +326,7 @@ export const authService = {
           email: data.email,
           password: data.password || 'StaffPass@2025!',
           companyId: data.companyId && data.companyId !== 'other' ? data.companyId : null,
-          companyName: data.companyName,
+          companyName: data.companyName || 'CampusAI',
           staffId: data.staffId,
           jobPosition: data.jobPosition,
         }),
@@ -313,7 +346,7 @@ export const authService = {
         fullName: json.fullName || data.fullName,
         email: json.email || data.email,
         phone: '+1 (555) 000-0000',
-        companyName: json.companyName || data.companyName || 'Enterprise Employer',
+        companyName: json.companyName || data.companyName || 'CampusAI',
         staffId: json.staffId || data.staffId,
         jobPosition: json.jobPosition || data.jobPosition,
         status: 'Approved',
@@ -338,7 +371,7 @@ export const authService = {
         fullName: data.fullName,
         email: data.email,
         phone: '+1 (555) 000-0000',
-        companyName: data.companyName || 'Enterprise Employer',
+        companyName: data.companyName || 'CampusAI',
         staffId: data.staffId,
         jobPosition: data.jobPosition,
         status: 'Approved',
@@ -417,11 +450,32 @@ export const authService = {
     return this.getCompanies();
   },
 
-  updateStatus(id: string, status: 'Approved' | 'Rejected'): RegistrationRecord[] {
+  async updateStatus(id: string, status: 'Approved' | 'Rejected'): Promise<RegistrationRecord[]> {
     const current = this.getRegistrations();
-    const target = current.find((r) => r.id === id);
+    const target = current.find((r) => r.id === id || r.email.toLowerCase() === id.toLowerCase());
+    const email = target?.email || id;
 
-    const updated = current.map((r) => (r.id === id ? { ...r, status } : r));
+    // 1. Send status update to Backend API (sync directly with PostgreSQL)
+    const endpoint = status === 'Approved' ? 'approve' : 'reject';
+    try {
+      let res = await fetch(`${API_BASE}/admin/${endpoint}/${encodeURIComponent(id)}`, {
+        method: 'POST',
+      });
+      if (!res.ok && email) {
+        res = await fetch(`${API_BASE}/admin/${endpoint}/${encodeURIComponent(email)}`, {
+          method: 'POST',
+        });
+      }
+    } catch {
+      // Backend offline fallback
+    }
+
+    // 2. Update local state
+    const updated = current.map((r) => 
+      r.id === id || (email && r.email.toLowerCase() === email.toLowerCase()) 
+        ? { ...r, status } 
+        : r
+    );
     localStorage.setItem(STORAGE_KEY_REGISTRATIONS, JSON.stringify(updated));
 
     // If HR approved, add their company to approved companies list for staff selection!

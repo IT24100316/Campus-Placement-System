@@ -60,34 +60,101 @@ public class AdminController : ControllerBase
     }
 
     /// <summary>
-    /// Approve an account
+    /// Approve an account by user ID or Email
     /// </summary>
-    [HttpPost("approve/{userId}")]
-    public async Task<IActionResult> ApproveUser(Guid userId)
+    [HttpPost("approve/{identifier}")]
+    public async Task<IActionResult> ApproveUser(string identifier)
     {
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+        User? user = null;
+        if (Guid.TryParse(identifier, out var parsedGuid))
+        {
+            user = await _context.Users.Include(u => u.CompanyProfile).FirstOrDefaultAsync(u => u.Id == parsedGuid);
+        }
+        if (user == null)
+        {
+            var normalized = identifier.Trim().ToLower();
+            user = await _context.Users.Include(u => u.CompanyProfile).FirstOrDefaultAsync(u => u.Email.ToLower() == normalized);
+        }
+
         if (user == null)
             return NotFound(new { message = "User not found." });
 
         user.Status = AccountStatus.Approved;
+
+        // Also ensure company has default placement jobs if none exist
+        if (user.CompanyProfile != null && !_context.Jobs.Any(j => j.CompanyId == user.Id))
+        {
+            _context.Jobs.AddRange(
+                new Job
+                {
+                    JobId = Guid.NewGuid(),
+                    CompanyId = user.Id,
+                    JobTitle = "Backend Engineering Co-op",
+                    TargetDomain = "Distributed Systems & APIs • 6 Months",
+                    JobDescriptionSummary = "Build and scale high-throughput cloud microservices.",
+                    InternshipType = new[] { "Full-time", "Hybrid" },
+                    LocationCity = "San Jose, CA",
+                    MinimumGPA = 3.5m,
+                    AllowedYearsOfStudy = new[] { 3, 4 },
+                    MandatorySkills = new[] { "Python", "Go", "PostgreSQL" },
+                    NiceToHaveSkills = new[] { "Docker", "Kubernetes" },
+                    PreferredDegreePrograms = new[] { "B.S. Computer Science" },
+                    StipendOffered = true,
+                    StipendAmountOrDetails = "$45 / hr",
+                    DurationMonths = 6,
+                    ApplicationDeadline = DateTime.UtcNow.AddDays(45)
+                },
+                new Job
+                {
+                    JobId = Guid.NewGuid(),
+                    CompanyId = user.Id,
+                    JobTitle = "Associate Machine Learning Engineer",
+                    TargetDomain = "AI Infrastructure • Class of 2025",
+                    JobDescriptionSummary = "Train and deploy deep learning models and agentic workflows.",
+                    InternshipType = new[] { "Full-time" },
+                    LocationCity = "Austin, TX",
+                    MinimumGPA = 3.6m,
+                    AllowedYearsOfStudy = new[] { 4 },
+                    MandatorySkills = new[] { "PyTorch", "CUDA", "Python" },
+                    NiceToHaveSkills = new[] { "FastAPI", "LangChain" },
+                    PreferredDegreePrograms = new[] { "M.S. Machine Learning", "B.S. CS" },
+                    StipendOffered = true,
+                    StipendAmountOrDetails = "$55 / hr",
+                    DurationMonths = 6,
+                    ApplicationDeadline = DateTime.UtcNow.AddDays(30)
+                }
+            );
+        }
+
         await _context.SaveChangesAsync();
 
         return Ok(new
         {
             success = true,
-            message = "Account approved successfully.",
+            message = "Account approved successfully in database.",
             userId = user.Id,
+            email = user.Email,
             status = user.Status.ToString()
         });
     }
 
     /// <summary>
-    /// Reject an account
+    /// Reject an account by user ID or Email
     /// </summary>
-    [HttpPost("reject/{userId}")]
-    public async Task<IActionResult> RejectUser(Guid userId)
+    [HttpPost("reject/{identifier}")]
+    public async Task<IActionResult> RejectUser(string identifier)
     {
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+        User? user = null;
+        if (Guid.TryParse(identifier, out var parsedGuid))
+        {
+            user = await _context.Users.FirstOrDefaultAsync(u => u.Id == parsedGuid);
+        }
+        if (user == null)
+        {
+            var normalized = identifier.Trim().ToLower();
+            user = await _context.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == normalized);
+        }
+
         if (user == null)
             return NotFound(new { message = "User not found." });
 
@@ -97,8 +164,9 @@ public class AdminController : ControllerBase
         return Ok(new
         {
             success = true,
-            message = "Account rejected.",
+            message = "Account rejected in database.",
             userId = user.Id,
+            email = user.Email,
             status = user.Status.ToString()
         });
     }
@@ -117,43 +185,40 @@ public class AdminController : ControllerBase
             return BadRequest(new { message = "An account with this email address is already registered." });
 
         CompanyProfile? company = null;
+        var defaultOrgName = string.IsNullOrWhiteSpace(dto.CompanyName) ? "CampusAI" : dto.CompanyName.Trim();
+
         if (dto.CompanyId.HasValue && dto.CompanyId.Value != Guid.Empty)
         {
             company = await _context.CompanyProfiles.FirstOrDefaultAsync(c => c.UserId == dto.CompanyId.Value);
         }
 
-        if (company == null && !string.IsNullOrWhiteSpace(dto.CompanyName))
-        {
-            company = await _context.CompanyProfiles.FirstOrDefaultAsync(c => c.CompanyName.ToLower() == dto.CompanyName.ToLower());
-        }
-
-        // Fallback: If still null, pick first existing company or auto-create company profile
         if (company == null)
         {
-            company = await _context.CompanyProfiles.FirstOrDefaultAsync();
+            company = await _context.CompanyProfiles.FirstOrDefaultAsync(c => c.CompanyName.ToLower() == defaultOrgName.ToLower());
         }
 
+        // Auto-provision platform web app company profile if not yet in database
         if (company == null)
         {
             var companyUser = new User
             {
                 Id = Guid.NewGuid(),
-                Email = "hr@" + (string.IsNullOrWhiteSpace(dto.CompanyName) ? "acmeglobal.tech" : dto.CompanyName.ToLower().Replace(" ", "") + ".com"),
+                Email = "platform-ops@" + defaultOrgName.ToLower().Replace(" ", "") + ".edu",
                 Role = UserRole.Company,
                 Status = AccountStatus.Approved,
                 CreatedAt = DateTime.UtcNow
             };
-            companyUser.PasswordHash = _passwordHasher.HashPassword(companyUser, "Vanguard#2024Secure!");
+            companyUser.PasswordHash = _passwordHasher.HashPassword(companyUser, "CampusAI#2025Secure!");
 
             company = new CompanyProfile
             {
                 UserId = companyUser.Id,
-                CompanyName = string.IsNullOrWhiteSpace(dto.CompanyName) ? "Acme Global Technologies Inc." : dto.CompanyName.Trim(),
-                Industry = "Enterprise Technology & Engineering",
-                ContactPersonName = "Corporate Representative",
+                CompanyName = defaultOrgName,
+                Industry = "Platform & Campus Placement Operations",
+                ContactPersonName = "Institutional Platform Operations",
                 ContactPersonEmail = companyUser.Email,
                 Phone = "+1 555-019-2834",
-                BusinessRegistrationDocumentUrl = "Acme_Incorporation_BR.pdf"
+                BusinessRegistrationDocumentUrl = "CampusAI_Platform_Registration.pdf"
             };
 
             _context.Users.Add(companyUser);
