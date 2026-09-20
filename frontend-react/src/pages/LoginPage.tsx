@@ -24,7 +24,7 @@ export type LoginRole = 'recruiter' | 'staff' | 'admin';
 interface LoginPageProps {
   onBackHome: () => void;
   onNavigateRegister: () => void;
-  onLoginSuccess: (role: string) => void;
+  onLoginSuccess: (role: string, email?: string, companyName?: string) => void;
   onPendingFound: (record: RegistrationRecord) => void;
 }
 
@@ -78,11 +78,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({
           message:
             res.role === 'Admin'
               ? 'Institutional clearance verified. Redirecting to Admin Approvals & Placement Cockpit...'
-              : `Welcome back! Redirecting to ${res.role || 'Corporate'} dashboard...`,
+              : `Welcome back! Redirecting to ${res.companyName || 'Corporate'} dashboard...`,
         });
 
         setTimeout(() => {
-          onLoginSuccess(res.role || (selectedRole === 'admin' ? 'Admin' : 'Company'));
+          const roleLabel = res.role || (selectedRole === 'admin' ? 'Admin' : (selectedRole === 'staff' ? 'Company Staff' : 'Company HR'));
+          onLoginSuccess(roleLabel, email.trim(), res.companyName);
         }, 800);
       } else if (res.isPending && res.record) {
         setAuthAlert({

@@ -106,6 +106,8 @@ export const authService = {
     role?: string;
     isPending?: boolean;
     message?: string;
+    companyName?: string;
+    fullName?: string;
     record?: RegistrationRecord;
   }> {
     const normalizedEmail = email.trim().toLowerCase();
@@ -121,38 +123,16 @@ export const authService = {
       } catch {
         // Backend offline fallback
       }
-      return { success: true, role: 'Admin', message: 'Logged in as Institutional Administrator' };
-    }
-
-    // 2. Check in registered user records
-    const records = this.getRegistrations();
-    const userRecord = records.find((r) => r.email.toLowerCase() === normalizedEmail);
-
-    if (userRecord) {
-      if (userRecord.status === 'Pending') {
-        return {
-          success: false,
-          isPending: true,
-          record: userRecord,
-          role: userRecord.role === 'staff' ? 'Company Staff' : 'Company HR',
-          message: 'Your registration application is currently under administrative review.',
-        };
-      }
-      if (userRecord.status === 'Rejected') {
-        return {
-          success: false,
-          message: 'Your registration application has been declined by the administrator.',
-        };
-      }
-      return {
-        success: true,
-        role: userRecord.role === 'staff' ? 'Company Staff' : 'Company HR',
-        record: userRecord,
-        message: 'Welcome back!',
+      return { 
+        success: true, 
+        role: 'Admin', 
+        companyName: 'CampusAI',
+        fullName: 'Institutional Placement Administrator',
+        message: 'Logged in as Institutional Administrator' 
       };
     }
 
-    // 3. Fallback backend call
+    // 2. Attempt real backend authentication first (Direct DB integration)
     try {
       const res = await fetch(`${API_BASE}/auth/login`, {
         method: 'POST',
@@ -181,13 +161,53 @@ export const authService = {
             isPending: true,
             role: roleLabel,
             record: rec,
+            companyName: data.companyName,
+            fullName: data.fullName,
             message: data.message || 'Your registration application is currently under administrative review.',
           };
         }
-        return { success: true, role: roleLabel, message: data.message };
+        return { 
+          success: true, 
+          role: roleLabel, 
+          companyName: data.companyName,
+          fullName: data.fullName,
+          message: data.message 
+        };
       }
     } catch {
-      // Backend offline fallback
+      // Backend offline fallback - continue to local records
+    }
+
+    // 3. Fallback to local storage registered user records
+    const records = this.getRegistrations();
+    const userRecord = records.find((r) => r.email.toLowerCase() === normalizedEmail);
+
+    if (userRecord) {
+      if (userRecord.status === 'Pending') {
+        return {
+          success: false,
+          isPending: true,
+          record: userRecord,
+          role: userRecord.role === 'staff' ? 'Company Staff' : 'Company HR',
+          companyName: userRecord.companyName,
+          fullName: userRecord.fullName,
+          message: 'Your registration application is currently under administrative review.',
+        };
+      }
+      if (userRecord.status === 'Rejected') {
+        return {
+          success: false,
+          message: 'Your registration application has been declined by the administrator.',
+        };
+      }
+      return {
+        success: true,
+        role: userRecord.role === 'staff' ? 'Company Staff' : 'Company HR',
+        record: userRecord,
+        companyName: userRecord.companyName,
+        fullName: userRecord.fullName,
+        message: 'Welcome back!',
+      };
     }
 
     return { success: false, message: 'Invalid corporate or institutional credentials.' };

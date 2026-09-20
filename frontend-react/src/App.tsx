@@ -3,17 +3,18 @@ import { LandingPage } from './pages/LandingPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { AdminDashboardPage } from './pages/AdminDashboardPage';
 import { LoginPage } from './pages/LoginPage';
+import { HrLandingPage } from './pages/HrLandingPage';
 import { LoginModal } from './components/auth/LoginModal';
-import { Sparkles, UserPlus, Home, LogIn, ShieldCheck, LogOut } from 'lucide-react';
+import { Sparkles, UserPlus, Home, LogIn, ShieldCheck, LogOut, Building2 } from 'lucide-react';
 import type { RegistrationRecord } from './types/auth';
 
-export type AppView = 'landing' | 'register' | 'login' | 'admin';
+export type AppView = 'landing' | 'register' | 'login' | 'admin' | 'hr';
 
 function App() {
   const [currentView, setCurrentView] = useState<AppView>('landing');
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [pendingRecordForView, setPendingRecordForView] = useState<RegistrationRecord | null>(null);
-  const [currentUser, setCurrentUser] = useState<{ email: string; role: string } | null>(() => {
+  const [currentUser, setCurrentUser] = useState<{ email: string; role: string; companyName?: string } | null>(() => {
     try {
       const saved = localStorage.getItem('campusai_auth_user');
       return saved ? JSON.parse(saved) : null;
@@ -29,12 +30,25 @@ function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleLoginSuccess = (role: string) => {
-    const user = { email: role.toLowerCase() === 'admin' ? 'admin@campusai.edu' : 'recruiter@company.com', role };
+  const handleLoginSuccess = (role: string, userEmail?: string, companyName?: string) => {
+    const normalizedRole = role.toLowerCase();
+    const email = userEmail || (normalizedRole === 'admin' ? 'admin@campusai.edu' : 'virtusa@company.com');
+    const user = { email, role, companyName };
     setCurrentUser(user);
     localStorage.setItem('campusai_auth_user', JSON.stringify(user));
-    if (role.toLowerCase() === 'admin') {
+
+    if (normalizedRole === 'admin') {
       setCurrentView('admin');
+    } else if (
+      normalizedRole === 'company hr' ||
+      normalizedRole === 'companyhr' ||
+      normalizedRole === 'company' ||
+      normalizedRole === 'recruiter' ||
+      normalizedRole === 'staff' ||
+      normalizedRole === 'company staff'
+    ) {
+      // Outside company HR / Staff redirected directly to dedicated HR Landing Page
+      setCurrentView('hr');
     } else {
       setCurrentView('landing');
     }
@@ -42,6 +56,7 @@ function App() {
   };
 
   const isAdmin = currentUser?.role?.toLowerCase() === 'admin' || currentView === 'admin';
+  const isHr = currentView === 'hr' || (currentUser?.role && currentUser.role.toLowerCase().includes('company'));
 
   return (
     <div className="relative min-h-screen">
@@ -122,13 +137,25 @@ function App() {
         />
       )}
 
+      {currentView === 'hr' && (
+        <HrLandingPage
+          userEmail={currentUser?.email}
+          initialCompanyName={currentUser?.companyName}
+          onLogout={handleLogout}
+          onNavigateHome={() => {
+            setCurrentView('landing');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+        />
+      )}
+
       {/* Global Authentication Modal */}
       <LoginModal
         isOpen={isLoginOpen}
         onClose={() => setIsLoginOpen(false)}
-        onLoginSuccess={(role) => {
+        onLoginSuccess={(role, email, companyName) => {
           setIsLoginOpen(false);
-          handleLoginSuccess(role);
+          handleLoginSuccess(role, email, companyName);
         }}
         onPendingFound={(record) => {
           setIsLoginOpen(false);
@@ -188,6 +215,33 @@ function App() {
               onClick={handleLogout}
               className="flex items-center gap-1 px-3 py-1.5 rounded-full transition-all cursor-pointer text-rose-300 hover:text-white hover:bg-rose-900/60"
               title="Sign out of Admin Session"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span>Logout</span>
+            </button>
+          </>
+        ) : isHr ? (
+          <>
+            <button
+              type="button"
+              onClick={() => {
+                setCurrentView('hr');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-full transition-all cursor-pointer ${
+                currentView === 'hr'
+                  ? 'bg-primary text-white font-semibold'
+                  : 'text-blue-300 hover:text-white hover:bg-slate-800'
+              }`}
+            >
+              <Building2 className="w-3.5 h-3.5 text-blue-400" />
+              <span>Employer Portal</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-full transition-all cursor-pointer text-rose-300 hover:text-white hover:bg-rose-900/60"
+              title="Sign out of Employer Session"
             >
               <LogOut className="w-3.5 h-3.5" />
               <span>Logout</span>

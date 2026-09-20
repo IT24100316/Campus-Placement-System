@@ -85,24 +85,43 @@ Today's development sprint focused on overhauling the corporate authentication a
 
 ---
 
+### 6. Outside Company HR Landing Page & Database Synchronization
+* **Design Reference & Visual Fidelity (`UI/HR-LandingPage`)**:
+  * Built [HrLandingPage.tsx](file:///d:/se_project/Campus-Placement-System/frontend-react/src/pages/HrLandingPage.tsx) faithfully reproducing the design in `UI/HR-LandingPage` (`DESIGN.md`, `code.html`, and `screen.png`).
+  * Features the complete corporate employer cockpit: Live Academic Session status banner, 2 primary fast-action hub cards (*Post a Job Opportunity* & *View Selected Students*), 4 KPI metric cards, Active Placement Drives grid, Candidate Shortlist & AI-Screened Student Queue table, and Institutional Placement Officer Support Desk.
+* **Dynamic Registered Company Name from Database**:
+  * Displays the verified company name in the page title: `Welcome back, <span className="text-primary">{companyName}</span>`.
+  * Company identity pill in navbar shows the corporate initials avatar (`VIR` / `AG`), registered company name, and verified employer checkmark.
+  * Dynamically queries the database on mount via `companyService.getDashboardData(email)`, calling `GET /api/company/profile?email={email}` to pull records from the `CompanyProfiles` table in PostgreSQL.
+* **Consistent Admin-Style Logout Option**:
+  * Integrated the exact same styled **Logout** button used in the Admin dashboard:
+    `inline-flex items-center gap-1.5 text-xs font-semibold text-rose-600 hover:text-white hover:bg-rose-600 border border-rose-200 hover:border-rose-600 px-3.5 py-2 rounded-lg transition-all shadow-xs focus:ring-2 focus:ring-rose-200 focus:outline-none cursor-pointer` with `LogOut` icon.
+  * Supported in both the top navigation bar and the floating switcher dock in [App.tsx](file:///d:/se_project/Campus-Placement-System/frontend-react/src/App.tsx).
+* **Automatic Redirection on Sign-in**:
+  * Updated [LoginPage.tsx](file:///d:/se_project/Campus-Placement-System/frontend-react/src/pages/LoginPage.tsx) and [App.tsx](file:///d:/se_project/Campus-Placement-System/frontend-react/src/App.tsx): When a Company HR signs in (e.g. `Virtusa@Company.com`, `pasi@Company.com`, or `c.vance@acmeglobal.tech`), they are automatically redirected to their dedicated HR Landing Page (`currentView = 'hr'`).
+* **Backend Controller & Database Seeder (`CompanyController.cs`, `Program.cs`)**:
+  * Created `CompanyController.cs` with endpoint `GET /api/company/profile` to return company profile metadata, job drive counts, and shortlisted student dossiers.
+  * Enhanced `Program.cs` startup seeder to auto-provision default approved corporate accounts in PostgreSQL (`Virtusa Corporation`, `Pasi Tech Global`, `Acme Global Technologies Inc.`) along with their active job drives.
+
+---
+
 ## 📂 Modified & Created Files
 
 | File | Type | Changes |
 | :--- | :--- | :--- |
+| `frontend-react/src/pages/HrLandingPage.tsx` | Frontend | **New**: Authenticated outside company HR landing page matching `UI/HR-LandingPage` |
+| `frontend-react/src/services/companyService.ts` | Frontend | **New**: Service to fetch live company profile and dashboard data from backend DB |
+| `frontend-react/src/types/company.ts` | Frontend | **New**: TypeScript contracts for company dashboard, drives, and student dossiers |
+| `backend-dotnet/Controllers/CompanyController.cs` | Backend | **New**: Endpoint `GET /api/company/profile` returning DB company profile & stats |
+| `backend-dotnet/Program.cs` | Backend | Added startup seeding for approved corporate accounts (`Virtusa`, `Pasi Tech`, `Acme`) & job drives |
+| `frontend-react/src/App.tsx` | Frontend | Added `'hr'` route, outside HR login redirect, and floating switcher dock support |
+| `frontend-react/src/pages/LoginPage.tsx` | Frontend | Passed email and companyName upon successful login |
+| `frontend-react/src/components/auth/LoginModal.tsx` | Frontend | Passed email and companyName upon successful modal login |
+| `frontend-react/src/services/authService.ts` | Frontend | Propagated live DB companyName and preferred backend login verification |
 | `frontend-react/src/components/layout/Navbar.tsx` | Frontend | Enforced Admin navigation isolation, removed Login/Register for Admin, added Logout |
-| `frontend-react/src/App.tsx` | Frontend | Case-insensitive Admin check, updated floating dock with Admin Approvals and Logout |
 | `frontend-react/src/pages/AdminDashboardPage.tsx` | Frontend | Streamlined Admin Navbar props and removed public register handler |
-| `frontend-react/src/components/admin/AdminApprovalsView.tsx` | Frontend | Fixed button handler and locked employee organization field to CampusAI |
+| `frontend-react/src/components/admin/AdminApprovalsView.tsx` | Frontend | Locked employee organization field to CampusAI default |
 | `backend-dotnet/Controllers/AdminController.cs` | Backend | Added `POST register-employee` endpoint with password hashing & DB persistence |
-| `backend-dotnet/DTOs/AuthDtos.cs` | Backend | Added `AdminRegisterEmployeeDto` definition |
-| `frontend-react/index.html` | Frontend | Added Google Font imports for `Inter` and `JetBrains Mono` |
-| `frontend-react/src/pages/LandingPage.tsx` | Frontend | Removed unauthenticated admin navigation links from public view |
-| `frontend-react/src/pages/LoginPage.tsx` | Frontend | Implemented dedicated 3-role login page matching `UI/login` specification |
-| `frontend-react/src/pages/RegisterPage.tsx` | Frontend | Isolated flow purely for employer onboarding |
-| `frontend-react/src/components/auth/RegisterForm.tsx` | Frontend | Removed public staff tab; focused 100% on employer registration |
-| `frontend-react/src/components/auth/PendingApprovalScreen.tsx` | Frontend | Clarified employer-focused lifecycle tracking |
-| `frontend-react/src/services/authService.ts` | Frontend | Added backend API synchronization for registrations, companies & staff creation |
-| `README.md` & `frontend-react/README.md` | Docs | Updated architecture overview, credentials, and sprint checklists |
 | `DAILY_WORK_SUMMARY.md` | Docs | Comprehensive technical summary of today's work |
 
 ---
@@ -112,20 +131,17 @@ Today's development sprint focused on overhauling the corporate authentication a
 1. **Frontend Production Build**:
    ```bash
    npm run build
-   # Output: tsc -b && vite build -> Built in ~400ms (0 errors)
+   # Output: tsc -b && vite build -> Built in ~500ms (0 errors)
    ```
 2. **Backend Compilation**:
    ```bash
    dotnet build
    # Output: Build succeeded. 0 Warning(s), 0 Error(s)
    ```
-3. **End-to-End Authentication**:
-   - Company HR Login &rarr; Verified.
-   - Company Staff Login (newly registered in DB) &rarr; Verified.
-   - Institutional Admin Login &rarr; Verified.
-4. **Admin Navbar & Employee Provisioning**:
-   - Admin Login &rarr; Public Login/Register buttons hidden, Logout present & functional.
-   - Employee Provisioning &rarr; Organization locked to CampusAI default.
+3. **End-to-End Authentication & Redirection**:
+   - Outside Company HR Login (`Virtusa@Company.com` / `Virtusa123@`) &rarr; Redirects to dedicated HR Landing Page.
+   - Dynamic DB Title &rarr; Prominently displays `"Welcome back, Virtusa Corporation"`.
+   - Logout Option &rarr; Admin-styled Logout button terminates session cleanly and returns to public portal.
 
 ---
 
@@ -135,8 +151,9 @@ Today's development sprint focused on overhauling the corporate authentication a
 3. `refactor(auth): remove demo autofill helpers for clean professional enterprise login`
 4. `feat(auth): isolate employer onboarding, move staff provisioning to admin, and enforce role-based access`
 5. `feat(admin): simplify employee registration and persist staff directly to database`
-6. `docs: add comprehensive daily work summary for sprint completion`
-7. `feat(admin): enforce admin navbar logout state and default employee organization to CampusAI` *(this commit)*
+6. `feat(admin): enforce admin navbar logout state and default employee organization to CampusAI`
+7. `feat(hr): implement outside company HR landing page with DB company title and consistent logout` *(this commit)*
+
 
 <br>
 
