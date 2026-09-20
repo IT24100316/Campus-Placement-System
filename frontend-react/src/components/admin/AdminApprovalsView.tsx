@@ -14,7 +14,7 @@ import {
   ArrowLeft,
   UserPlus,
 } from 'lucide-react';
-import type { RegistrationRecord, AccountApprovalStatus, ApprovedCompanyOption } from '../../types/auth';
+import type { RegistrationRecord, AccountApprovalStatus } from '../../types/auth';
 import { authService } from '../../services/authService';
 
 interface AdminApprovalsViewProps {
@@ -31,32 +31,21 @@ export const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
 
   // Register Employee Modal State
   const [isAddStaffOpen, setIsAddStaffOpen] = useState(false);
-  const [companies, setCompanies] = useState<ApprovedCompanyOption[]>([]);
   const [newStaffName, setNewStaffName] = useState('');
   const [newStaffEmail, setNewStaffEmail] = useState('');
   const [newStaffPassword, setNewStaffPassword] = useState('StaffPass@2025!');
-  const [newStaffCompanyId, setNewStaffCompanyId] = useState('');
-  const [newStaffCompanyName, setNewStaffCompanyName] = useState('');
   const [newStaffId, setNewStaffId] = useState('');
-  const [newStaffJobPosition, setNewStaffJobPosition] = useState('Technical Recruiter');
+  const [newStaffJobPosition, setNewStaffJobPosition] = useState('Platform Operations Officer');
   const [newStaffError, setNewStaffError] = useState('');
   const [newStaffSuccess, setNewStaffSuccess] = useState('');
   const [isSubmittingStaff, setIsSubmittingStaff] = useState(false);
 
   useEffect(() => {
     setRecords(authService.getRegistrations());
-    setCompanies(authService.getCompanies());
 
     // Sync live from PostgreSQL database
     authService.syncRegistrationsFromBackend().then((synced) => {
       setRecords([...synced]);
-    });
-    authService.fetchCompanies().then((comps) => {
-      setCompanies([...comps]);
-      if (comps.length > 0) {
-        setNewStaffCompanyId(comps[0].id);
-        setNewStaffCompanyName(comps[0].name);
-      }
     });
   }, []);
 
@@ -130,10 +119,7 @@ export const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
               setIsAddStaffOpen(true);
               setNewStaffError('');
               setNewStaffSuccess('');
-              if (companies.length > 0 && !newStaffCompanyId) {
-                setNewStaffCompanyId(companies[0].id);
-                setNewStaffCompanyName(companies[0].name);
-              }
+              setNewStaffJobPosition('Platform Operations Officer');
             }}
             className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-primary hover:bg-blue-700 text-white text-xs font-semibold transition-all shadow-sm cursor-pointer"
           >
@@ -526,9 +512,9 @@ export const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
                 <UserPlus className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-slate-900">Register Employee</h3>
+                <h3 className="text-lg font-bold text-slate-900">Register Internal Employee</h3>
                 <p className="text-xs text-slate-500">
-                  Add an employee or interviewer to an employer company. Saved directly to the database.
+                  Register an internal employee for our <strong>CampusAI</strong> platform organization. Saved directly to the database.
                 </p>
               </div>
             </div>
@@ -558,17 +544,13 @@ export const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
                 setNewStaffError('');
                 setNewStaffSuccess('');
 
-                const selectedCompany = companies.find((c) => c.id === newStaffCompanyId);
-                const companyName = newStaffCompanyName.trim() || selectedCompany?.name || 'Enterprise Employer';
-
                 const res = await authService.registerEmployeeByAdmin({
                   fullName: newStaffName.trim(),
                   email: newStaffEmail.trim().toLowerCase(),
                   password: newStaffPassword.trim() || 'StaffPass@2025!',
-                  companyId: newStaffCompanyId && newStaffCompanyId !== 'other' ? newStaffCompanyId : undefined,
-                  companyName: companyName,
+                  companyName: 'CampusAI',
                   staffId: newStaffId.trim(),
-                  jobPosition: newStaffJobPosition.trim() || 'Technical Recruiter',
+                  jobPosition: newStaffJobPosition.trim() || 'Platform Operations Officer',
                 });
 
                 setIsSubmittingStaff(false);
@@ -617,7 +599,7 @@ export const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
                     required
                     value={newStaffEmail}
                     onChange={(e) => setNewStaffEmail(e.target.value)}
-                    placeholder="s.connor@company.com"
+                    placeholder="s.connor@campusai.edu"
                     className="w-full h-10 px-3.5 rounded-lg border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-primary"
                   />
                 </div>
@@ -640,25 +622,20 @@ export const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1" htmlFor="staff-company">
-                    Employer Organization <span className="text-rose-500">*</span>
+                    Employer Organization (Default)
                   </label>
-                  <select
-                    id="staff-company"
-                    value={newStaffCompanyId}
-                    onChange={(e) => {
-                      setNewStaffCompanyId(e.target.value);
-                      const selected = companies.find((c) => c.id === e.target.value);
-                      if (selected) setNewStaffCompanyName(selected.name);
-                    }}
-                    className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-primary"
-                  >
-                    {companies.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                    <option value="other">+ Enter Other Company Name</option>
-                  </select>
+                  <div className="w-full h-10 px-3.5 rounded-lg border border-slate-200 bg-slate-100/90 text-sm text-slate-800 flex items-center justify-between font-medium select-none shadow-xs">
+                    <span className="flex items-center gap-2">
+                      <Building2 className="w-4 h-4 text-primary" />
+                      <span className="font-semibold text-slate-900">CampusAI</span>
+                    </span>
+                    <span className="text-[10px] uppercase font-bold text-primary bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md">
+                      Platform Org
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    Internal employees provisioned by Admin work directly for our platform organization (CampusAI).
+                  </p>
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1" htmlFor="staff-role">
@@ -670,28 +647,11 @@ export const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
                     required
                     value={newStaffJobPosition}
                     onChange={(e) => setNewStaffJobPosition(e.target.value)}
-                    placeholder="e.g. Technical Recruiter"
+                    placeholder="e.g. Platform Operations Officer"
                     className="w-full h-10 px-3.5 rounded-lg border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-primary"
                   />
                 </div>
               </div>
-
-              {newStaffCompanyId === 'other' && (
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1" htmlFor="custom-company">
-                    Company Name <span className="text-rose-500">*</span>
-                  </label>
-                  <input
-                    id="custom-company"
-                    type="text"
-                    required
-                    value={newStaffCompanyName}
-                    onChange={(e) => setNewStaffCompanyName(e.target.value)}
-                    placeholder="e.g. Acme Global Technologies Inc."
-                    className="w-full h-10 px-3.5 rounded-lg border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-primary"
-                  />
-                </div>
-              )}
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1" htmlFor="staff-pwd">

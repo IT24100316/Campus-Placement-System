@@ -73,20 +73,34 @@ Today's development sprint focused on overhauling the corporate authentication a
 
 ---
 
+### 5. Admin Navbar Session Isolation & Organization Defaulting
+* **Admin Navbar State Isolation (`Navbar.tsx`, `App.tsx`)**:
+  * Enforced strict RBAC in the navigation bar: whenever an Admin is authenticated, all public marketing/onboarding actions (`Login to Dashboard`, `Register`) are completely suppressed.
+  * Implemented dedicated Admin navigation controls: "Approvals Dashboard" and "Platform Home" in both desktop and mobile drawer views.
+  * Added prominent **Logout** button with icon and hover styling across both the top Navbar and floating dock.
+  * Standardized `isAdmin` role detection to be case-insensitive (`currentUser?.role?.toLowerCase() === 'admin'`).
+* **Defaulted Employee Registration Organization (`AdminApprovalsView.tsx`)**:
+  * Removed any prompt or dropdown asking the administrator to specify or select an employer organization.
+  * Locked the organization field to **CampusAI** (our platform organization) by default, displaying a dedicated `Platform Org` badge and helper text clarifying that internal staff provisioned by Admin work for our organization.
+
+---
+
 ## 📂 Modified & Created Files
 
 | File | Type | Changes |
 | :--- | :--- | :--- |
+| `frontend-react/src/components/layout/Navbar.tsx` | Frontend | Enforced Admin navigation isolation, removed Login/Register for Admin, added Logout |
+| `frontend-react/src/App.tsx` | Frontend | Case-insensitive Admin check, updated floating dock with Admin Approvals and Logout |
+| `frontend-react/src/pages/AdminDashboardPage.tsx` | Frontend | Streamlined Admin Navbar props and removed public register handler |
+| `frontend-react/src/components/admin/AdminApprovalsView.tsx` | Frontend | Fixed button handler and locked employee organization field to CampusAI |
 | `backend-dotnet/Controllers/AdminController.cs` | Backend | Added `POST register-employee` endpoint with password hashing & DB persistence |
 | `backend-dotnet/DTOs/AuthDtos.cs` | Backend | Added `AdminRegisterEmployeeDto` definition |
 | `frontend-react/index.html` | Frontend | Added Google Font imports for `Inter` and `JetBrains Mono` |
-| `frontend-react/src/App.tsx` | Frontend | Removed public admin navigation dock button; enforced role-based redirection |
 | `frontend-react/src/pages/LandingPage.tsx` | Frontend | Removed unauthenticated admin navigation links from public view |
 | `frontend-react/src/pages/LoginPage.tsx` | Frontend | Implemented dedicated 3-role login page matching `UI/login` specification |
 | `frontend-react/src/pages/RegisterPage.tsx` | Frontend | Isolated flow purely for employer onboarding |
 | `frontend-react/src/components/auth/RegisterForm.tsx` | Frontend | Removed public staff tab; focused 100% on employer registration |
 | `frontend-react/src/components/auth/PendingApprovalScreen.tsx` | Frontend | Clarified employer-focused lifecycle tracking |
-| `frontend-react/src/components/admin/AdminApprovalsView.tsx` | Frontend | Simplified employee registration modal with direct database persistence |
 | `frontend-react/src/services/authService.ts` | Frontend | Added backend API synchronization for registrations, companies & staff creation |
 | `README.md` & `frontend-react/README.md` | Docs | Updated architecture overview, credentials, and sprint checklists |
 | `DAILY_WORK_SUMMARY.md` | Docs | Comprehensive technical summary of today's work |
@@ -109,6 +123,9 @@ Today's development sprint focused on overhauling the corporate authentication a
    - Company HR Login &rarr; Verified.
    - Company Staff Login (newly registered in DB) &rarr; Verified.
    - Institutional Admin Login &rarr; Verified.
+4. **Admin Navbar & Employee Provisioning**:
+   - Admin Login &rarr; Public Login/Register buttons hidden, Logout present & functional.
+   - Employee Provisioning &rarr; Organization locked to CampusAI default.
 
 ---
 
@@ -118,7 +135,8 @@ Today's development sprint focused on overhauling the corporate authentication a
 3. `refactor(auth): remove demo autofill helpers for clean professional enterprise login`
 4. `feat(auth): isolate employer onboarding, move staff provisioning to admin, and enforce role-based access`
 5. `feat(admin): simplify employee registration and persist staff directly to database`
-6. `docs: add comprehensive daily work summary for sprint completion` *(this commit)*
+6. `docs: add comprehensive daily work summary for sprint completion`
+7. `feat(admin): enforce admin navbar logout state and default employee organization to CampusAI` *(this commit)*
 
 <br>
 

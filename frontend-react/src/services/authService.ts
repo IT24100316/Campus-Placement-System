@@ -11,6 +11,11 @@ const STORAGE_KEY_COMPANIES = 'campusai_approved_companies';
 
 const INITIAL_COMPANIES: ApprovedCompanyOption[] = [
   {
+    id: 'campusai-platform',
+    name: 'CampusAI',
+    industry: 'Platform & Campus Placement Operations',
+  },
+  {
     id: 'acme-001',
     name: 'Acme Global Technologies Inc.',
     industry: 'Software, Cloud & Artificial Intelligence',
@@ -293,7 +298,7 @@ export const authService = {
           email: data.email,
           password: data.password || 'StaffPass@2025!',
           companyId: data.companyId && data.companyId !== 'other' ? data.companyId : null,
-          companyName: data.companyName,
+          companyName: data.companyName || 'CampusAI',
           staffId: data.staffId,
           jobPosition: data.jobPosition,
         }),
@@ -313,7 +318,7 @@ export const authService = {
         fullName: json.fullName || data.fullName,
         email: json.email || data.email,
         phone: '+1 (555) 000-0000',
-        companyName: json.companyName || data.companyName || 'Enterprise Employer',
+        companyName: json.companyName || data.companyName || 'CampusAI',
         staffId: json.staffId || data.staffId,
         jobPosition: json.jobPosition || data.jobPosition,
         status: 'Approved',
@@ -338,7 +343,7 @@ export const authService = {
         fullName: data.fullName,
         email: data.email,
         phone: '+1 (555) 000-0000',
-        companyName: data.companyName || 'Enterprise Employer',
+        companyName: data.companyName || 'CampusAI',
         staffId: data.staffId,
         jobPosition: data.jobPosition,
         status: 'Approved',

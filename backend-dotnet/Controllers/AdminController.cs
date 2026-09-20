@@ -117,43 +117,40 @@ public class AdminController : ControllerBase
             return BadRequest(new { message = "An account with this email address is already registered." });
 
         CompanyProfile? company = null;
+        var defaultOrgName = string.IsNullOrWhiteSpace(dto.CompanyName) ? "CampusAI" : dto.CompanyName.Trim();
+
         if (dto.CompanyId.HasValue && dto.CompanyId.Value != Guid.Empty)
         {
             company = await _context.CompanyProfiles.FirstOrDefaultAsync(c => c.UserId == dto.CompanyId.Value);
         }
 
-        if (company == null && !string.IsNullOrWhiteSpace(dto.CompanyName))
-        {
-            company = await _context.CompanyProfiles.FirstOrDefaultAsync(c => c.CompanyName.ToLower() == dto.CompanyName.ToLower());
-        }
-
-        // Fallback: If still null, pick first existing company or auto-create company profile
         if (company == null)
         {
-            company = await _context.CompanyProfiles.FirstOrDefaultAsync();
+            company = await _context.CompanyProfiles.FirstOrDefaultAsync(c => c.CompanyName.ToLower() == defaultOrgName.ToLower());
         }
 
+        // Auto-provision platform web app company profile if not yet in database
         if (company == null)
         {
             var companyUser = new User
             {
                 Id = Guid.NewGuid(),
-                Email = "hr@" + (string.IsNullOrWhiteSpace(dto.CompanyName) ? "acmeglobal.tech" : dto.CompanyName.ToLower().Replace(" ", "") + ".com"),
+                Email = "platform-ops@" + defaultOrgName.ToLower().Replace(" ", "") + ".edu",
                 Role = UserRole.Company,
                 Status = AccountStatus.Approved,
                 CreatedAt = DateTime.UtcNow
             };
-            companyUser.PasswordHash = _passwordHasher.HashPassword(companyUser, "Vanguard#2024Secure!");
+            companyUser.PasswordHash = _passwordHasher.HashPassword(companyUser, "CampusAI#2025Secure!");
 
             company = new CompanyProfile
             {
                 UserId = companyUser.Id,
-                CompanyName = string.IsNullOrWhiteSpace(dto.CompanyName) ? "Acme Global Technologies Inc." : dto.CompanyName.Trim(),
-                Industry = "Enterprise Technology & Engineering",
-                ContactPersonName = "Corporate Representative",
+                CompanyName = defaultOrgName,
+                Industry = "Platform & Campus Placement Operations",
+                ContactPersonName = "Institutional Platform Operations",
                 ContactPersonEmail = companyUser.Email,
                 Phone = "+1 555-019-2834",
-                BusinessRegistrationDocumentUrl = "Acme_Incorporation_BR.pdf"
+                BusinessRegistrationDocumentUrl = "CampusAI_Platform_Registration.pdf"
             };
 
             _context.Users.Add(companyUser);

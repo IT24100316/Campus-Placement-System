@@ -4,7 +4,7 @@ import { RegisterPage } from './pages/RegisterPage';
 import { AdminDashboardPage } from './pages/AdminDashboardPage';
 import { LoginPage } from './pages/LoginPage';
 import { LoginModal } from './components/auth/LoginModal';
-import { Sparkles, UserPlus, Home, LogIn } from 'lucide-react';
+import { Sparkles, UserPlus, Home, LogIn, ShieldCheck, LogOut } from 'lucide-react';
 import type { RegistrationRecord } from './types/auth';
 
 export type AppView = 'landing' | 'register' | 'login' | 'admin';
@@ -13,6 +13,35 @@ function App() {
   const [currentView, setCurrentView] = useState<AppView>('landing');
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [pendingRecordForView, setPendingRecordForView] = useState<RegistrationRecord | null>(null);
+  const [currentUser, setCurrentUser] = useState<{ email: string; role: string } | null>(() => {
+    try {
+      const saved = localStorage.getItem('campusai_auth_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    localStorage.removeItem('campusai_auth_user');
+    setCurrentView('landing');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleLoginSuccess = (role: string) => {
+    const user = { email: role.toLowerCase() === 'admin' ? 'admin@campusai.edu' : 'recruiter@company.com', role };
+    setCurrentUser(user);
+    localStorage.setItem('campusai_auth_user', JSON.stringify(user));
+    if (role.toLowerCase() === 'admin') {
+      setCurrentView('admin');
+    } else {
+      setCurrentView('landing');
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const isAdmin = currentUser?.role?.toLowerCase() === 'admin' || currentView === 'admin';
 
   return (
     <div className="relative min-h-screen">
@@ -28,6 +57,13 @@ function App() {
             setCurrentView('login');
             window.scrollTo({ top: 0, behavior: 'smooth' });
           }}
+          onNavigateAdmin={() => {
+            setCurrentView('admin');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          isAdmin={isAdmin}
+          onLogout={handleLogout}
+          userEmail={currentUser?.email || 'admin@campusai.edu'}
         />
       )}
 
@@ -44,6 +80,9 @@ function App() {
             setCurrentView('login');
             window.scrollTo({ top: 0, behavior: 'smooth' });
           }}
+          isAdmin={isAdmin}
+          onLogout={handleLogout}
+          userEmail={currentUser?.email || 'admin@campusai.edu'}
         />
       )}
 
@@ -58,16 +97,7 @@ function App() {
             setCurrentView('register');
             window.scrollTo({ top: 0, behavior: 'smooth' });
           }}
-          onLoginSuccess={(role) => {
-            if (role === 'Admin') {
-              setCurrentView('admin');
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            } else {
-              // Return home or admin demo
-              setCurrentView('landing');
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }
-          }}
+          onLoginSuccess={handleLoginSuccess}
           onPendingFound={(record) => {
             setPendingRecordForView(record);
             setCurrentView('register');
@@ -87,6 +117,8 @@ function App() {
             setCurrentView('register');
             window.scrollTo({ top: 0, behavior: 'smooth' });
           }}
+          onLogout={handleLogout}
+          userEmail={currentUser?.email || 'admin@campusai.edu'}
         />
       )}
 
@@ -96,10 +128,7 @@ function App() {
         onClose={() => setIsLoginOpen(false)}
         onLoginSuccess={(role) => {
           setIsLoginOpen(false);
-          if (role === 'Admin') {
-            setCurrentView('admin');
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-          }
+          handleLoginSuccess(role);
         }}
         onPendingFound={(record) => {
           setIsLoginOpen(false);
@@ -137,37 +166,68 @@ function App() {
           <span>Home</span>
         </button>
 
-        <button
-          type="button"
-          onClick={() => {
-            setCurrentView('register');
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-          }}
-          className={`flex items-center gap-1 px-3 py-1.5 rounded-full transition-all cursor-pointer ${
-            currentView === 'register'
-              ? 'bg-primary text-white font-semibold'
-              : 'text-slate-300 hover:text-white hover:bg-slate-800'
-          }`}
-        >
-          <UserPlus className="w-3.5 h-3.5" />
-          <span>Register</span>
-        </button>
+        {isAdmin ? (
+          <>
+            <button
+              type="button"
+              onClick={() => {
+                setCurrentView('admin');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-full transition-all cursor-pointer ${
+                currentView === 'admin'
+                  ? 'bg-indigo-600 text-white font-semibold'
+                  : 'text-indigo-300 hover:text-white hover:bg-slate-800'
+              }`}
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" />
+              <span>Admin Approvals</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-full transition-all cursor-pointer text-rose-300 hover:text-white hover:bg-rose-900/60"
+              title="Sign out of Admin Session"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span>Logout</span>
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={() => {
+                setCurrentView('register');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-full transition-all cursor-pointer ${
+                currentView === 'register'
+                  ? 'bg-primary text-white font-semibold'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800'
+              }`}
+            >
+              <UserPlus className="w-3.5 h-3.5" />
+              <span>Register</span>
+            </button>
 
-        <button
-          type="button"
-          onClick={() => {
-            setCurrentView('login');
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-          }}
-          className={`flex items-center gap-1 px-3 py-1.5 rounded-full transition-all cursor-pointer ${
-            currentView === 'login'
-              ? 'bg-primary text-white font-semibold'
-              : 'text-slate-300 hover:text-white hover:bg-slate-800'
-          }`}
-        >
-          <LogIn className="w-3.5 h-3.5" />
-          <span>Login</span>
-        </button>
+            <button
+              type="button"
+              onClick={() => {
+                setCurrentView('login');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-full transition-all cursor-pointer ${
+                currentView === 'login'
+                  ? 'bg-primary text-white font-semibold'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800'
+              }`}
+            >
+              <LogIn className="w-3.5 h-3.5" />
+              <span>Login</span>
+            </button>
+          </>
+        )}
       </div>
     </div>
   );
