@@ -112,6 +112,7 @@ public class ApplicationService : IApplicationService
     }
 
     /// <summary>
+    /// ScheduleInterviewAsync
     /// Schedules an interview for a specific application by updating its InterviewDate and InterviewTime properties.
     /// Acts as a trigger point for invoking external AI agent scheduling logic.
     /// </summary>
@@ -134,8 +135,25 @@ public class ApplicationService : IApplicationService
         return application;
     }
 
-    public Task<string> GetCvDownloadUrlAsync(Guid appId)
+
+
+    /// <summary>
+    /// GetCvDownloadUrlAsync
+    /// Retrieves the CV download URL for a given application by fetching the associated student profile.
+    /// Returns an empty string if no CV URL is found.
+    /// </summary>
+    public async Task<string> GetCvDownloadUrlAsync(Guid appId)
     {
-        throw new NotImplementedException();
+        var application = await _context.Applications
+            .Include(a => a.Student)
+                .ThenInclude(u => u.StudentProfile)
+            .FirstOrDefaultAsync(a => a.AppId == appId);
+
+        if (application == null)
+        {
+            throw new KeyNotFoundException("Application not found");
+        }
+
+        return application.Student?.StudentProfile?.CvPdfUrl ?? string.Empty;
     }
 }
