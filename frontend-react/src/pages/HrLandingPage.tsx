@@ -725,7 +725,7 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                       setJobTypeFilter(e.target.value);
                       setJobsCurrentPage(1);
                     }}
-                    className="px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-xs font-medium text-slate-700 focus:bg-white focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none cursor-pointer"
+                    className="pl-3 pr-8 py-2 rounded-lg bg-slate-50 border border-slate-200 text-xs font-medium text-slate-700 focus:bg-white focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none cursor-pointer"
                   >
                     <option value="all">All Work Types</option>
                     <option value="full-time">Full-time</option>
@@ -740,7 +740,7 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                       setJobStatusFilter(e.target.value);
                       setJobsCurrentPage(1);
                     }}
-                    className="px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-xs font-medium text-slate-700 focus:bg-white focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none cursor-pointer"
+                    className="pl-3 pr-8 py-2 rounded-lg bg-slate-50 border border-slate-200 text-xs font-medium text-slate-700 focus:bg-white focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none cursor-pointer"
                   >
                     <option value="all">All Statuses</option>
                     <option value="active">Active • Accepting</option>
@@ -754,7 +754,7 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                       setJobSortBy(e.target.value as any);
                       setJobsCurrentPage(1);
                     }}
-                    className="px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-xs font-medium text-slate-700 focus:bg-white focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none cursor-pointer"
+                    className="pl-3 pr-8 py-2 rounded-lg bg-slate-50 border border-slate-200 text-xs font-medium text-slate-700 focus:bg-white focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none cursor-pointer"
                   >
                     <option value="default">Default Order</option>
                     <option value="matches-desc">Matches (High to Low)</option>
@@ -1062,7 +1062,7 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                           setCandidatesOpeningFilter(e.target.value);
                           setCandidatesCurrentPage(1);
                         }}
-                        className="px-3 py-2 rounded-lg bg-white border border-slate-200 text-xs font-medium text-slate-800 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none cursor-pointer"
+                        className="pl-3 pr-8 py-2 rounded-lg bg-white border border-slate-200 text-xs font-medium text-slate-800 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none cursor-pointer"
                       >
                         <option value="all">All Placement Drives</option>
                         {availableOpenings.map((op) => (
@@ -1084,7 +1084,7 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                           setCandidatesDegreeBatchFilter(e.target.value);
                           setCandidatesCurrentPage(1);
                         }}
-                        className="px-3 py-2 rounded-lg bg-white border border-slate-200 text-xs font-medium text-slate-800 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none cursor-pointer"
+                        className="pl-3 pr-8 py-2 rounded-lg bg-white border border-slate-200 text-xs font-medium text-slate-800 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none cursor-pointer"
                       >
                         <option value="all">All Degrees &amp; Batches</option>
                         {availableDegreeBatches.map((db) => (
@@ -1106,7 +1106,7 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                           setCandidatesMinGpaFilter(Number(e.target.value));
                           setCandidatesCurrentPage(1);
                         }}
-                        className="px-3 py-2 rounded-lg bg-white border border-slate-200 text-xs font-medium text-slate-800 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none cursor-pointer"
+                        className="pl-3 pr-8 py-2 rounded-lg bg-white border border-slate-200 text-xs font-medium text-slate-800 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none cursor-pointer"
                       >
                         <option value="0">All GPA Ranges</option>
                         <option value="3.5">Min GPA ≥ 3.50</option>
@@ -1127,7 +1127,7 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                           setCandidatesCompetencyFilter(e.target.value);
                           setCandidatesCurrentPage(1);
                         }}
-                        className="px-3 py-2 rounded-lg bg-white border border-slate-200 text-xs font-medium text-slate-800 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none cursor-pointer"
+                        className="pl-3 pr-8 py-2 rounded-lg bg-white border border-slate-200 text-xs font-medium text-slate-800 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none cursor-pointer"
                       >
                         <option value="all">All Competencies</option>
                         {availableCompetencies.map((comp) => (
@@ -1149,7 +1149,7 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                           setCandidatesStatusFilter(e.target.value);
                           setCandidatesCurrentPage(1);
                         }}
-                        className="px-3 py-2 rounded-lg bg-white border border-slate-200 text-xs font-medium text-slate-800 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none cursor-pointer"
+                        className="pl-3 pr-8 py-2 rounded-lg bg-white border border-slate-200 text-xs font-medium text-slate-800 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none cursor-pointer"
                       >
                         <option value="all">All Statuses</option>
                         <option value="Shortlisted">Shortlisted</option>
@@ -1170,7 +1170,7 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                           setCandidatesMinMatchScore(Number(e.target.value));
                           setCandidatesCurrentPage(1);
                         }}
-                        className="px-3 py-2 rounded-lg bg-white border border-slate-200 text-xs font-medium text-slate-800 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none cursor-pointer"
+                        className="pl-3 pr-8 py-2 rounded-lg bg-white border border-slate-200 text-xs font-medium text-slate-800 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none cursor-pointer"
                       >
                         <option value="0">All Match Scores</option>
                         <option value="90">≥ 90% AI Match</option>
@@ -1366,7 +1366,7 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                         setCandidatesPerPage(Number(e.target.value));
                         setCandidatesCurrentPage(1);
                       }}
-                      className="px-2.5 py-1 rounded-md bg-white border border-slate-200 text-xs font-semibold text-slate-700 focus:border-primary focus:outline-none cursor-pointer"
+                      className="pl-2.5 pr-8 py-1 rounded-md bg-white border border-slate-200 text-xs font-semibold text-slate-700 focus:border-primary focus:outline-none cursor-pointer"
                     >
                       <option value={5}>5 Candidates</option>
                       <option value={10}>10 Candidates</option>
