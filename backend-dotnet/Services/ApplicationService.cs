@@ -90,9 +90,25 @@ public class ApplicationService : IApplicationService
         ));
     }
 
-    public Task<Application> UpdateApplicationStatusAsync(Guid appId, UpdateStatusRequestDto request)
+    /// <summary>
+    /// UpdateApplicationStatusAsync
+    /// Updates the status of a specific application. Parses the provided string into the ApplicationStatus enum,
+    /// saves the changes to the database, and returns the updated application.
+    /// </summary>
+    public async Task<Application> UpdateApplicationStatusAsync(Guid appId, UpdateStatusRequestDto request)
     {
-        throw new NotImplementedException();
+        var application = await _context.Applications.FindAsync(appId);
+        
+        if (application == null)
+        {
+            throw new KeyNotFoundException("Application not found");
+        }
+
+        application.Status = Enum.Parse<ApplicationStatus>(request.NewStatus, true);
+        
+        await _context.SaveChangesAsync();
+        
+        return application;
     }
 
     public Task<Application> ScheduleInterviewAsync(Guid appId, ScheduleInterviewRequestDto request)
