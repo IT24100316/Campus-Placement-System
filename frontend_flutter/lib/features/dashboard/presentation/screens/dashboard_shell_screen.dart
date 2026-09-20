@@ -12,20 +12,21 @@ class DashboardShellScreen extends StatefulWidget {
 }
 
 class _DashboardShellScreenState extends State<DashboardShellScreen> {
-  int _currentIndex = 0;
-
-  final List<Widget> _screens = const [
-    JobFeedScreen(),
-    ApplicationsTrackingScreen(),
-    ProfileScreen(),
-  ];
+  int _currentIndex = 1; // Default to My Resume tab for development
 
   @override
   Widget build(BuildContext context) {
+    final List<Widget> screens = const [
+      JobFeedScreen(),
+      ProfileScreen(), // This is actually the "My Resume" screen we built
+      ApplicationsTrackingScreen(),
+      Scaffold(body: Center(child: Text("Profile Settings Screen"))), // Placeholder for actual Profile
+    ];
+
     return Scaffold(
       body: IndexedStack(
         index: _currentIndex,
-        children: _screens,
+        children: screens,
       ),
       bottomNavigationBar: BottomNavBar(
         currentIndex: _currentIndex,
