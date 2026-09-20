@@ -4,16 +4,18 @@ import { RegisterPage } from './pages/RegisterPage';
 import { AdminDashboardPage } from './pages/AdminDashboardPage';
 import { LoginPage } from './pages/LoginPage';
 import { HrLandingPage } from './pages/HrLandingPage';
+import { JobPostingForm } from './components/company/JobPostingForm';
 import { LoginModal } from './components/auth/LoginModal';
-import { Sparkles, UserPlus, Home, LogIn, ShieldCheck, LogOut, Building2 } from 'lucide-react';
+import { Sparkles, UserPlus, Home, LogIn, ShieldCheck, LogOut, Building2, PlusCircle } from 'lucide-react';
 import type { RegistrationRecord } from './types/auth';
 
-export type AppView = 'landing' | 'register' | 'login' | 'admin' | 'hr';
+export type AppView = 'landing' | 'register' | 'login' | 'admin' | 'hr' | 'hr-post-job';
 
 function App() {
   const [currentView, setCurrentView] = useState<AppView>('landing');
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [pendingRecordForView, setPendingRecordForView] = useState<RegistrationRecord | null>(null);
+  const [newlyCreatedJobId, setNewlyCreatedJobId] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<{ email: string; role: string; companyName?: string } | null>(() => {
     try {
       const saved = localStorage.getItem('campusai_auth_user');
@@ -141,9 +143,33 @@ function App() {
         <HrLandingPage
           userEmail={currentUser?.email}
           initialCompanyName={currentUser?.companyName}
+          highlightedJobId={newlyCreatedJobId || undefined}
           onLogout={handleLogout}
           onNavigateHome={() => {
             setCurrentView('landing');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          onNavigatePostJob={() => {
+            setNewlyCreatedJobId(null);
+            setCurrentView('hr-post-job');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+        />
+      )}
+
+      {currentView === 'hr-post-job' && (
+        <JobPostingForm
+          userEmail={currentUser?.email}
+          companyName={currentUser?.companyName || 'Virtusa Corporation'}
+          onCancel={() => {
+            setCurrentView('hr');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          onJobCreated={(createdJob) => {
+            if (createdJob?.jobId) {
+              setNewlyCreatedJobId(createdJob.jobId);
+            }
+            setCurrentView('hr');
             window.scrollTo({ top: 0, behavior: 'smooth' });
           }}
         />
@@ -236,6 +262,21 @@ function App() {
             >
               <Building2 className="w-3.5 h-3.5 text-blue-400" />
               <span>Employer Portal</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setCurrentView('hr-post-job');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-full transition-all cursor-pointer ${
+                currentView === 'hr-post-job'
+                  ? 'bg-primary text-white font-semibold'
+                  : 'text-blue-300 hover:text-white hover:bg-slate-800'
+              }`}
+            >
+              <PlusCircle className="w-3.5 h-3.5 text-blue-400" />
+              <span>Post Job</span>
             </button>
             <button
               type="button"

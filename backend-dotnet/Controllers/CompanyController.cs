@@ -38,6 +38,22 @@ public class CompanyController : ControllerBase
                 .Include(c => c.Jobs)
                 .Include(c => c.User)
                 .FirstOrDefaultAsync(c => c.ContactPersonEmail.ToLower() == normalized || c.User.Email.ToLower() == normalized);
+
+            // Also check if email belongs to a registered company staff member
+            if (company == null)
+            {
+                var staff = await _context.CompanyStaffProfiles
+                    .Include(s => s.Company)
+                        .ThenInclude(c => c.Jobs)
+                    .Include(s => s.Company)
+                        .ThenInclude(c => c.User)
+                    .Include(s => s.User)
+                    .FirstOrDefaultAsync(s => s.User.Email.ToLower() == normalized);
+                if (staff?.Company != null)
+                {
+                    company = staff.Company;
+                }
+            }
         }
 
         // If not found, look for any approved company or fallback to first company in DB
@@ -61,74 +77,218 @@ public class CompanyController : ControllerBase
             : company.CompanyName.Substring(0, Math.Min(3, company.CompanyName.Length)).ToUpper();
         var orgCode = $"{prefix}-{(Math.Abs(company.UserId.GetHashCode()) % 9000) + 1000}";
 
-        var activeJobs = company.Jobs.Select(j => new
-        {
-            jobId = j.JobId,
-            jobTitle = j.JobTitle,
-            targetDomain = j.TargetDomain,
-            jobDescriptionSummary = j.JobDescriptionSummary,
-            internshipType = j.InternshipType,
-            locationCity = j.LocationCity,
-            minimumGPA = j.MinimumGPA,
-            allowedYearsOfStudy = j.AllowedYearsOfStudy,
-            mandatorySkills = j.MandatorySkills,
-            niceToHaveSkills = j.NiceToHaveSkills,
-            preferredDegreePrograms = j.PreferredDegreePrograms,
-            stipendOffered = j.StipendOffered,
-            stipendAmountOrDetails = j.StipendAmountOrDetails,
-            durationMonths = j.DurationMonths,
-            applicationDeadline = j.ApplicationDeadline,
-            matchesVerified = 40 + (Math.Abs(j.JobId.GetHashCode()) % 45),
-            status = "Active • Accepting"
-        }).ToList();
+        // Active jobs strictly sorted latest to oldest by CreatedAt
+        var activeJobs = company.Jobs
+            .OrderByDescending(j => j.CreatedAt)
+            .Select(j => new
+            {
+                jobId = j.JobId,
+                jobTitle = j.JobTitle,
+                targetDomain = j.TargetDomain,
+                jobDescriptionSummary = j.JobDescriptionSummary,
+                internshipType = j.InternshipType,
+                locationCity = j.LocationCity,
+                minimumGPA = j.MinimumGPA,
+                allowedYearsOfStudy = j.AllowedYearsOfStudy,
+                mandatorySkills = j.MandatorySkills,
+                niceToHaveSkills = j.NiceToHaveSkills,
+                preferredDegreePrograms = j.PreferredDegreePrograms,
+                stipendOffered = j.StipendOffered,
+                stipendAmountOrDetails = j.StipendAmountOrDetails,
+                durationMonths = j.DurationMonths,
+                applicationDeadline = j.ApplicationDeadline,
+                createdAt = j.CreatedAt,
+                matchesVerified = 40 + (Math.Abs(j.JobId.GetHashCode()) % 45),
+                status = "Active • Accepting"
+            }).ToList();
 
-        // Default candidate pool matching UI/HR-LandingPage specifications
+        // Candidate pool of pre-screened students from premier Sri Lankan universities,
+        // dynamically matched to the company's active placement drives from database
+        string GetMatchedJob(int index) => activeJobs.Count > 0 
+            ? activeJobs[index % activeJobs.Count].jobTitle 
+            : "Backend Engineering Co-op";
+
         var candidates = new[]
         {
             new
             {
                 id = "cand-1",
-                initials = "EL",
-                fullName = "Elena Lin",
-                university = "Carnegie Mellon University",
-                degree = "B.S. Computer Science",
+                initials = "KP",
+                fullName = "Kasun Perera",
+                university = "SLIIT",
+                degree = "B.Sc. (Hons) Software Engineering",
                 batch = "Class of 2026",
                 gpa = 3.92m,
-                matchedOpening = activeJobs.Count > 0 ? activeJobs[0].jobTitle : "Backend Engineering Co-op",
+                matchedOpening = GetMatchedJob(0),
                 matchScore = 98,
-                competencies = new[] { "Python", "Distributed DBs", "Go" },
+                competencies = new[] { "Python", "Go", "PostgreSQL", "Docker" },
                 status = "Shortlisted",
                 statusColor = "blue"
             },
             new
             {
                 id = "cand-2",
-                initials = "AK",
-                fullName = "Aarav Kapoor",
-                university = "Georgia Institute of Technology",
-                degree = "M.S. Machine Learning",
+                initials = "CJ",
+                fullName = "Chamodi Jayawardena",
+                university = "University of Moratuwa",
+                degree = "B.Sc. (Hons) Computer Science & Engineering",
                 batch = "Class of 2025",
-                gpa = 3.88m,
-                matchedOpening = activeJobs.Count > 1 ? activeJobs[1].jobTitle : "Assoc. ML Engineer",
-                matchScore = 96,
-                competencies = new[] { "PyTorch", "CUDA", "C++" },
+                gpa = 3.95m,
+                matchedOpening = GetMatchedJob(1),
+                matchScore = 97,
+                competencies = new[] { "PyTorch", "Python", "CUDA", "FastAPI" },
                 status = "Pre-screen Cleared",
                 statusColor = "emerald"
             },
             new
             {
                 id = "cand-3",
-                initials = "MA",
-                fullName = "Maya Al-Mansoor",
-                university = "University of Illinois Urbana-Champaign",
-                degree = "B.S. Electrical & Computer Eng",
+                initials = "TS",
+                fullName = "Thisara Senanayake",
+                university = "UCSC",
+                degree = "B.Sc. (Hons) Computer Science",
                 batch = "Class of 2026",
-                gpa = 3.79m,
-                matchedOpening = activeJobs.Count > 2 ? activeJobs[2].jobTitle : "Hardware Systems Intern",
+                gpa = 3.84m,
+                matchedOpening = GetMatchedJob(2),
                 matchScore = 95,
-                competencies = new[] { "Verilog", "RTOS", "Firmware" },
+                competencies = new[] { "C++", "RTOS", "Verilog", "Embedded Systems" },
                 status = "Interview Confirmed",
                 statusColor = "purple"
+            },
+            new
+            {
+                id = "cand-4",
+                initials = "AW",
+                fullName = "Anuki Wijesinghe",
+                university = "University of Peradeniya",
+                degree = "B.Sc. (Hons) Electrical & Electronic Engineering",
+                batch = "Class of 2026",
+                gpa = 3.88m,
+                matchedOpening = GetMatchedJob(0),
+                matchScore = 94,
+                competencies = new[] { "Python", "Distributed Systems", "PostgreSQL" },
+                status = "Shortlisted",
+                statusColor = "blue"
+            },
+            new
+            {
+                id = "cand-5",
+                initials = "DF",
+                fullName = "Dilan Fernando",
+                university = "IIT Sri Lanka",
+                degree = "B.Eng. (Hons) Software Engineering",
+                batch = "Class of 2025",
+                gpa = 3.79m,
+                matchedOpening = GetMatchedJob(1),
+                matchScore = 93,
+                competencies = new[] { "PyTorch", "LangChain", "Vector DBs", "Python" },
+                status = "Pre-screen Cleared",
+                statusColor = "emerald"
+            },
+            new
+            {
+                id = "cand-6",
+                initials = "RG",
+                fullName = "Rashmi Gunasekara",
+                university = "University of Sri Jayewardenepura",
+                degree = "B.Sc. (Hons) Information Technology",
+                batch = "Class of 2026",
+                gpa = 3.76m,
+                matchedOpening = GetMatchedJob(2),
+                matchScore = 91,
+                competencies = new[] { "Linux", "C++", "UART/SPI", "ARM Cortex" },
+                status = "Shortlisted",
+                statusColor = "blue"
+            },
+            new
+            {
+                id = "cand-7",
+                initials = "KB",
+                fullName = "Kavindu Bandara",
+                university = "University of Kelaniya",
+                degree = "B.Sc. (Hons) Software Engineering",
+                batch = "Class of 2025",
+                gpa = 3.87m,
+                matchedOpening = GetMatchedJob(0),
+                matchScore = 96,
+                competencies = new[] { "Go", "Docker", "Kubernetes", "gRPC" },
+                status = "Interview Confirmed",
+                statusColor = "purple"
+            },
+            new
+            {
+                id = "cand-8",
+                initials = "SS",
+                fullName = "Sanduni Silva",
+                university = "NSBM",
+                degree = "B.Sc. (Hons) Computer Science",
+                batch = "Class of 2026",
+                gpa = 3.71m,
+                matchedOpening = GetMatchedJob(1),
+                matchScore = 92,
+                competencies = new[] { "Python", "FastAPI", "SQL", "Pandas" },
+                status = "Shortlisted",
+                statusColor = "blue"
+            },
+            new
+            {
+                id = "cand-9",
+                initials = "PD",
+                fullName = "Praveen De Silva",
+                university = "SLIIT",
+                degree = "B.Sc. (Hons) Information Technology",
+                batch = "Class of 2025",
+                gpa = 3.91m,
+                matchedOpening = GetMatchedJob(0),
+                matchScore = 97,
+                competencies = new[] { "Python", "Microservices", "PostgreSQL", "Redis" },
+                status = "Pre-screen Cleared",
+                statusColor = "emerald"
+            },
+            new
+            {
+                id = "cand-10",
+                initials = "NW",
+                fullName = "Nimasha Wickramasinghe",
+                university = "University of Moratuwa",
+                degree = "B.Sc. (Hons) Electronic & Telecommunication Eng",
+                batch = "Class of 2026",
+                gpa = 3.96m,
+                matchedOpening = GetMatchedJob(2),
+                matchScore = 99,
+                competencies = new[] { "C++", "RTOS", "Firmware", "Verilog" },
+                status = "Interview Confirmed",
+                statusColor = "purple"
+            },
+            new
+            {
+                id = "cand-11",
+                initials = "SA",
+                fullName = "Sachintha Alwis",
+                university = "UCSC",
+                degree = "B.Sc. (Hons) Software Engineering",
+                batch = "Class of 2026",
+                gpa = 3.82m,
+                matchedOpening = GetMatchedJob(0),
+                matchScore = 95,
+                competencies = new[] { "Go", "PostgreSQL", "Docker", "AWS" },
+                status = "Shortlisted",
+                statusColor = "blue"
+            },
+            new
+            {
+                id = "cand-12",
+                initials = "HM",
+                fullName = "Hiruni Mendis",
+                university = "University of Peradeniya",
+                degree = "B.Sc. (Hons) Computer Engineering",
+                batch = "Class of 2025",
+                gpa = 3.89m,
+                matchedOpening = GetMatchedJob(1),
+                matchScore = 96,
+                competencies = new[] { "PyTorch", "Python", "Computer Vision", "TensorFlow" },
+                status = "Pre-screen Cleared",
+                statusColor = "emerald"
             }
         };
 

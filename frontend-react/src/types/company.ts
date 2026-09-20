@@ -14,6 +14,7 @@ export interface ActiveJobDrive {
   stipendAmountOrDetails?: string;
   durationMonths: number;
   applicationDeadline: string;
+  createdAt?: string;
   matchesVerified: number;
   status: string;
 }
