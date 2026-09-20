@@ -204,6 +204,9 @@ using (var scope = app.Services.CreateScope())
             );
             dbContext.SaveChanges();
         }
+
+        // 5b. Seed Controlled Computing Target Domains & Realistic Internship Titles (Idempotent)
+        await JobReferenceSeeder.SeedAsync(dbContext);
     }
 }
 

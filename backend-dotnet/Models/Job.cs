@@ -19,6 +19,13 @@ public class Job
     public int DurationMonths { get; set; }
     public DateTime ApplicationDeadline { get; set; }
 
+    // Controlled reference IDs
+    public int? TargetDomainId { get; set; }
+    public TargetDomain? DomainReference { get; set; }
+
+    public int? JobTitleId { get; set; }
+    public JobTitleReference? JobTitleReference { get; set; }
+
     // Navigation properties
     public CompanyProfile Company { get; set; } = null!;
     public ICollection<Application> Applications { get; set; } = new List<Application>();

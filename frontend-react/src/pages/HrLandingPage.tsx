@@ -31,6 +31,7 @@ interface HrLandingPageProps {
   initialCompanyName?: string;
   onLogout?: () => void;
   onNavigateHome?: () => void;
+  onNavigatePostJob?: () => void;
 }
 
 export const HrLandingPage: React.FC<HrLandingPageProps> = ({
@@ -38,6 +39,7 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
   initialCompanyName,
   onLogout,
   onNavigateHome,
+  onNavigatePostJob,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [dashboardData, setDashboardData] = useState<CompanyDashboardData | null>(null);
@@ -567,7 +569,13 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                   <div className="pt-6 flex items-center justify-between relative z-10">
                     <button
                       type="button"
-                      onClick={() => setActiveTab('jobs')}
+                      onClick={() => {
+                        if (onNavigatePostJob) {
+                          onNavigatePostJob();
+                        } else {
+                          setActiveTab('jobs');
+                        }
+                      }}
                       className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-white text-primary font-semibold text-xs sm:text-sm hover:bg-slate-50 transition-all shadow-sm cursor-pointer"
                     >
                       <span>Create Opening</span>
@@ -684,6 +692,17 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                   <span className="text-xs font-semibold text-primary bg-blue-50 px-3 py-1 rounded-full border border-blue-100">
                     Showing {filteredJobs.length} of {activeJobs.length} Active Drives
                   </span>
+                  {onNavigatePostJob && (
+                    <button
+                      type="button"
+                      onClick={onNavigatePostJob}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-blue-700 transition-colors shadow-xs cursor-pointer"
+                      title="Post a new internship or placement opening"
+                    >
+                      <PlusCircle className="w-3.5 h-3.5" />
+                      <span>Post New Opening</span>
+                    </button>
+                  )}
                 </div>
               </div>
 

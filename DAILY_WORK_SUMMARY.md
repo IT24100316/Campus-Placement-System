@@ -284,3 +284,43 @@ Today's development sprint focused on kickstarting the **Flutter Mobile Applicat
 3. `feat(mobile): implement beautiful student registration form UI`
 4. `feat(mobile): implement student login interface`
 5. `fix(git): restrict lib/ ignore rule to python service restoring flutter tracking`
+6. `feat(hr): enhance active drives and matched students with pagination and comprehensive filters`
+7. `fix(hr): fix dropdown chevron overlapping search text and candidate count options`
+8. `feat(jobs): build company hr job posting form and database-driven reference engine`
+
+---
+
+### 4. Company HR Job Posting Form & Database-Driven Reference Engine
+* **Controlled Reference Architecture in Supabase PostgreSQL**:
+  * Implemented `TargetDomain.cs` entity with 20 controlled computing domains.
+  * Implemented `JobTitleReference.cs` entity linking realistic internship titles directly to each parent target domain (`1:N` relationship).
+  * Created `InternshipType.cs` backend enum containing strictly `OnSite`, `Hybrid`, and `Remote`.
+  * Preserved all existing fields in `Job.cs` while adding controlled reference foreign keys `TargetDomainId` and `JobTitleId`.
+  * Configured EF Core schema and executed migration `20260920152907_AddTargetDomainAndJobTitleReferences` against Supabase database.
+  * Developed `JobReferenceSeeder.cs` providing completely idempotent startup seeding for all 20 computing domains and their respective realistic internship roles.
+* **Backend REST Endpoints (`JobsController.cs`)**:
+  * `GET /api/jobs/reference/domains`: Returns all 20 controlled target domains with active title counts.
+  * `GET /api/jobs/reference/titles?domainId=...&domain=...`: Dynamically returns only job titles belonging to the requested domain.
+  * `GET /api/jobs/reference/internship-types`: Returns `["OnSite", "Hybrid", "Remote"]` directly from backend enum.
+  * `POST /api/jobs`: Enforces strict cross-validation (Target Domain exists in DB, Job Title belongs to selected Domain, Internship Type matches enum, GPA between 0.00-4.00, future application deadline), associates the posting with the company profile, and persists to Supabase PostgreSQL.
+* **Modern Corporate UI Form (`JobPostingForm.tsx`)**:
+  * Styled strictly using `UI/Job form` design specifications.
+  * **Section 1: Position Overview** (Badge 1):
+    * Controlled Target Domain select populated dynamically from `/api/jobs/reference/domains`.
+    * Dependent Job Title select populated from `/api/jobs/reference/titles`, preventing arbitrary user free-text input.
+    * Controlled Internship Type badges (`OnSite`, `Hybrid`, `Remote`).
+    * Duration in months dropdown, Primary Location / City input, and Application Deadline date picker.
+    * Stipend & Compensation Package card with toggle switch and amount/details input.
+    * Job Description Summary with character counter.
+  * **Section 2: Hard Requirements (Eligibility Gating)** (Badge 2):
+    * Minimum Cumulative GPA input with 4.00 max scale.
+    * Allowed Academic Cohorts / Years of Study checkboxes (Years 1 to 4).
+    * Mandatory Technical Skills interactive tag input with add/remove pill badges.
+  * **Section 3: Preferred Criteria** (Badge 3):
+    * Target Academic Majors / Degree Programs selectable pills (Sri Lankan computing degrees).
+    * Nice-to-Have Skills interactive tag input with add/remove badges.
+  * **Bottom Action Bar**: Cancel, Save as Draft, and Publish Opportunity with loading spinner and database persistence feedback.
+* **Navigation & HR Dashboard Integration**:
+  * Wired the `Create Opening` button under `Post a Job Opportunity` on `HrLandingPage.tsx` to navigate to the Job Posting Form.
+  * Added a `Post New Opening` button in the Active Placement Drives section header.
+  * Updated `App.tsx` routing with `'hr-post-job'` view and quick switcher navigation.
