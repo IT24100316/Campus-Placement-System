@@ -122,12 +122,24 @@ Today's development sprint focused on overhauling the corporate authentication a
   * **Startup Seeder (`Program.cs`)**:
     * Added auto-reconciliation: checks if `Virtusa@Company.com` or default company accounts already exist with `Pending` status and automatically upgrades them to `AccountStatus.Approved`.
 
+### 8. Strict Role-Gated Category Tab Validation on Login
+* **Problem Statement**:
+  * On the 3-role login portal (`LoginPage.tsx`), entering Company HR credentials while focused on other category tabs (e.g. **Institutional Admin** or **Company Staff**) succeeded and redirected the user to the HR landing page.
+  * This compromised role boundaries because each tab is designed to serve a distinct user persona.
+* **Implementation Details**:
+  * Implemented `validateRoleTab(actualRole, tab)` in `LoginPage.tsx`:
+    * **Company HR Tab (`recruiter`)**: Strictly gates entry to accounts with `Company HR` (or `Company`) role. Prevents Admin or Staff accounts with clear guidance (*"This account has Institutional Administrator clearance. Please select the 'Admin' tab to sign in."*).
+    * **Company Staff Tab (`staff`)**: Strictly gates entry to accounts with `Company Staff` role. Prevents Company HR accounts with clear guidance (*"This account is registered as Company HR. Please switch to the 'Company HR' tab to sign in."*).
+    * **Institutional Admin Tab (`admin`)**: Strictly gates entry to accounts with `Admin` role. Corporate accounts receive *"Access Denied: Only Institutional Administrators can sign in through this tab."*
+  * Added validation checks to both the active authentication flow and the pending verification stepper.
+
 ---
 
 ## 📂 Modified & Created Files
 
 | File | Type | Changes |
 | :--- | :--- | :--- |
+| `frontend-react/src/pages/LoginPage.tsx` | Frontend | Enforced strict role-gated category tab validation on login |
 | `backend-dotnet/Controllers/AdminController.cs` | Backend | Supported string identifier (Guid or Email) for `approve` and `reject` with DB commit |
 | `backend-dotnet/Program.cs` | Backend | Reconciled existing accounts to `Approved` and provisioned initial job drives |
 | `frontend-react/src/services/authService.ts` | Frontend | Made `updateStatus` async calling backend API, healed local storage on login |
@@ -137,7 +149,6 @@ Today's development sprint focused on overhauling the corporate authentication a
 | `frontend-react/src/types/company.ts` | Frontend | **New**: TypeScript contracts for company dashboard, drives, and student dossiers |
 | `backend-dotnet/Controllers/CompanyController.cs` | Backend | **New**: Endpoint `GET /api/company/profile` returning DB company profile & stats |
 | `frontend-react/src/App.tsx` | Frontend | Added `'hr'` route, outside HR login redirect, and floating switcher dock support |
-| `frontend-react/src/pages/LoginPage.tsx` | Frontend | Passed email and companyName upon successful login |
 | `frontend-react/src/components/auth/LoginModal.tsx` | Frontend | Passed email and companyName upon successful modal login |
 | `DAILY_WORK_SUMMARY.md` | Docs | Comprehensive technical summary of today's work |
 
@@ -148,16 +159,17 @@ Today's development sprint focused on overhauling the corporate authentication a
 1. **Frontend Production Build**:
    ```bash
    npm run build
-   # Output: tsc -b && vite build -> Built in ~410ms (0 errors)
+   # Output: tsc -b && vite build -> Built in ~500ms (0 errors)
    ```
 2. **Backend Compilation**:
    ```bash
    dotnet build
    # Output: Build succeeded. 0 Warning(s), 0 Error(s)
    ```
-3. **End-to-End Approval & Authentication**:
-   - Admin approves `Virtusa@Company.com` &rarr; Persists directly to PostgreSQL.
-   - `Virtusa@Company.com` / `Virtusa123@` signs in &rarr; Verified instantly, redirecting directly to HR Landing Page without any pending verification loops.
+3. **Role-Gating Verification**:
+   - Company HR credentials entered in **Admin** tab &rarr; Blocked with *"Access Denied: This account is registered as Company HR. Please use the 'Company HR' tab to sign in."*
+   - Company HR credentials entered in **Company Staff** tab &rarr; Blocked with *"This account is registered as Company HR. Please switch to the 'Company HR' tab to sign in."*
+   - Company HR credentials entered in **Company HR** tab &rarr; Authenticated successfully and routed to HR Landing Page.
 
 ---
 
@@ -169,7 +181,8 @@ Today's development sprint focused on overhauling the corporate authentication a
 5. `feat(admin): simplify employee registration and persist staff directly to database`
 6. `feat(admin): enforce admin navbar logout state and default employee organization to CampusAI`
 7. `feat(hr): implement outside company HR landing page with DB company title and consistent logout`
-8. `fix(auth): eliminate approval loop by persisting admin approvals directly to database` *(this commit)*
+8. `fix(auth): eliminate approval loop by persisting admin approvals directly to database`
+9. `fix(auth): enforce strict role-gated category tab validation on login page` *(this commit)*
 
 
 <br>

@@ -53,6 +53,79 @@ export const LoginPage: React.FC<LoginPageProps> = ({
     setAuthAlert(null);
   };
 
+  // Check if authenticated user's role matches the selected tab
+  const validateRoleTab = (actualRole: string | undefined, tab: LoginRole): { match: boolean; reason?: string } => {
+    const rawRole = (actualRole || '').toLowerCase().replace(/[\s_-]/g, '');
+
+    if (tab === 'recruiter') {
+      if (rawRole.includes('hr') || rawRole === 'company') {
+        return { match: true };
+      }
+      if (rawRole.includes('admin')) {
+        return {
+          match: false,
+          reason: "This account has Institutional Administrator clearance. Please select the 'Admin' tab to sign in.",
+        };
+      }
+      if (rawRole.includes('staff')) {
+        return {
+          match: false,
+          reason: "This account is registered as Company Staff. Please select the 'Company Staff' tab to sign in.",
+        };
+      }
+      return {
+        match: false,
+        reason: "These credentials are not registered as Company HR. Please select the correct tab to sign in.",
+      };
+    }
+
+    if (tab === 'staff') {
+      if (rawRole.includes('staff')) {
+        return { match: true };
+      }
+      if (rawRole.includes('hr') || rawRole === 'company') {
+        return {
+          match: false,
+          reason: "This account is registered as Company HR. Please switch to the 'Company HR' tab to sign in.",
+        };
+      }
+      if (rawRole.includes('admin')) {
+        return {
+          match: false,
+          reason: "This account has Institutional Administrator clearance. Please select the 'Admin' tab to sign in.",
+        };
+      }
+      return {
+        match: false,
+        reason: "These credentials are not registered as Company Staff. Please select the correct tab to sign in.",
+      };
+    }
+
+    if (tab === 'admin') {
+      if (rawRole === 'admin') {
+        return { match: true };
+      }
+      if (rawRole.includes('hr') || rawRole === 'company') {
+        return {
+          match: false,
+          reason: "Access Denied: This account is registered as Company HR. Please use the 'Company HR' tab to sign in.",
+        };
+      }
+      if (rawRole.includes('staff')) {
+        return {
+          match: false,
+          reason: "Access Denied: This account is registered as Company Staff. Please use the 'Company Staff' tab to sign in.",
+        };
+      }
+      return {
+        match: false,
+        reason: "Access Denied: Only Institutional Administrators can sign in through this tab.",
+      };
+    }
+
+    return { match: true };
+  };
+
   // Submit Handler
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,6 +145,17 @@ export const LoginPage: React.FC<LoginPageProps> = ({
       const res = await authService.login(email, password);
 
       if (res.success) {
+        // Enforce strict category tab role validation
+        const roleCheck = validateRoleTab(res.role, selectedRole);
+        if (!roleCheck.match) {
+          setAuthAlert({
+            type: 'error',
+            title: 'Role Category Mismatch',
+            message: roleCheck.reason || 'Please select the correct role category tab to sign in.',
+          });
+          return;
+        }
+
         setAuthAlert({
           type: 'success',
           title: 'Authentication Successful',
@@ -86,6 +170,16 @@ export const LoginPage: React.FC<LoginPageProps> = ({
           onLoginSuccess(roleLabel, email.trim(), res.companyName);
         }, 800);
       } else if (res.isPending && res.record) {
+        const roleCheck = validateRoleTab(res.role || res.record.role, selectedRole);
+        if (!roleCheck.match) {
+          setAuthAlert({
+            type: 'error',
+            title: 'Role Category Mismatch',
+            message: roleCheck.reason || 'Please select the correct role category tab to sign in.',
+          });
+          return;
+        }
+
         setAuthAlert({
           type: 'pending',
           title: 'Account Verification In Progress',
