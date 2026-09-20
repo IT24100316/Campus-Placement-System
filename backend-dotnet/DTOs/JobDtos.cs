@@ -83,6 +83,7 @@ public class JobResponseDto
     public string? StipendAmountOrDetails { get; set; }
     public int DurationMonths { get; set; }
     public DateTime ApplicationDeadline { get; set; }
+    public DateTime CreatedAt { get; set; }
     public int MatchesVerified { get; set; }
     public string Status { get; set; } = "Active • Accepting";
 }

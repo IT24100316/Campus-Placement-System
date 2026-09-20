@@ -185,6 +185,10 @@ public class AppDbContext : DbContext
             entity.Property(j => j.PreferredDegreePrograms)
                 .HasColumnType("text[]");
 
+            entity.Property(j => j.CreatedAt)
+                .IsRequired()
+                .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
             entity.HasOne(j => j.Company)
                 .WithMany(cp => cp.Jobs)
                 .HasForeignKey(j => j.CompanyId)

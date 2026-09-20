@@ -190,6 +190,19 @@ public class JobsController : ControllerBase
             company = await _context.CompanyProfiles
                 .Include(c => c.User)
                 .FirstOrDefaultAsync(c => c.ContactPersonEmail.ToLower() == normalizedEmail || c.User.Email.ToLower() == normalizedEmail);
+
+            // Also check if recruiter email belongs to a registered company staff member
+            if (company == null)
+            {
+                var staff = await _context.CompanyStaffProfiles
+                    .Include(s => s.Company)
+                    .Include(s => s.User)
+                    .FirstOrDefaultAsync(s => s.User.Email.ToLower() == normalizedEmail);
+                if (staff?.Company != null)
+                {
+                    company = staff.Company;
+                }
+            }
         }
 
         // Fallback to first approved company in DB if not found
@@ -243,7 +256,8 @@ public class JobsController : ControllerBase
                 ? request.StipendAmountOrDetails.Trim()
                 : null,
             DurationMonths = request.DurationMonths,
-            ApplicationDeadline = DateTime.SpecifyKind(request.ApplicationDeadline, DateTimeKind.Utc)
+            ApplicationDeadline = DateTime.SpecifyKind(request.ApplicationDeadline, DateTimeKind.Utc),
+            CreatedAt = DateTime.UtcNow
         };
 
         _context.Jobs.Add(newJob);
@@ -268,6 +282,7 @@ public class JobsController : ControllerBase
             StipendAmountOrDetails = newJob.StipendAmountOrDetails,
             DurationMonths = newJob.DurationMonths,
             ApplicationDeadline = newJob.ApplicationDeadline,
+            CreatedAt = newJob.CreatedAt,
             MatchesVerified = 42,
             Status = "Active • Accepting"
         };

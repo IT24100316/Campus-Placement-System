@@ -11,6 +11,7 @@ import {
   ArrowLeft,
   Building2,
   Loader2,
+  RotateCcw,
 } from 'lucide-react';
 import type { TargetDomain, JobTitle, JobResponse } from '../../types/job';
 import { jobService } from '../../services/jobService';
@@ -102,39 +103,41 @@ export const JobPostingForm: React.FC<JobPostingFormProps> = ({
   const [draftSavedMessage, setDraftSavedMessage] = useState<string | null>(null);
 
   // 1. Fetch Controlled Reference Data from Backend Database
-  useEffect(() => {
-    let isMounted = true;
+  const loadReferenceData = async () => {
     setIsLoadingReferences(true);
+    setErrorMessage(null);
 
-    Promise.all([jobService.getDomains(), jobService.getInternshipTypes()])
-      .then(([domainsData, typesData]) => {
-        if (!isMounted) return;
-        setDomains(domainsData);
-        setInternshipTypes(typesData);
+    try {
+      const [domainsData, typesData] = await Promise.all([
+        jobService.getDomains(),
+        jobService.getInternshipTypes(),
+      ]);
 
-        // Pre-select first domain if available (e.g. Software Engineering)
-        if (domainsData.length > 0) {
-          const defaultDomain =
-            domainsData.find((d) => d.name === 'Software Engineering') || domainsData[0];
-          setSelectedDomainName(defaultDomain.name);
-          setSelectedDomainId(defaultDomain.id);
-        }
+      setDomains(domainsData);
+      setInternshipTypes(typesData);
 
-        if (typesData.length > 0 && !typesData.includes(selectedInternshipType)) {
-          setSelectedInternshipType(typesData[0]);
-        }
-      })
-      .catch((err) => {
-        if (!isMounted) return;
-        setErrorMessage(`Failed to load reference metadata from database: ${err.message}`);
-      })
-      .finally(() => {
-        if (isMounted) setIsLoadingReferences(false);
-      });
+      // Pre-select first domain if available (e.g. Software Engineering)
+      if (domainsData.length > 0) {
+        const defaultDomain =
+          domainsData.find((d) => d.name === 'Software Engineering') || domainsData[0];
+        setSelectedDomainName(defaultDomain.name);
+        setSelectedDomainId(defaultDomain.id);
+      }
 
-    return () => {
-      isMounted = false;
-    };
+      if (typesData.length > 0 && !typesData.includes(selectedInternshipType)) {
+        setSelectedInternshipType(typesData[0]);
+      }
+    } catch (err: any) {
+      setErrorMessage(
+        `Failed to load reference metadata from database: ${err.message || 'Server connection failed'}. Please ensure the .NET backend is running on http://localhost:5168.`
+      );
+    } finally {
+      setIsLoadingReferences(false);
+    }
+  };
+
+  useEffect(() => {
+    loadReferenceData();
   }, []);
 
   // 2. Dependent Job Titles: Fetch when selected domain changes
@@ -463,6 +466,17 @@ export const JobPostingForm: React.FC<JobPostingFormProps> = ({
             <div className="flex-1">
               <strong className="font-semibold block">Validation Error</strong>
               <p className="text-xs sm:text-sm text-rose-700 mt-0.5">{errorMessage}</p>
+              {domains.length === 0 && (
+                <button
+                  type="button"
+                  onClick={loadReferenceData}
+                  disabled={isLoadingReferences}
+                  className="mt-2.5 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-600 text-white text-xs font-semibold hover:bg-rose-700 transition-colors shadow-xs cursor-pointer disabled:opacity-50"
+                >
+                  <RotateCcw className={`w-3.5 h-3.5 ${isLoadingReferences ? 'animate-spin' : ''}`} />
+                  <span>{isLoadingReferences ? 'Connecting to DB...' : 'Retry DB Connection'}</span>
+                </button>
+              )}
             </div>
             <button type="button" onClick={() => setErrorMessage(null)} className="text-rose-500 hover:text-rose-700 p-1">
               <X className="w-4 h-4" />

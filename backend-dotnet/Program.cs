@@ -161,7 +161,8 @@ using (var scope = app.Services.CreateScope())
                     StipendOffered = true,
                     StipendAmountOrDetails = "$45 / hr + Housing Stipend",
                     DurationMonths = 6,
-                    ApplicationDeadline = DateTime.UtcNow.AddDays(45)
+                    ApplicationDeadline = DateTime.UtcNow.AddDays(45),
+                    CreatedAt = DateTime.UtcNow.AddDays(-5)
                 },
                 new Job
                 {
@@ -180,7 +181,8 @@ using (var scope = app.Services.CreateScope())
                     StipendOffered = true,
                     StipendAmountOrDetails = "$55 / hr + Relocation",
                     DurationMonths = 6,
-                    ApplicationDeadline = DateTime.UtcNow.AddDays(30)
+                    ApplicationDeadline = DateTime.UtcNow.AddDays(30),
+                    CreatedAt = DateTime.UtcNow.AddDays(-4)
                 },
                 new Job
                 {
@@ -199,7 +201,8 @@ using (var scope = app.Services.CreateScope())
                     StipendOffered = true,
                     StipendAmountOrDetails = "$40 / hr",
                     DurationMonths = 4,
-                    ApplicationDeadline = DateTime.UtcNow.AddDays(60)
+                    ApplicationDeadline = DateTime.UtcNow.AddDays(60),
+                    CreatedAt = DateTime.UtcNow.AddDays(-3)
                 }
             );
             dbContext.SaveChanges();
@@ -217,10 +220,13 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
-
 // Middleware 
 app.UseCors("AllowFrontend");
+
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 
 app.UseAuthorization();
 

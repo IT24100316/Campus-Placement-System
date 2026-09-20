@@ -38,6 +38,22 @@ public class CompanyController : ControllerBase
                 .Include(c => c.Jobs)
                 .Include(c => c.User)
                 .FirstOrDefaultAsync(c => c.ContactPersonEmail.ToLower() == normalized || c.User.Email.ToLower() == normalized);
+
+            // Also check if email belongs to a registered company staff member
+            if (company == null)
+            {
+                var staff = await _context.CompanyStaffProfiles
+                    .Include(s => s.Company)
+                        .ThenInclude(c => c.Jobs)
+                    .Include(s => s.Company)
+                        .ThenInclude(c => c.User)
+                    .Include(s => s.User)
+                    .FirstOrDefaultAsync(s => s.User.Email.ToLower() == normalized);
+                if (staff?.Company != null)
+                {
+                    company = staff.Company;
+                }
+            }
         }
 
         // If not found, look for any approved company or fallback to first company in DB
@@ -61,26 +77,30 @@ public class CompanyController : ControllerBase
             : company.CompanyName.Substring(0, Math.Min(3, company.CompanyName.Length)).ToUpper();
         var orgCode = $"{prefix}-{(Math.Abs(company.UserId.GetHashCode()) % 9000) + 1000}";
 
-        var activeJobs = company.Jobs.Select(j => new
-        {
-            jobId = j.JobId,
-            jobTitle = j.JobTitle,
-            targetDomain = j.TargetDomain,
-            jobDescriptionSummary = j.JobDescriptionSummary,
-            internshipType = j.InternshipType,
-            locationCity = j.LocationCity,
-            minimumGPA = j.MinimumGPA,
-            allowedYearsOfStudy = j.AllowedYearsOfStudy,
-            mandatorySkills = j.MandatorySkills,
-            niceToHaveSkills = j.NiceToHaveSkills,
-            preferredDegreePrograms = j.PreferredDegreePrograms,
-            stipendOffered = j.StipendOffered,
-            stipendAmountOrDetails = j.StipendAmountOrDetails,
-            durationMonths = j.DurationMonths,
-            applicationDeadline = j.ApplicationDeadline,
-            matchesVerified = 40 + (Math.Abs(j.JobId.GetHashCode()) % 45),
-            status = "Active • Accepting"
-        }).ToList();
+        // Active jobs strictly sorted latest to oldest by CreatedAt
+        var activeJobs = company.Jobs
+            .OrderByDescending(j => j.CreatedAt)
+            .Select(j => new
+            {
+                jobId = j.JobId,
+                jobTitle = j.JobTitle,
+                targetDomain = j.TargetDomain,
+                jobDescriptionSummary = j.JobDescriptionSummary,
+                internshipType = j.InternshipType,
+                locationCity = j.LocationCity,
+                minimumGPA = j.MinimumGPA,
+                allowedYearsOfStudy = j.AllowedYearsOfStudy,
+                mandatorySkills = j.MandatorySkills,
+                niceToHaveSkills = j.NiceToHaveSkills,
+                preferredDegreePrograms = j.PreferredDegreePrograms,
+                stipendOffered = j.StipendOffered,
+                stipendAmountOrDetails = j.StipendAmountOrDetails,
+                durationMonths = j.DurationMonths,
+                applicationDeadline = j.ApplicationDeadline,
+                createdAt = j.CreatedAt,
+                matchesVerified = 40 + (Math.Abs(j.JobId.GetHashCode()) % 45),
+                status = "Active • Accepting"
+            }).ToList();
 
         // Candidate pool of pre-screened students from premier Sri Lankan universities,
         // dynamically matched to the company's active placement drives from database

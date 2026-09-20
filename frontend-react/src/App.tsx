@@ -15,6 +15,7 @@ function App() {
   const [currentView, setCurrentView] = useState<AppView>('landing');
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [pendingRecordForView, setPendingRecordForView] = useState<RegistrationRecord | null>(null);
+  const [newlyCreatedJobId, setNewlyCreatedJobId] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<{ email: string; role: string; companyName?: string } | null>(() => {
     try {
       const saved = localStorage.getItem('campusai_auth_user');
@@ -142,12 +143,14 @@ function App() {
         <HrLandingPage
           userEmail={currentUser?.email}
           initialCompanyName={currentUser?.companyName}
+          highlightedJobId={newlyCreatedJobId || undefined}
           onLogout={handleLogout}
           onNavigateHome={() => {
             setCurrentView('landing');
             window.scrollTo({ top: 0, behavior: 'smooth' });
           }}
           onNavigatePostJob={() => {
+            setNewlyCreatedJobId(null);
             setCurrentView('hr-post-job');
             window.scrollTo({ top: 0, behavior: 'smooth' });
           }}
@@ -162,7 +165,10 @@ function App() {
             setCurrentView('hr');
             window.scrollTo({ top: 0, behavior: 'smooth' });
           }}
-          onJobCreated={() => {
+          onJobCreated={(createdJob) => {
+            if (createdJob?.jobId) {
+              setNewlyCreatedJobId(createdJob.jobId);
+            }
             setCurrentView('hr');
             window.scrollTo({ top: 0, behavior: 'smooth' });
           }}

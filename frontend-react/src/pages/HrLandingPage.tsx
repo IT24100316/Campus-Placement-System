@@ -29,6 +29,7 @@ import { companyService } from '../services/companyService';
 interface HrLandingPageProps {
   userEmail?: string;
   initialCompanyName?: string;
+  highlightedJobId?: string;
   onLogout?: () => void;
   onNavigateHome?: () => void;
   onNavigatePostJob?: () => void;
@@ -37,6 +38,7 @@ interface HrLandingPageProps {
 export const HrLandingPage: React.FC<HrLandingPageProps> = ({
   userEmail,
   initialCompanyName,
+  highlightedJobId,
   onLogout,
   onNavigateHome,
   onNavigatePostJob,
@@ -54,6 +56,17 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
   const [jobSortBy, setJobSortBy] = useState<'default' | 'matches-desc' | 'gpa-desc' | 'deadline-asc'>('default');
   const [jobsCurrentPage, setJobsCurrentPage] = useState(1);
   const JOBS_PER_PAGE = 6;
+
+  // If a new job was just published, ensure we are on page 1 with clear filters so it's immediately visible
+  useEffect(() => {
+    if (highlightedJobId) {
+      setJobsCurrentPage(1);
+      setJobSearchQuery('');
+      setJobTypeFilter('all');
+      setJobStatusFilter('all');
+      setJobSortBy('default');
+    }
+  }, [highlightedJobId]);
 
   // --- Screened Candidates Filtering & Pagination State ---
   const [candidatesSearchQuery, setCandidatesSearchQuery] = useState('');
@@ -139,6 +152,16 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
       list.sort(
         (a, b) => new Date(a.applicationDeadline).getTime() - new Date(b.applicationDeadline).getTime()
       );
+    } else {
+      // Default: Strictly Latest to Oldest by createdAt descending
+      list.sort((a, b) => {
+        if (a.createdAt && b.createdAt) {
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        }
+        if (a.createdAt && !b.createdAt) return -1;
+        if (!a.createdAt && b.createdAt) return 1;
+        return 0;
+      });
     }
 
     return list;
@@ -775,7 +798,7 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                     }}
                     className="pl-3 pr-8 py-2 rounded-lg bg-slate-50 border border-slate-200 text-xs font-medium text-slate-700 focus:bg-white focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none cursor-pointer"
                   >
-                    <option value="default">Default Order</option>
+                    <option value="default">Default (Latest to Oldest)</option>
                     <option value="matches-desc">Matches (High to Low)</option>
                     <option value="gpa-desc">Min GPA (High to Low)</option>
                     <option value="deadline-asc">Deadline (Soonest)</option>
@@ -799,26 +822,67 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
               {/* Drives Grid (Paginated: 6 items per page) */}
               {paginatedJobs.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                  {paginatedJobs.map((job) => (
-                    <div
-                      key={job.jobId}
-                      className="bg-white rounded-xl border border-slate-200 p-5 flex flex-col justify-between shadow-xs hover:shadow-md hover:border-blue-200 transition-all group"
-                    >
-                      <div className="flex flex-col gap-3">
-                        <div className="flex items-center justify-between">
-                          <span
-                            className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${
-                              job.status.includes('Active')
-                                ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                                : 'bg-amber-50 text-amber-800 border-amber-200'
-                            }`}
-                          >
-                            {job.status}
-                          </span>
-                          <span className="font-mono text-xs text-slate-400">
-                            {job.internshipType.join(' • ')}
-                          </span>
-                        </div>
+                  {paginatedJobs.map((job) => {
+                    const isHighlighted = highlightedJobId === job.jobId;
+                    const isRecent =
+                      isHighlighted ||
+                      (job.createdAt
+                        ? Date.now() - new Date(job.createdAt).getTime() < 48 * 60 * 60 * 1000
+                        : false);
+
+                    return (
+                      <div
+                        key={job.jobId}
+                        className={`rounded-xl p-5 flex flex-col justify-between transition-all group ${
+                          isHighlighted
+                            ? 'bg-blue-50/30 border-2 border-primary ring-4 ring-primary/15 shadow-md'
+                            : 'bg-white border border-slate-200 shadow-xs hover:shadow-md hover:border-blue-200'
+                        }`}
+                      >
+                        <div className="flex flex-col gap-3">
+                          <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span
+                                className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${
+                                  job.status.includes('Active')
+                                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                    : 'bg-amber-50 text-amber-800 border-amber-200'
+                                }`}
+                              >
+                                {job.status}
+                              </span>
+                              {isHighlighted ? (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-primary text-white shadow-xs animate-pulse">
+                                  <Sparkles className="w-3 h-3" />
+                                  Just Posted
+                                </span>
+                              ) : isRecent ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 text-primary border border-blue-200">
+                                  <Sparkles className="w-2.5 h-2.5" />
+                                  New
+                                </span>
+                              ) : null}
+                            </div>
+                            <div className="flex items-center gap-1.5 text-right ml-auto">
+                              {job.createdAt && (
+                                <span className="text-[10px] font-medium text-slate-400">
+                                  {(() => {
+                                    const diffHours = Math.round(
+                                      (Date.now() - new Date(job.createdAt).getTime()) / (1000 * 60 * 60)
+                                    );
+                                    if (diffHours < 1) return 'Just now';
+                                    if (diffHours < 24) return `${diffHours}h ago`;
+                                    const diffDays = Math.round(diffHours / 24);
+                                    return `${diffDays}d ago`;
+                                  })()}
+                                  {' • '}
+                                </span>
+                              )}
+                              <span className="font-mono text-xs text-slate-400">
+                                {job.internshipType.join(' • ')}
+                              </span>
+                            </div>
+                          </div>
 
                         <div>
                           <h3 className="font-display text-base font-bold text-slate-900 group-hover:text-primary transition-colors">
@@ -885,7 +949,8 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                         </button>
                       </div>
                     </div>
-                  ))}
+                  );
+                })}
                 </div>
               ) : (
                 /* Empty Filter State */
