@@ -133,24 +133,44 @@ Today's development sprint focused on overhauling the corporate authentication a
     * **Institutional Admin Tab (`admin`)**: Strictly gates entry to accounts with `Admin` role. Corporate accounts receive *"Access Denied: Only Institutional Administrators can sign in through this tab."*
   * Added validation checks to both the active authentication flow and the pending verification stepper.
 
+### 9. Company HR Landing Page: Pagination, Advanced Filtering & Matched Opening Visibility
+* **Active Placement Drives & Openings**:
+  * Evaluated card layout and preserved the responsive 3-column grid (`grid-cols-1 md:grid-cols-2 lg:grid-cols-3`) for optimal visual density and eligibility badges.
+  * Added pagination at **6 drives per page** with item counter (`Showing X to Y of Z drives`), previous/next navigation, and numbered page buttons.
+  * Implemented an integrated filtering and search toolbar:
+    * **Live Search**: matches job title, domain, mandatory skills, or location city.
+    * **Work Type Filter**: All Types, Full-time, Hybrid, On-site.
+    * **Status Filter**: All Statuses, Active • Accepting, Shortlist Review.
+    * **Sort By**: Default, Matches Verified (High to Low), Min GPA (High to Low), Deadline (Soonest).
+    * **Empty State**: clean card with search icon and instant reset button.
+* **Recently Screened & Matched Students**:
+  * Retained the existing clean table design and added configurable pagination supporting **5, 10, or 20 candidates per page** (default: 5) with page size selector and pagination controls.
+  * **Prominent Matched Job Opening**: Every candidate record prominently displays the specific job opening they were screened/matched for in a dedicated, styled cell featuring a Briefcase icon, bold opening title, and AI match score pill, eliminating guesswork.
+  * **Comprehensive 6-Parameter Filter Panel**:
+    * Expandable via the **Filter Cohort** button with active filter badge counter.
+    * **Matched Opening**: filter by specific drive title or all drives.
+    * **Degree & Batch**: dynamically populated program/batch filter.
+    * **Verified GPA Threshold**: All GPAs, ≥ 3.5, ≥ 3.7, ≥ 3.8, ≥ 3.9.
+    * **Core Competencies**: dynamically populated skill filter (Python, Go, PyTorch, C++, etc.).
+    * **Candidate Status**: Shortlisted, Pre-screen Cleared, Interview Confirmed, Interview Invited.
+    * **Match Score**: All Scores, ≥ 90%, ≥ 95%, ≥ 98%.
+    * **Quick Search**: real-time search across candidate name, university, degree, opening, or skill.
+* **Sri Lankan University Localization**:
+  * Replaced all US institutions with premier Sri Lankan universities and institutes: **SLIIT, University of Moratuwa, UCSC, University of Peradeniya, University of Kelaniya, University of Sri Jayewardenepura, NSBM, and IIT Sri Lanka**.
+* **Database & Architectural Integrity**:
+  * Maintained the strict **PostgreSQL → ASP.NET Core 8 Web API → React** flow without bypassing backend endpoints.
+  * Dynamically maps candidates to the company's real active placement drives queried from PostgreSQL.
+
 ---
 
 ## 📂 Modified & Created Files
 
 | File | Type | Changes |
 | :--- | :--- | :--- |
-| `frontend-react/src/pages/LoginPage.tsx` | Frontend | Enforced strict role-gated category tab validation on login |
-| `backend-dotnet/Controllers/AdminController.cs` | Backend | Supported string identifier (Guid or Email) for `approve` and `reject` with DB commit |
-| `backend-dotnet/Program.cs` | Backend | Reconciled existing accounts to `Approved` and provisioned initial job drives |
-| `frontend-react/src/services/authService.ts` | Frontend | Made `updateStatus` async calling backend API, healed local storage on login |
-| `frontend-react/src/components/admin/AdminApprovalsView.tsx` | Frontend | Made `handleAction` async and awaited backend database status update |
-| `frontend-react/src/pages/HrLandingPage.tsx` | Frontend | **New**: Authenticated outside company HR landing page matching `UI/HR-LandingPage` |
-| `frontend-react/src/services/companyService.ts` | Frontend | **New**: Service to fetch live company profile and dashboard data from backend DB |
-| `frontend-react/src/types/company.ts` | Frontend | **New**: TypeScript contracts for company dashboard, drives, and student dossiers |
-| `backend-dotnet/Controllers/CompanyController.cs` | Backend | **New**: Endpoint `GET /api/company/profile` returning DB company profile & stats |
-| `frontend-react/src/App.tsx` | Frontend | Added `'hr'` route, outside HR login redirect, and floating switcher dock support |
-| `frontend-react/src/components/auth/LoginModal.tsx` | Frontend | Passed email and companyName upon successful modal login |
-| `DAILY_WORK_SUMMARY.md` | Docs | Comprehensive technical summary of today's work |
+| `frontend-react/src/pages/HrLandingPage.tsx` | Frontend | Implemented 6 jobs/page pagination & filters for drives; 5/10/20 per page pagination, 6-parameter filtering, and prominent matched opening badges for candidates |
+| `frontend-react/src/services/companyService.ts` | Frontend | Updated fallback candidates to premier Sri Lankan universities and active job links |
+| `backend-dotnet/Controllers/CompanyController.cs` | Backend | Updated candidate pool with Sri Lankan universities and dynamic linkages to active DB jobs |
+| `DAILY_WORK_SUMMARY.md` | Docs | Documented HR landing page pagination, filtering, and job association enhancements |
 
 ---
 
@@ -159,17 +179,17 @@ Today's development sprint focused on overhauling the corporate authentication a
 1. **Frontend Production Build**:
    ```bash
    npm run build
-   # Output: tsc -b && vite build -> Built in ~500ms (0 errors)
+   # Output: tsc -b && vite build -> Built in ~470ms (0 errors)
    ```
 2. **Backend Compilation**:
    ```bash
    dotnet build
    # Output: Build succeeded. 0 Warning(s), 0 Error(s)
    ```
-3. **Role-Gating Verification**:
-   - Company HR credentials entered in **Admin** tab &rarr; Blocked with *"Access Denied: This account is registered as Company HR. Please use the 'Company HR' tab to sign in."*
-   - Company HR credentials entered in **Company Staff** tab &rarr; Blocked with *"This account is registered as Company HR. Please switch to the 'Company HR' tab to sign in."*
-   - Company HR credentials entered in **Company HR** tab &rarr; Authenticated successfully and routed to HR Landing Page.
+3. **Pagination & Filtering Verification**:
+   - Placement Drives: 6 cards per page with page buttons, search, work type, and sort controls.
+   - Screened Students: 5/10/20 rows per page with page controls, 6 filter parameters, and prominent matched opening pill.
+   - Sri Lankan Universities: Correctly displays SLIIT, University of Moratuwa, UCSC, University of Peradeniya, etc.
 
 ---
 
@@ -182,7 +202,8 @@ Today's development sprint focused on overhauling the corporate authentication a
 6. `feat(admin): enforce admin navbar logout state and default employee organization to CampusAI`
 7. `feat(hr): implement outside company HR landing page with DB company title and consistent logout`
 8. `fix(auth): eliminate approval loop by persisting admin approvals directly to database`
-9. `fix(auth): enforce strict role-gated category tab validation on login page` *(this commit)*
+9. `fix(auth): enforce strict role-gated category tab validation on login page`
+10. `feat(hr): add pagination, filtering, and prominent matched job visibility to HR landing page` *(this commit)*
 
 
 <br>
