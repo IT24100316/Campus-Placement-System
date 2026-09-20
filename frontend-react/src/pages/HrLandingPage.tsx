@@ -33,6 +33,7 @@ interface HrLandingPageProps {
   onLogout?: () => void;
   onNavigateHome?: () => void;
   onNavigatePostJob?: () => void;
+  onNavigateApplications?: () => void;
 }
 
 export const HrLandingPage: React.FC<HrLandingPageProps> = ({
@@ -42,6 +43,7 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
   onLogout,
   onNavigateHome,
   onNavigatePostJob,
+  onNavigateApplications,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [dashboardData, setDashboardData] = useState<CompanyDashboardData | null>(null);
@@ -382,7 +384,7 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
               </button>
               <button
                 type="button"
-                onClick={() => setActiveTab('candidates')}
+                onClick={onNavigateApplications}
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
                   activeTab === 'candidates'
                     ? 'bg-blue-50 text-primary border border-blue-100'
