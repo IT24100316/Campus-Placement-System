@@ -9,12 +9,18 @@ interface RegisterPageProps {
   onBackToHome: () => void;
   initialPendingRecord?: RegistrationRecord | null;
   onOpenLogin?: () => void;
+  isAdmin?: boolean;
+  onLogout?: () => void;
+  userEmail?: string;
 }
 
 export const RegisterPage: React.FC<RegisterPageProps> = ({
   onBackToHome,
   initialPendingRecord = null,
   onOpenLogin,
+  isAdmin,
+  onLogout,
+  userEmail,
 }) => {
   const [submittedRecord, setSubmittedRecord] = useState<RegistrationRecord | null>(
     initialPendingRecord
@@ -26,6 +32,9 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({
         onNavigateHome={onBackToHome}
         onNavigateRegister={() => setSubmittedRecord(null)}
         onOpenLogin={onOpenLogin}
+        isAdmin={isAdmin}
+        onLogout={onLogout}
+        userEmail={userEmail}
       />
 
       <main className="flex-1 pt-20 pb-16">
