@@ -23,4 +23,14 @@ public class ApplicationsController : ControllerBase
         var result = await _applicationService.GetApplicationsByJobIdAsync(jobId, page, status);
         return Ok(result);
     }
+
+    /// <summary>
+    /// Searches for applications based on a provided query string.
+    /// </summary>
+    [HttpGet("search")]
+    public async Task<IActionResult> SearchApplications([FromQuery] string query)
+    {
+        var result = await _applicationService.SearchApplicationsAsync(query);
+        return Ok(result);
+    }
 }
