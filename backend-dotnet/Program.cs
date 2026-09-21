@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using backend_dotnet.Data;
+using backend_dotnet.Services;
 using backend_dotnet.Models;
 using Microsoft.AspNetCore.Identity;
 
@@ -14,6 +15,9 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 // 2. Controllers
 builder.Services.AddControllers();
+
+// 2.5 Register placement application matching services for Dependency Injection
+builder.Services.AddScoped<IApplicationService, ApplicationService>();
 
 // 3. CORS
 builder.Services.AddCors(options =>
