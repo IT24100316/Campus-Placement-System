@@ -51,4 +51,21 @@ public class ApplicationsController : ControllerBase
             return NotFound(new { message = ex.Message });
         }
     }
+
+    /// <summary>
+    /// Schedules an interview for a specific application.
+    /// </summary>
+    [HttpPut("{appId}/interview")]
+    public async Task<IActionResult> ScheduleInterview(Guid appId, [FromBody] ScheduleInterviewRequestDto request)
+    {
+        try
+        {
+            await _applicationService.ScheduleInterviewAsync(appId, request);
+            return Ok(new { message = "Interview scheduled successfully" });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+    }
 }
