@@ -68,4 +68,21 @@ public class ApplicationsController : ControllerBase
             return NotFound(new { message = ex.Message });
         }
     }
+
+    /// <summary>
+    /// Retrieves the CV download URL for a specific application.
+    /// </summary>
+    [HttpGet("{appId}/cv")]
+    public async Task<IActionResult> GetCvDownloadUrl(Guid appId)
+    {
+        try
+        {
+            var url = await _applicationService.GetCvDownloadUrlAsync(appId);
+            return Ok(new { cvUrl = url });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+    }
 }
