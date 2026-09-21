@@ -9,5 +9,6 @@ public interface IAuthService
     Task<AuthLoginResultDto?> LoginAsync(LoginDto dto);
     Task<AuthRegisterResultDto> RegisterCompanyHrAsync(RegisterCompanyHrDto dto);
     Task<AuthRegisterResultDto> RegisterCompanyStaffAsync(RegisterCompanyStaffDto dto);
+    Task<AuthRegisterResultDto> RegisterStudentAsync(RegisterStudentFormDto dto, CancellationToken cancellationToken = default);
     Task<IEnumerable<ApprovedCompanyDto>> GetCompaniesAsync();
 }

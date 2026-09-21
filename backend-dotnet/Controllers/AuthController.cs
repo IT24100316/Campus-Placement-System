@@ -18,6 +18,24 @@ public class AuthController : ControllerBase
         _authService = authService;
     }
 
+    /// <summary>Registers a student and stores the campus ID in the private verification document store.</summary>
+    [HttpPost("register-student")]
+    [Consumes("multipart/form-data")]
+    [RequestSizeLimit(10 * 1024 * 1024)]
+    public async Task<IActionResult> RegisterStudent([FromForm] RegisterStudentFormDto dto, CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+        try
+        {
+            var result = await _authService.RegisterStudentAsync(dto, cancellationToken);
+            return Ok(new { success = result.Success, result.UserId, result.Status, result.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     /// <summary>
     /// Authenticate User (Admin, Company HR, Company Staff)
     /// </summary>
@@ -37,6 +55,7 @@ public class AuthController : ControllerBase
             return StatusCode(403, new
             {
                 success = false,
+                userId = result.UserId,
                 message = result.Message
             });
         }
@@ -61,6 +80,7 @@ public class AuthController : ControllerBase
         return Ok(new
         {
             success = true,
+            userId = result.UserId,
             email = result.Email,
             role = result.Role,
             status = result.Status,
