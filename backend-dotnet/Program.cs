@@ -23,6 +23,7 @@ builder.Services.AddControllers();
 // 2.5 Register placement application matching services for Dependency Injection
 builder.Services.AddScoped<IApplicationService, ApplicationService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
 
 // 3. CORS
 builder.Services.AddCors(options =>

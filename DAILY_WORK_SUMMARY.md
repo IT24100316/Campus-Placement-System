@@ -584,8 +584,8 @@ Today's development sprint focused on kickstarting the **Flutter Mobile Applicat
 | :--- | :--- | :--- | :--- |
 | **`ApplicationsController.cs`** | ✅ Complete | `IApplicationService` / `ApplicationService` | Student application lifecycle, interview scheduling, CV download URLs *(Friend's part - maintained)* |
 | **`AdminController.cs`** | ✅ **Done** | `IAdminService` / `AdminService` | Decoupled user approval/rejection, company defaulting, auto-provisioning placement drives, password hashing, and employee registration into `AdminService`. Controller streamlined to ~65 lines. Verified via Swagger & live API test. |
-| **`AuthController.cs`** | ⏳ **Next to Do** | `IAuthService` / `AuthService` | Extract multi-role login (`Admin`, `CompanyHR`, `CompanyStaff`), credential verification via `PasswordHasher<User>`, role resolution, HR registration, and staff registration. |
-| **`CompanyController.cs`** | ⏳ **Left to Do** | `ICompanyService` / `CompanyService` | Extract company profile retrieval, live placement drive counts, candidate shortlist dossiers, and metrics aggregation. |
+| **`AuthController.cs`** | ✅ **Done** | `IAuthService` / `AuthService` | Decoupled multi-role authentication (`Admin`, `CompanyHR`, `CompanyStaff`), credential verification via `PasswordHasher<User>`, role resolution, HR registration, and staff registration into `AuthService`. Controller streamlined to ~110 lines. Verified via live API tests. |
+| **`CompanyController.cs`** | ⏳ **Next to Do** | `ICompanyService` / `CompanyService` | Extract company profile retrieval, live placement drive counts, candidate shortlist dossiers, and metrics aggregation. |
 | **`JobController.cs`** | ⏳ **Left to Do** | `IJobService` / `JobService` | Extract controlled target domains query, dependent job titles query, internship type enums, and job creation with domain/title cross-validation. |
 
 * **Completed Implementation Details for `AdminController`**:
@@ -594,6 +594,14 @@ Today's development sprint focused on kickstarting the **Flutter Mobile Applicat
   * Registered `builder.Services.AddScoped<IAdminService, AdminService>();` in [`Program.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Program.cs).
   * Added `EnableRetryOnFailure` resilience policy to Npgsql PostgreSQL provider.
   * Verified: `dotnet build` succeeded with 0 errors; live endpoint `GET /api/admin/pending-approvals` verified returning 200 OK.
+
+* **Completed Implementation Details for `AuthController`**:
+  * Created [`IAuthService.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Services/IAuthService.cs) and [`AuthService.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Services/AuthService.cs) encapsulating user credential verification, password hashing with `PasswordHasher<User>`, multi-role resolution (`Admin`, `CompanyHR`, `CompanyStaff`), company HR registration, and company staff onboarding.
+  * Added type-safe service response DTOs in [`AuthServiceDtos.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/DTOs/AuthServiceDtos.cs) (`AuthLoginResultDto`, `AuthRegisterResultDto`).
+  * Refactored [`AuthController.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Controllers/AuthController.cs) to remove direct `AppDbContext` and `PasswordHasher<User>` dependencies, reducing it to clean HTTP action handlers with proper status codes (`200 OK`, `400 Bad Request`, `401 Unauthorized`, `403 Forbidden`, `404 Not Found`).
+  * Registered `builder.Services.AddScoped<IAuthService, AuthService>();` in [`Program.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Program.cs).
+  * Verified: `dotnet build` succeeded with 0 errors; live endpoints `POST /api/auth/login` (Admin & HR) and `GET /api/auth/companies` confirmed 200 OK with accurate JSON responses.
+
 
 
 
