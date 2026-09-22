@@ -575,13 +575,25 @@ Today's development sprint focused on kickstarting the **Flutter Mobile Applicat
     * Built an expandable accordion-style detailed view for each candidate to reveal career objectives and resume assets.
     * Prepared a scheduling modal hook (candidateToSchedule) that will wire directly into the .NET ScheduleInterviewAsync endpoint.
 
-### 14. Architecture Refactoring: Dedicated Admin Service Layer (.NET Backend)
-* **Decoupling Controller from Business Logic**:
-  * Extracted all entity framework querying, password hashing, default job seeding, and persistence logic out of `AdminController.cs` into a dedicated service layer following the service pattern.
-  * Created `IAdminService.cs` contract and implemented `AdminService.cs` in `backend-dotnet/Services/`.
-  * Added dedicated `AdminDtos.cs` for clean type-safe responses (`AdminApprovalResponseDto`, `AdminRegisterEmployeeResponseDto`).
-  * Registered `IAdminService` in `Program.cs` scoped dependency injection container.
-  * Streamlined `AdminController.cs` to strictly handle routing, HTTP validation, and status code responses.
-  * Added `EnableRetryOnFailure` to Npgsql database configuration in `Program.cs` for resilient cloud PostgreSQL connectivity.
+### 14. Architecture Refactoring: Controller-Service Decoupling (.NET Backend)
+* **Refactoring Objective**: Eliminate direct database context (`AppDbContext`), password hashing, and complex business logic from API controllers, migrating all domain and persistence logic into dedicated interfaces and services inside `/Services` adhering to the Single Responsibility Principle and Dependency Injection.
+
+#### 📊 Controller Refactoring Status & Roadmap
+
+| Controller | Status | Service Interface & Implementation | Key Responsibilities Decoupled |
+| :--- | :--- | :--- | :--- |
+| **`ApplicationsController.cs`** | ✅ Complete | `IApplicationService` / `ApplicationService` | Student application lifecycle, interview scheduling, CV download URLs *(Friend's part - maintained)* |
+| **`AdminController.cs`** | ✅ **Done** | `IAdminService` / `AdminService` | Decoupled user approval/rejection, company defaulting, auto-provisioning placement drives, password hashing, and employee registration into `AdminService`. Controller streamlined to ~65 lines. Verified via Swagger & live API test. |
+| **`AuthController.cs`** | ⏳ **Next to Do** | `IAuthService` / `AuthService` | Extract multi-role login (`Admin`, `CompanyHR`, `CompanyStaff`), credential verification via `PasswordHasher<User>`, role resolution, HR registration, and staff registration. |
+| **`CompanyController.cs`** | ⏳ **Left to Do** | `ICompanyService` / `CompanyService` | Extract company profile retrieval, live placement drive counts, candidate shortlist dossiers, and metrics aggregation. |
+| **`JobController.cs`** | ⏳ **Left to Do** | `IJobService` / `JobService` | Extract controlled target domains query, dependent job titles query, internship type enums, and job creation with domain/title cross-validation. |
+
+* **Completed Implementation Details for `AdminController`**:
+  * Extracted all Entity Framework Core queries and database mutations into [`AdminService.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Services/AdminService.cs) implementing [`IAdminService.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Services/IAdminService.cs).
+  * Added type-safe result DTOs in [`AdminDtos.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/DTOs/AdminDtos.cs) (`AdminApprovalResponseDto`, `AdminRegisterEmployeeResponseDto`).
+  * Registered `builder.Services.AddScoped<IAdminService, AdminService>();` in [`Program.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Program.cs).
+  * Added `EnableRetryOnFailure` resilience policy to Npgsql PostgreSQL provider.
+  * Verified: `dotnet build` succeeded with 0 errors; live endpoint `GET /api/admin/pending-approvals` verified returning 200 OK.
+
 
 
