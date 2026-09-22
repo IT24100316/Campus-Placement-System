@@ -586,7 +586,7 @@ Today's development sprint focused on kickstarting the **Flutter Mobile Applicat
 | **`AdminController.cs`** | ✅ **Done** | `IAdminService` / `AdminService` | Decoupled user approval/rejection, company defaulting, auto-provisioning placement drives, password hashing, and employee registration into `AdminService`. Controller streamlined to ~65 lines. Verified via Swagger & live API test. |
 | **`AuthController.cs`** | ✅ **Done** | `IAuthService` / `AuthService` | Decoupled multi-role authentication (`Admin`, `CompanyHR`, `CompanyStaff`), credential verification via `PasswordHasher<User>`, role resolution, HR registration, and staff registration into `AuthService`. Controller streamlined to ~110 lines. Verified via live API tests. |
 | **`CompanyController.cs`** | ✅ **Done** | `ICompanyService` / `CompanyService` | Decoupled company profile retrieval, staff fallback resolution, live placement drive sorting, candidate shortlist linkages, and stats aggregation into `CompanyService`. Controller streamlined from 316 lines to ~30 lines. Verified via live API tests. |
-| **`JobController.cs`** | ⏳ **Next to Do** | `IJobService` / `JobService` | Extract controlled target domains query, dependent job titles query, internship type enums, and job creation with domain/title cross-validation. |
+| **`JobController.cs`** | ✅ **Done** | `IJobService` / `JobService` | Decoupled controlled target domains query, dependent job titles query, internship type enums, and job creation with domain/title cross-validation into `JobService`. Controller streamlined from 293 lines to ~65 lines. Verified via live API tests. |
 
 * **Completed Implementation Details for `AdminController`**:
   * Extracted all Entity Framework Core queries and database mutations into [`AdminService.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Services/AdminService.cs) implementing [`IAdminService.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Services/IAdminService.cs).
@@ -608,6 +608,15 @@ Today's development sprint focused on kickstarting the **Flutter Mobile Applicat
   * Streamlined [`CompanyController.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Controllers/CompanyController.cs) from 316 lines down to ~30 lines, converting it into a clean, lightweight endpoint that delegates directly to `_companyService.GetCompanyDashboardAsync`.
   * Registered `builder.Services.AddScoped<ICompanyService, CompanyService>();` in [`Program.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Program.cs).
   * Verified: `dotnet build` succeeded with 0 warnings/errors; live endpoint `GET /api/company/profile?email=virtusa@company.com` verified returning 200 OK with identical payload schema.
+
+* **Completed Implementation Details for `JobController`**:
+  * Created [`IJobService.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Services/IJobService.cs) and [`JobService.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Services/JobService.cs) extracting controlled target domains querying, domain-dependent job title lookups, internship type enumeration, and full job posting creation with domain cross-validation, GPA bounds checking, deadline validation, and employer resolution.
+  * Added `JobCreationResultDto` to [`JobDtos.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/DTOs/JobDtos.cs).
+  * Streamlined [`JobController.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Controllers/JobController.cs) (class `JobsController`) from 293 lines down to ~65 lines, strictly delegating all database and business operations to `_jobService`.
+  * Registered `builder.Services.AddScoped<IJobService, JobService>();` in [`Program.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Program.cs).
+  * Verified: `dotnet build` succeeded with 0 errors; live endpoints `GET /api/jobs/reference/domains`, `GET /api/jobs/reference/titles`, `GET /api/jobs/reference/internship-types`, and validation on `POST /api/jobs` confirmed 200 OK and 400 Bad Request error gating.
+  * **Milestone Complete**: All 5 backend API controllers now adhere 100% to the decoupled Controller-Service pattern, with [`ApplicationsController.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Controllers/ApplicationsController.cs) / [`ApplicationService.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Services/ApplicationService.cs) preserved untouched.
+
 
 
 

@@ -87,3 +87,12 @@ public class JobResponseDto
     public int MatchesVerified { get; set; }
     public string Status { get; set; } = "Active • Accepting";
 }
+
+public class JobCreationResultDto
+{
+    public bool Success { get; set; }
+    public string? ErrorTitle { get; set; }
+    public string? ErrorMessage { get; set; }
+    public JobResponseDto? Job { get; set; }
+}
+
