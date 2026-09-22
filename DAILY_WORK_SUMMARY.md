@@ -585,8 +585,8 @@ Today's development sprint focused on kickstarting the **Flutter Mobile Applicat
 | **`ApplicationsController.cs`** | ✅ Complete | `IApplicationService` / `ApplicationService` | Student application lifecycle, interview scheduling, CV download URLs *(Friend's part - maintained)* |
 | **`AdminController.cs`** | ✅ **Done** | `IAdminService` / `AdminService` | Decoupled user approval/rejection, company defaulting, auto-provisioning placement drives, password hashing, and employee registration into `AdminService`. Controller streamlined to ~65 lines. Verified via Swagger & live API test. |
 | **`AuthController.cs`** | ✅ **Done** | `IAuthService` / `AuthService` | Decoupled multi-role authentication (`Admin`, `CompanyHR`, `CompanyStaff`), credential verification via `PasswordHasher<User>`, role resolution, HR registration, and staff registration into `AuthService`. Controller streamlined to ~110 lines. Verified via live API tests. |
-| **`CompanyController.cs`** | ⏳ **Next to Do** | `ICompanyService` / `CompanyService` | Extract company profile retrieval, live placement drive counts, candidate shortlist dossiers, and metrics aggregation. |
-| **`JobController.cs`** | ⏳ **Left to Do** | `IJobService` / `JobService` | Extract controlled target domains query, dependent job titles query, internship type enums, and job creation with domain/title cross-validation. |
+| **`CompanyController.cs`** | ✅ **Done** | `ICompanyService` / `CompanyService` | Decoupled company profile retrieval, staff fallback resolution, live placement drive sorting, candidate shortlist linkages, and stats aggregation into `CompanyService`. Controller streamlined from 316 lines to ~30 lines. Verified via live API tests. |
+| **`JobController.cs`** | ⏳ **Next to Do** | `IJobService` / `JobService` | Extract controlled target domains query, dependent job titles query, internship type enums, and job creation with domain/title cross-validation. |
 
 * **Completed Implementation Details for `AdminController`**:
   * Extracted all Entity Framework Core queries and database mutations into [`AdminService.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Services/AdminService.cs) implementing [`IAdminService.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Services/IAdminService.cs).
@@ -601,6 +601,14 @@ Today's development sprint focused on kickstarting the **Flutter Mobile Applicat
   * Refactored [`AuthController.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Controllers/AuthController.cs) to remove direct `AppDbContext` and `PasswordHasher<User>` dependencies, reducing it to clean HTTP action handlers with proper status codes (`200 OK`, `400 Bad Request`, `401 Unauthorized`, `403 Forbidden`, `404 Not Found`).
   * Registered `builder.Services.AddScoped<IAuthService, AuthService>();` in [`Program.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Program.cs).
   * Verified: `dotnet build` succeeded with 0 errors; live endpoints `POST /api/auth/login` (Admin & HR) and `GET /api/auth/companies` confirmed 200 OK with accurate JSON responses.
+
+* **Completed Implementation Details for `CompanyController`**:
+  * Created [`ICompanyService.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Services/ICompanyService.cs) and [`CompanyService.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Services/CompanyService.cs) encapsulating company profile lookup by ID or email, fallback resolution for registered staff members, latest-to-oldest active drive sorting, pre-screened Sri Lankan student candidate matching, and recruitment analytics computation.
+  * Added type-safe dashboard DTOs in [`CompanyDtos.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/DTOs/CompanyDtos.cs) (`CompanyDashboardResponseDto`, `CompanyStatsDto`, `CompanyActiveJobDto`, `CompanyCandidateDto`).
+  * Streamlined [`CompanyController.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Controllers/CompanyController.cs) from 316 lines down to ~30 lines, converting it into a clean, lightweight endpoint that delegates directly to `_companyService.GetCompanyDashboardAsync`.
+  * Registered `builder.Services.AddScoped<ICompanyService, CompanyService>();` in [`Program.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Program.cs).
+  * Verified: `dotnet build` succeeded with 0 warnings/errors; live endpoint `GET /api/company/profile?email=virtusa@company.com` verified returning 200 OK with identical payload schema.
+
 
 
 

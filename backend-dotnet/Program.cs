@@ -24,6 +24,7 @@ builder.Services.AddControllers();
 builder.Services.AddScoped<IApplicationService, ApplicationService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<ICompanyService, CompanyService>();
 
 // 3. CORS
 builder.Services.AddCors(options =>
