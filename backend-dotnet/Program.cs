@@ -11,13 +11,18 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
     ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(connectionString));
+    options.UseNpgsql(connectionString, npgsqlOptions =>
+        npgsqlOptions.EnableRetryOnFailure(
+            maxRetryCount: 5,
+            maxRetryDelay: TimeSpan.FromSeconds(5),
+            errorCodesToAdd: null)));
 
 // 2. Controllers
 builder.Services.AddControllers();
 
 // 2.5 Register placement application matching services for Dependency Injection
 builder.Services.AddScoped<IApplicationService, ApplicationService>();
+builder.Services.AddScoped<IAdminService, AdminService>();
 
 // 3. CORS
 builder.Services.AddCors(options =>

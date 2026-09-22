@@ -575,3 +575,13 @@ Today's development sprint focused on kickstarting the **Flutter Mobile Applicat
     * Built an expandable accordion-style detailed view for each candidate to reveal career objectives and resume assets.
     * Prepared a scheduling modal hook (candidateToSchedule) that will wire directly into the .NET ScheduleInterviewAsync endpoint.
 
+### 14. Architecture Refactoring: Dedicated Admin Service Layer (.NET Backend)
+* **Decoupling Controller from Business Logic**:
+  * Extracted all entity framework querying, password hashing, default job seeding, and persistence logic out of `AdminController.cs` into a dedicated service layer following the service pattern.
+  * Created `IAdminService.cs` contract and implemented `AdminService.cs` in `backend-dotnet/Services/`.
+  * Added dedicated `AdminDtos.cs` for clean type-safe responses (`AdminApprovalResponseDto`, `AdminRegisterEmployeeResponseDto`).
+  * Registered `IAdminService` in `Program.cs` scoped dependency injection container.
+  * Streamlined `AdminController.cs` to strictly handle routing, HTTP validation, and status code responses.
+  * Added `EnableRetryOnFailure` to Npgsql database configuration in `Program.cs` for resilient cloud PostgreSQL connectivity.
+
+
