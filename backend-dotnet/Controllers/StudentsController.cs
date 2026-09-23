@@ -2,6 +2,7 @@ using System.Security.Claims;
 using backend_dotnet.Data;
 using backend_dotnet.DTOs;
 using backend_dotnet.Models;
+using backend_dotnet.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,10 +13,17 @@ namespace backend_dotnet.Controllers;
 public class StudentsController : ControllerBase
 {
     private readonly AppDbContext _context;
+    private readonly ICvFileValidationService _cvFileValidationService;
+    private readonly ICvStorageService _cvStorageService;
 
-    public StudentsController(AppDbContext context)
+    public StudentsController(
+        AppDbContext context,
+        ICvFileValidationService cvFileValidationService,
+        ICvStorageService cvStorageService)
     {
         _context = context;
+        _cvFileValidationService = cvFileValidationService;
+        _cvStorageService = cvStorageService;
     }
 
     [HttpGet("profile")]
@@ -77,6 +85,93 @@ public class StudentsController : ControllerBase
         }
 
         return Ok(profile);
+    }
+
+    [HttpPost("upload-cv")]
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> UploadCv(
+        [FromForm] IFormFile? file,
+        CancellationToken cancellationToken)
+    {
+        if (!TryGetCurrentUserId(out var userId))
+        {
+            return Unauthorized(new { message = "An authenticated student identity is required." });
+        }
+
+        var user = await _context.Users
+            .AsNoTracking()
+            .SingleOrDefaultAsync(candidate => candidate.Id == userId, cancellationToken);
+
+        if (user == null)
+        {
+            return Unauthorized(new { message = "The authenticated user no longer exists." });
+        }
+
+        if (user.Role != UserRole.Student)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new
+            {
+                message = "Only student accounts can upload a CV."
+            });
+        }
+
+        var profile = await _context.StudentProfiles
+            .SingleOrDefaultAsync(candidate => candidate.UserId == userId, cancellationToken);
+        if (profile == null)
+        {
+            return NotFound(new { message = "Save the student profile before uploading a CV." });
+        }
+
+        var validation = await _cvFileValidationService.ValidateAsync(file, cancellationToken);
+        if (!validation.IsValid)
+        {
+            return BadRequest(new { message = validation.ErrorMessage });
+        }
+
+        string storageKey;
+        try
+        {
+            storageKey = await _cvStorageService.StoreAsync(userId, file!, cancellationToken);
+        }
+        catch (Exception)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, new
+            {
+                message = "Unable to store the CV at this time."
+            });
+        }
+
+        var previousStorageKey = profile.CvPdfUrl;
+        profile.CvPdfUrl = storageKey;
+
+        try
+        {
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            await _cvStorageService.DeleteAsync(storageKey, CancellationToken.None);
+            return Conflict(new { message = "The student profile was changed concurrently. Please try again." });
+        }
+        catch (Exception)
+        {
+            await _cvStorageService.DeleteAsync(storageKey, CancellationToken.None);
+            return StatusCode(StatusCodes.Status500InternalServerError, new
+            {
+                message = "Unable to save the CV reference at this time."
+            });
+        }
+
+        if (!string.IsNullOrWhiteSpace(previousStorageKey))
+        {
+            await _cvStorageService.DeleteAsync(previousStorageKey, CancellationToken.None);
+        }
+
+        return Ok(new
+        {
+            message = "CV uploaded successfully.",
+            cvStorageKey = storageKey
+        });
     }
 
     [HttpPut("profile")]
