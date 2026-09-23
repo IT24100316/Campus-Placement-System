@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Rocket,
   Bookmark,
@@ -103,7 +103,7 @@ export const JobPostingForm: React.FC<JobPostingFormProps> = ({
   const [draftSavedMessage, setDraftSavedMessage] = useState<string | null>(null);
 
   // 1. Fetch Controlled Reference Data from Backend Database
-  const loadReferenceData = async () => {
+  const loadReferenceData = useCallback(async () => {
     setIsLoadingReferences(true);
     setErrorMessage(null);
 
@@ -124,21 +124,22 @@ export const JobPostingForm: React.FC<JobPostingFormProps> = ({
         setSelectedDomainId(defaultDomain.id);
       }
 
-      if (typesData.length > 0 && !typesData.includes(selectedInternshipType)) {
-        setSelectedInternshipType(typesData[0]);
-      }
-    } catch (err: any) {
+      setSelectedInternshipType((current) =>
+        typesData.length > 0 && !typesData.includes(current) ? typesData[0] : current
+      );
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Server connection failed';
       setErrorMessage(
-        `Failed to load reference metadata from database: ${err.message || 'Server connection failed'}. Please ensure the .NET backend is running on http://localhost:5168.`
+        `Failed to load reference metadata from database: ${message}. Please ensure the .NET backend is running on http://localhost:5168.`
       );
     } finally {
       setIsLoadingReferences(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadReferenceData();
-  }, []);
+  }, [loadReferenceData]);
 
   // 2. Dependent Job Titles: Fetch when selected domain changes
   useEffect(() => {
@@ -342,9 +343,9 @@ export const JobPostingForm: React.FC<JobPostingFormProps> = ({
           onCancel();
         }
       }, 1500);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Job creation error:', err);
-      setErrorMessage(err.message || 'An unexpected error occurred while saving the job to the database.');
+      setErrorMessage(err instanceof Error ? err.message : 'An unexpected error occurred while saving the job to the database.');
     } finally {
       setIsSubmitting(false);
     }
