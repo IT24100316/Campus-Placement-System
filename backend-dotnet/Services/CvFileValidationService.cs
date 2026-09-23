@@ -32,7 +32,7 @@ public sealed class CvFileValidationService : ICvFileValidationService
         if (file.Length > _storageOptions.MaxFileSizeBytes)
         {
             return CvFileValidationResult.Invalid(
-                $"The CV must not exceed {_storageOptions.MaxFileSizeBytes / (1024 * 1024)} MB.");
+                $"The CV must not exceed {FormatFileSize(_storageOptions.MaxFileSizeBytes)}.");
         }
 
         if (!string.Equals(Path.GetExtension(file.FileName), ".pdf", StringComparison.OrdinalIgnoreCase))
@@ -64,5 +64,23 @@ public sealed class CvFileValidationService : ICvFileValidationService
         return bytesRead == PdfSignature.Length && header.AsSpan().SequenceEqual(PdfSignature)
             ? CvFileValidationResult.Valid()
             : CvFileValidationResult.Invalid("The selected file does not contain valid PDF content.");
+    }
+
+    private static string FormatFileSize(long byteCount)
+    {
+        const long bytesPerMegabyte = 1024 * 1024;
+        const long bytesPerKilobyte = 1024;
+
+        if (byteCount % bytesPerMegabyte == 0)
+        {
+            return $"{byteCount / bytesPerMegabyte} MB";
+        }
+
+        if (byteCount % bytesPerKilobyte == 0)
+        {
+            return $"{byteCount / bytesPerKilobyte} KB";
+        }
+
+        return $"{byteCount} bytes";
     }
 }
