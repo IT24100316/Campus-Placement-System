@@ -52,10 +52,10 @@ workflow.add_node("analysis", analysis_node)
 workflow.add_node("validation", validation_node)
 
 # Define Edges
-workflow.add_edge(START, "planner")
+workflow.add_edge(START, "tier1")
+workflow.add_edge("tier1", "planner")
 workflow.add_edge("planner", "action")
-workflow.add_edge("action", "tier1")
-workflow.add_edge("tier1", "analysis")
+workflow.add_edge("action", "analysis")
 workflow.add_edge("analysis", "validation")
 workflow.add_edge("validation", END)
 
