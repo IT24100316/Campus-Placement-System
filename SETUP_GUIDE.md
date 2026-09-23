@@ -88,6 +88,13 @@ Follow these steps **in order** when setting up the project for the very first t
    ```
    *🎉 This command automatically creates all database tables in your PostgreSQL `SEF_Project` database!*
 
+5. **Configure CV Storage:**
+   Set `CvStorage__RootPath` to an absolute directory outside this repository before running the API. For example, in PowerShell:
+   ```powershell
+   $env:CvStorage__RootPath = 'C:\CampusPlacementData\cv-uploads'
+   ```
+   The CV size limit defaults to 10 MB. Override it only when needed with `CvStorage__MaxFileSizeBytes`. Do not store CVs inside the source-controlled workspace or commit storage credentials.
+
 ---
 
 ### 🤖 Step 3: Set up the AI Service (Python FastAPI)
