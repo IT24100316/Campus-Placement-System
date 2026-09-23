@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/services/api_service.dart';
 import '../../../dashboard/presentation/screens/dashboard_shell_screen.dart';
+import 'account_pending_screen.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -13,6 +15,38 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   bool _obscurePassword = true;
   bool _rememberDevice = true;
+  bool _isSubmitting = false;
+  String? _error;
+  final _email = TextEditingController();
+  final _password = TextEditingController();
+
+  @override
+  void dispose() {
+    _email.dispose();
+    _password.dispose();
+    super.dispose();
+  }
+
+  Future<void> _login() async {
+    setState(() { _isSubmitting = true; _error = null; });
+    try {
+      final result = await ApiService().login(_email.text, _password.text);
+      if (result['isPending'] == true) {
+        if (!mounted) return;
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AccountPendingScreen()));
+        return;
+      }
+      if (result['success'] != true || result['role'] != 'Student') {
+        throw Exception('Use an approved student account to access this portal.');
+      }
+      if (!mounted) return;
+      Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const DashboardShellScreen()), (route) => false);
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -97,6 +131,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       required: true,
                       hint: 'e.g. a.morgan@university.edu',
                       icon: Icons.mail_outline,
+                      controller: _email,
                       trailing: const Icon(Icons.check_circle, color: AppColors.primary, size: 20),
                       helperText: 'Only authorized institutional accounts are permitted.',
                       helperIcon: Icons.domain,
@@ -110,6 +145,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       required: true,
                       hint: 'Enter secure password',
                       icon: Icons.lock_outline,
+                      controller: _password,
                       obscureText: _obscurePassword,
                       onToggleVisibility: () {
                         setState(() {
@@ -166,15 +202,14 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 24),
 
+                    if (_error != null) ...[
+                      Text(_error!, style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 12),
+                    ],
+
                     // Sign In Button
                     ElevatedButton(
-                      onPressed: () {
-                        Navigator.pushAndRemoveUntil(
-                          context,
-                          MaterialPageRoute(builder: (_) => const DashboardShellScreen()),
-                          (route) => false,
-                        );
-                      },
+                      onPressed: _isSubmitting ? null : _login,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
                         foregroundColor: Colors.white,
@@ -184,12 +219,13 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         elevation: 2,
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.login, size: 20),
-                          SizedBox(width: 8),
-                          Text('Sign In to Student Portal', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                          if (_isSubmitting) const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          else const Icon(Icons.login, size: 20),
+                          const SizedBox(width: 8),
+                          Text(_isSubmitting ? 'Signing in...' : 'Sign In to Student Portal', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                         ],
                       ),
                     ),
@@ -267,6 +303,7 @@ class _LoginScreenState extends State<LoginScreen> {
     required bool required,
     required String hint,
     required IconData icon,
+    TextEditingController? controller,
     Widget? trailing,
     bool obscureText = false,
     VoidCallback? onToggleVisibility,
@@ -304,6 +341,7 @@ class _LoginScreenState extends State<LoginScreen> {
             border: Border.all(color: Colors.transparent),
           ),
           child: TextField(
+            controller: controller,
             obscureText: obscureText,
             style: const TextStyle(color: Colors.black, fontSize: 14),
             decoration: InputDecoration(

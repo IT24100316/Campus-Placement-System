@@ -75,6 +75,16 @@ Follow these steps **in order** when setting up the project for the very first t
    ```
    > ⚠️ **Important:** Replace `YOUR_POSTGRES_PASSWORD` with the actual password you set up when installing PostgreSQL.
 
+   Keep credentials outside tracked files. You can also use .NET user secrets:
+   ```bash
+   dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Host=localhost;Port=5432;Database=SEF_Project;Username=postgres;Password=YOUR_POSTGRES_PASSWORD"
+   dotnet user-secrets set "Supabase:Url" "https://YOUR_PROJECT.supabase.co"
+   dotnet user-secrets set "Supabase:ServiceRoleKey" "YOUR_SERVICE_ROLE_KEY"
+   dotnet user-secrets set "SendGrid:ApiKey" "YOUR_SENDGRID_API_KEY"
+   dotnet user-secrets set "SendGrid:FromEmail" "verified-sender@example.edu"
+   ```
+   The backend creates the private Supabase bucket `verification-docs` on the first upload. If Supabase is not configured, development uploads use `backend-dotnet/App_Data/verification-docs`.
+
 3. **Install Entity Framework Core Tools:**
    ```bash
    dotnet tool install --global dotnet-ef
@@ -119,6 +129,8 @@ Follow these steps **in order** when setting up the project for the very first t
    ```env
    GOOGLE_API_KEY=your_gemini_api_key_here
    OPENAI_API_KEY=your_openai_api_key_here
+   SENDGRID_API_KEY=your_sendgrid_api_key_here
+   SENDGRID_FROM_EMAIL=verified-sender@example.edu
    ```
 
 ---
@@ -149,6 +161,12 @@ Follow these steps **in order** when setting up the project for the very first t
    flutter pub get
    ```
 
+3. Pass the backend URL when running on a device or Android emulator:
+   ```bash
+   flutter run --dart-define=API_BASE_URL=http://10.0.2.2:5168/api
+   ```
+   Use `http://localhost:5168/api` for desktop/iOS simulator where localhost reaches the development machine.
+
 ---
 
 ## ▶️ Phase 3: Running the Entire System
@@ -161,6 +179,17 @@ To run and work on the application, open **4 separate terminal windows** (or VS 
 | **2. AI Service** | `ai-service-python/` | `uvicorn main:app --reload --port 8000` | 🤖 `http://127.0.0.1:8000/docs` |
 | **3. Web Portal** | `frontend-react/` | `npm run dev` | 💻 `http://localhost:5173` |
 | **4. Mobile App** | `frontend_flutter/` | `flutter run` | 📱 Mobile Emulator / Device |
+
+### Verification commands
+
+```bash
+dotnet test backend-dotnet.Tests/backend-dotnet.Tests.csproj
+cd ai-service-python && .venv/bin/python -m pytest -q
+cd frontend-react && npm run build
+cd frontend_flutter && flutter analyze
+```
+
+Swagger documents every implemented endpoint, including private document upload/view, student registration and CV upload, Agent 4 evaluation, the administrator approval queue/gate, and interview scheduling.
 
 ---
 
@@ -186,4 +215,4 @@ To run and work on the application, open **4 separate terminal windows** (or VS 
 ---
 
 ## 🤝 Need Help?
-If you hit any unexpected errors, take a screenshot of your terminal error log and check in with the project lead. Happy coding! 🚀
+If you hit any unexpected errors, take a screenshot of your terminal error log and check in with the project leader. Happy coding! 🚀

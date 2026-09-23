@@ -105,8 +105,8 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
     interviewsScheduled: 24,
     partnerUniversityReach: 34,
   };
-  const activeJobs = dashboardData?.activeJobs || [];
-  const candidates = dashboardData?.shortlistedCandidates || [];
+  const activeJobs = useMemo(() => dashboardData?.activeJobs ?? [], [dashboardData?.activeJobs]);
+  const candidates = useMemo(() => dashboardData?.shortlistedCandidates ?? [], [dashboardData?.shortlistedCandidates]);
 
   const handleInvite = (id: string) => {
     setInterviewInvited((prev) => ({ ...prev, [id]: true }));
@@ -795,7 +795,7 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                   <select
                     value={jobSortBy}
                     onChange={(e) => {
-                      setJobSortBy(e.target.value as any);
+                      setJobSortBy(e.target.value as typeof jobSortBy);
                       setJobsCurrentPage(1);
                     }}
                     className="pl-3 pr-8 py-2 rounded-lg bg-slate-50 border border-slate-200 text-xs font-medium text-slate-700 focus:bg-white focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none cursor-pointer"

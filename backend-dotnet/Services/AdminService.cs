@@ -14,10 +14,12 @@ public class AdminService : IAdminService
 {
     private readonly AppDbContext _context;
     private readonly PasswordHasher<User> _passwordHasher = new();
+    private readonly IEmailService _emailService;
 
-    public AdminService(AppDbContext context)
+    public AdminService(AppDbContext context, IEmailService emailService)
     {
         _context = context;
+        _emailService = emailService;
     }
 
     public async Task<IEnumerable<PendingUserDto>> GetPendingApprovalsAsync()
@@ -26,7 +28,7 @@ public class AdminService : IAdminService
             .Include(u => u.CompanyProfile)
             .Include(u => u.CompanyStaffProfile)
                 .ThenInclude(csp => csp!.Company)
-            .Where(u => u.Role == UserRole.Company)
+            .Where(u => u.Role == UserRole.Company && u.Status == AccountStatus.Pending)
             .OrderByDescending(u => u.CreatedAt)
             .Select(u => new PendingUserDto
             {
@@ -59,12 +61,12 @@ public class AdminService : IAdminService
         User? user = null;
         if (Guid.TryParse(identifier, out var parsedGuid))
         {
-            user = await _context.Users.Include(u => u.CompanyProfile).FirstOrDefaultAsync(u => u.Id == parsedGuid);
+            user = await _context.Users.Include(u => u.CompanyProfile).Include(u => u.CompanyStaffProfile).FirstOrDefaultAsync(u => u.Id == parsedGuid);
         }
         if (user == null)
         {
             var normalized = identifier.Trim().ToLower();
-            user = await _context.Users.Include(u => u.CompanyProfile).FirstOrDefaultAsync(u => u.Email.ToLower() == normalized);
+            user = await _context.Users.Include(u => u.CompanyProfile).Include(u => u.CompanyStaffProfile).FirstOrDefaultAsync(u => u.Email.ToLower() == normalized);
         }
 
         if (user == null)
@@ -118,6 +120,8 @@ public class AdminService : IAdminService
         }
 
         await _context.SaveChangesAsync();
+        var displayName = user.CompanyProfile?.ContactPersonName ?? user.CompanyStaffProfile?.FullName ?? user.Email;
+        var emailSent = await _emailService.SendAccountDecisionAsync(user.Email, displayName, true);
 
         return new AdminApprovalResponseDto
         {
@@ -125,7 +129,8 @@ public class AdminService : IAdminService
             Message = "Account approved successfully in database.",
             UserId = user.Id,
             Email = user.Email,
-            Status = user.Status.ToString()
+            Status = user.Status.ToString(),
+            EmailSent = emailSent
         };
     }
 
@@ -134,12 +139,12 @@ public class AdminService : IAdminService
         User? user = null;
         if (Guid.TryParse(identifier, out var parsedGuid))
         {
-            user = await _context.Users.FirstOrDefaultAsync(u => u.Id == parsedGuid);
+            user = await _context.Users.Include(u => u.CompanyProfile).Include(u => u.CompanyStaffProfile).FirstOrDefaultAsync(u => u.Id == parsedGuid);
         }
         if (user == null)
         {
             var normalized = identifier.Trim().ToLower();
-            user = await _context.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == normalized);
+            user = await _context.Users.Include(u => u.CompanyProfile).Include(u => u.CompanyStaffProfile).FirstOrDefaultAsync(u => u.Email.ToLower() == normalized);
         }
 
         if (user == null)
@@ -147,6 +152,8 @@ public class AdminService : IAdminService
 
         user.Status = AccountStatus.Rejected;
         await _context.SaveChangesAsync();
+        var displayName = user.CompanyProfile?.ContactPersonName ?? user.CompanyStaffProfile?.FullName ?? user.Email;
+        var emailSent = await _emailService.SendAccountDecisionAsync(user.Email, displayName, false);
 
         return new AdminApprovalResponseDto
         {
@@ -154,7 +161,8 @@ public class AdminService : IAdminService
             Message = "Account rejected in database.",
             UserId = user.Id,
             Email = user.Email,
-            Status = user.Status.ToString()
+            Status = user.Status.ToString(),
+            EmailSent = emailSent
         };
     }
 

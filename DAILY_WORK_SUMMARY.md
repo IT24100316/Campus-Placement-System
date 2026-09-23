@@ -757,4 +757,12 @@ Today's development sprint focused on kickstarting the **Flutter Mobile Applicat
   * Built a FastAPI \/analyze\ POST endpoint to trigger the workflow.
 * **Documentation & Testing**:
   * Wrote \README_AGENTS.md\ with a mermaid architecture diagram and clear integration instructions for teammate Antigravity agents.
-  * Developed \	est_analysis_agent.py\ for pytest, and standalone mock runners (\live_batch_test.py\, \live_pipeline_test.py\) to verify the multi-student threshold drops locally.
+  * Developed `test_analysis_agent.py` for pytest, and standalone mock runners (`live_batch_test.py`, `live_pipeline_test.py`) to verify the multi-student threshold drops locally.
+
+### 17. AI Service (Python): Agent 3 (Evaluation & Summary Engine) Development
+* **FastAPI Backend (`main.py`)**: Built the `/api/v1/evaluate-batch` endpoint to handle bulk evaluation requests containing job requirements and candidate data.
+* **Core Orchestration (`agents/action.py`)**: Orchestrates data collection from CVs and GitHub, invoking the `gemini-3.5-flash-lite` LLM with `with_structured_output` (LangChain) to guarantee consistent Pydantic JSON responses.
+* **CV Extractor (`tools/cv_tool.py`)**: Added functionality to dynamically convert Google Drive share links to direct downloads. Implemented advanced PDF `/Annots` parsing to discover and extract hidden hyperlinks embedded in logos/images within the CV.
+* **GitHub Profile Analyzer (`tools/github_tool.py`)**: Implemented async regex-based fetching of up to 100 repositories. Included strict filtering for non-forked original repos, and a deep-dive analysis on the top 5 most recent repos to flag empty READMEs and single-commit uploads.
+* **Detailed Pydantic Output Formatting (`tools/summary_tool.py`)**: Prompt-engineered the output schema to return highly detailed paragraphs analyzing technical alignment, skill gaps, project relevance, CV strategic insights, GitHub authenticity, and a final approval recommendation.
+* **Environment Configuration**: Resolved multiple dependency crashes (`PyPDF2`, `langchain-groq`) and successfully resolved a git merge conflict in `main.py` locally.

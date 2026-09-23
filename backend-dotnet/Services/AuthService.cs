@@ -14,10 +14,12 @@ public class AuthService : IAuthService
 {
     private readonly AppDbContext _context;
     private readonly PasswordHasher<User> _passwordHasher = new();
+    private readonly IDocumentStorageService _documentStorage;
 
-    public AuthService(AppDbContext context)
+    public AuthService(AppDbContext context, IDocumentStorageService documentStorage)
     {
         _context = context;
+        _documentStorage = documentStorage;
     }
 
     /// <summary>
@@ -59,6 +61,7 @@ public class AuthService : IAuthService
         {
             return new AuthLoginResultDto
             {
+                UserId = user.Id,
                 Success = false,
                 IsPending = true,
                 Message = "Your registration application is currently under administrative review.",
@@ -86,6 +89,7 @@ public class AuthService : IAuthService
         // Approved active user
         return new AuthLoginResultDto
         {
+            UserId = user.Id,
             Success = true,
             Email = user.Email,
             Role = detailedRole,
@@ -194,6 +198,42 @@ public class AuthService : IAuthService
         };
     }
 
+    public async Task<AuthRegisterResultDto> RegisterStudentAsync(RegisterStudentFormDto dto, CancellationToken cancellationToken = default)
+    {
+        var normalizedEmail = dto.Email.Trim().ToLowerInvariant();
+        if (await _context.Users.AnyAsync(u => u.Email.ToLower() == normalizedEmail, cancellationToken))
+            throw new InvalidOperationException("Email is already registered in the system.");
+
+        var campusId = await _documentStorage.UploadAsync(dto.CampusIdPhoto, "campus-ids", cancellationToken);
+        var user = new User
+        {
+            Id = Guid.NewGuid(),
+            Email = normalizedEmail,
+            Role = UserRole.Student,
+            Status = AccountStatus.Pending,
+            CreatedAt = DateTime.UtcNow
+        };
+        user.PasswordHash = _passwordHasher.HashPassword(user, dto.Password);
+        var profile = new StudentProfile
+        {
+            UserId = user.Id,
+            FullName = dto.FullName.Trim(),
+            Phone = dto.Phone.Trim(),
+            UniversityName = dto.UniversityName.Trim(),
+            CampusIdPhotoUrl = campusId.StorageKey,
+            AcademicStatus = "Pending verification"
+        };
+        _context.Users.Add(user);
+        _context.StudentProfiles.Add(profile);
+        await _context.SaveChangesAsync(cancellationToken);
+        return new AuthRegisterResultDto
+        {
+            UserId = user.Id,
+            Status = user.Status.ToString(),
+            Message = "Student registered successfully. Awaiting campus ID verification."
+        };
+    }
+
     /// <summary>
     /// Retrieves list of recognized employers for staff registration dropdowns
     /// </summary>
@@ -201,6 +241,7 @@ public class AuthService : IAuthService
     {
         return await _context.CompanyProfiles
             .AsNoTracking()
+            .Where(c => c.User.Status == AccountStatus.Approved)
             .Select(c => new ApprovedCompanyDto
             {
                 Id = c.UserId,
