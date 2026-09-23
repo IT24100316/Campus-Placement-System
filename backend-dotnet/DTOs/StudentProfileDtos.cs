@@ -13,6 +13,9 @@ public class StudentProfileUpsertRequest
     [StringLength(2048)]
     public string CampusIdPhotoUrl { get; set; } = string.Empty;
 
+    [StringLength(2048)]
+    public string? PortfolioUrl { get; set; }
+
     [Required, StringLength(255)]
     public string UniversityName { get; set; } = string.Empty;
 
@@ -49,6 +52,9 @@ public class StudentProfileUpsertRequest
     [MinLength(1)]
     public string[] InternshipType { get; set; } = Array.Empty<string>();
 
+    [Required, StringLength(100)]
+    public string LectureScheduleType { get; set; } = string.Empty;
+
     [MinLength(1)]
     public string[] PreferredLocations { get; set; } = Array.Empty<string>();
 
@@ -75,6 +81,7 @@ public class StudentProfileResponse
     public string FullName { get; set; } = string.Empty;
     public string Phone { get; set; } = string.Empty;
     public string CampusIdPhotoUrl { get; set; } = string.Empty;
+    public string? PortfolioUrl { get; set; }
     public string UniversityName { get; set; } = string.Empty;
     public string AcademicStatus { get; set; } = string.Empty;
     public string DegreeProgram { get; set; } = string.Empty;
@@ -87,6 +94,7 @@ public class StudentProfileResponse
     public string[] Skills { get; set; } = Array.Empty<string>();
     public string[] ToolsAndTechnologies { get; set; } = Array.Empty<string>();
     public string[] InternshipType { get; set; } = Array.Empty<string>();
+    public string LectureScheduleType { get; set; } = string.Empty;
     public string[] PreferredLocations { get; set; } = Array.Empty<string>();
     public string CvPdfUrl { get; set; } = string.Empty;
 }
