@@ -627,3 +627,15 @@ Today's development sprint focused on kickstarting the **Flutter Mobile Applicat
   * Re-architected the layout to include dynamic company logos, job roles, description texts, and custom badges.
   * Integrated the pre-existing `AiMatchScoreBadge` effectively into the header of the card.
   * Faithfully replicated the Tailwind spacing, fonts, and colors (e.g. `#003594` primary color, `#F8F9FF` background) into native Flutter `Color` constants.
+
+### 16. AI Analysis Agent Setup & Database Readiness
+* **Database Connection Resolution (.NET)**:
+  * Diagnosed and resolved `SocketException: No such host is known` caused by Supabase's IPv4 deprecation on direct connections. Migrated the local environment to use the Supavisor IPv4 connection pooler.
+* **Skill Equivalency Caching System (.NET)**:
+  * Created the `SkillEquivalence.cs` EF Core model to act as a fast lookup table mapping synonymous tech skills (e.g., `C#` to `.NET`, `React` to `ReactJS`).
+  * Configured `SkillEquivalences` in `AppDbContext`, generated the `AddSkillEquivalences` migration, and successfully applied the database update.
+  * Prepared `seed_skill_equivalences.sql` populated with foundational tech synonyms ready to be executed in the Supabase SQL editor.
+* **Tier 1 Hard Filters Tool (Python AI Service)**:
+  * Added `psycopg2-binary` to `requirements.txt` to support high-performance direct database reads from the Python orchestration service.
+  * Implemented `sql_filter_tool.py` exposing a LangChain `@tool` (`check_hard_filters_tool`).
+  * The tool instantly evaluates candidates against strict constraints (GPA, Year of Study, Domain, Internship Type, Degree, Location) via direct Postgres queries, rejecting incompatible pairs immediately to save LLM token costs and latency.
