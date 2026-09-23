@@ -1,19 +1,18 @@
+import '../config/api_config.dart';
+
 class ApiEndpoints {
-  static const String baseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: 'http://localhost:5168/api',
-  );
+  static String get baseUrl => ApiConfig.baseUrl;
 
   // Auth
-  static const String login = '$baseUrl/auth/login';
-  static const String registerStudent = '$baseUrl/auth/register-student';
+  static String get login => '$baseUrl/auth/login';
+  static String get registerStudent => '$baseUrl/auth/register-student';
 
   // Profile
-  static const String studentProfile = '$baseUrl/students/profile';
-  static const String uploadCv = '$baseUrl/students/upload-cv';
+  static String get studentProfile => '$baseUrl/students/profile';
+  static String get uploadCv => '$baseUrl/students/upload-cv';
 
   // Jobs
-  static const String jobsFeed = '$baseUrl/jobs';
+  static String get jobsFeed => '$baseUrl/jobs';
   static String jobDetails(String id) => '$baseUrl/jobs/$id';
 
   // Applications
