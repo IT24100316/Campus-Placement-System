@@ -58,8 +58,6 @@ public class StudentProfileUpsertRequest
     [MinLength(1)]
     public string[] PreferredLocations { get; set; } = Array.Empty<string>();
 
-    [StringLength(2048)]
-    public string CvPdfUrl { get; set; } = string.Empty;
 }
 
 public sealed class FutureOrTodayAttribute : ValidationAttribute

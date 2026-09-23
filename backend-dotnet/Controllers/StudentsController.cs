@@ -79,6 +79,126 @@ public class StudentsController : ControllerBase
         return Ok(profile);
     }
 
+    [HttpPut("profile")]
+    public async Task<IActionResult> SaveProfile([FromBody] StudentProfileUpsertRequest request)
+    {
+        if (!TryGetCurrentUserId(out var userId))
+        {
+            return Unauthorized(new { message = "An authenticated student identity is required." });
+        }
+
+        var user = await _context.Users
+            .AsNoTracking()
+            .SingleOrDefaultAsync(candidate => candidate.Id == userId);
+
+        if (user == null)
+        {
+            return Unauthorized(new { message = "The authenticated user no longer exists." });
+        }
+
+        if (user.Role != UserRole.Student)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new
+            {
+                message = "Only student accounts can save a student profile."
+            });
+        }
+
+        var profile = await _context.StudentProfiles
+            .SingleOrDefaultAsync(candidate => candidate.UserId == userId);
+        var isNewProfile = profile == null;
+
+        profile ??= new StudentProfile
+        {
+            UserId = userId
+        };
+
+        ApplyProfileUpdates(profile, request);
+
+        if (isNewProfile)
+        {
+            _context.StudentProfiles.Add(profile);
+        }
+
+        try
+        {
+            await _context.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            return Conflict(new { message = "The student profile was changed concurrently. Please try again." });
+        }
+        catch (Exception)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, new
+            {
+                message = "Unable to save the student profile at this time."
+            });
+        }
+
+        var response = ToResponse(profile);
+        return isNewProfile
+            ? CreatedAtAction(nameof(GetProfile), response)
+            : Ok(response);
+    }
+
+    private static void ApplyProfileUpdates(StudentProfile profile, StudentProfileUpsertRequest request)
+    {
+        profile.FullName = request.FullName.Trim();
+        profile.Phone = request.Phone.Trim();
+        profile.CampusIdPhotoUrl = request.CampusIdPhotoUrl.Trim();
+        profile.PortfolioUrl = request.PortfolioUrl?.Trim();
+        profile.UniversityName = request.UniversityName.Trim();
+        profile.AcademicStatus = request.AcademicStatus.Trim();
+        profile.DegreeProgram = request.DegreeProgram.Trim();
+        profile.CurrentYearOfStudy = request.CurrentYearOfStudy;
+        profile.GPA = request.GPA;
+        profile.ExpectedGraduationDate = request.ExpectedGraduationDate;
+        profile.DesiredJobTitle = request.DesiredJobTitle.Trim();
+        profile.PrimaryDomain = request.PrimaryDomain.Trim();
+        profile.CareerObjectivesSummary = request.CareerObjectivesSummary.Trim();
+        profile.Skills = CleanItems(request.Skills);
+        profile.ToolsAndTechnologies = CleanItems(request.ToolsAndTechnologies);
+        profile.InternshipType = CleanItems(request.InternshipType);
+        profile.LectureScheduleType = request.LectureScheduleType.Trim();
+        profile.PreferredLocations = CleanItems(request.PreferredLocations);
+    }
+
+    private static string[] CleanItems(IEnumerable<string> items)
+    {
+        return items
+            .Select(item => item.Trim())
+            .Where(item => !string.IsNullOrWhiteSpace(item))
+            .ToArray();
+    }
+
+    private static StudentProfileResponse ToResponse(StudentProfile profile)
+    {
+        return new StudentProfileResponse
+        {
+            UserId = profile.UserId,
+            FullName = profile.FullName,
+            Phone = profile.Phone,
+            CampusIdPhotoUrl = profile.CampusIdPhotoUrl,
+            PortfolioUrl = profile.PortfolioUrl,
+            UniversityName = profile.UniversityName,
+            AcademicStatus = profile.AcademicStatus,
+            DegreeProgram = profile.DegreeProgram,
+            CurrentYearOfStudy = profile.CurrentYearOfStudy,
+            GPA = profile.GPA,
+            ExpectedGraduationDate = profile.ExpectedGraduationDate,
+            DesiredJobTitle = profile.DesiredJobTitle,
+            PrimaryDomain = profile.PrimaryDomain,
+            CareerObjectivesSummary = profile.CareerObjectivesSummary,
+            Skills = profile.Skills,
+            ToolsAndTechnologies = profile.ToolsAndTechnologies,
+            InternshipType = profile.InternshipType,
+            LectureScheduleType = profile.LectureScheduleType,
+            PreferredLocations = profile.PreferredLocations,
+            CvPdfUrl = profile.CvPdfUrl
+        };
+    }
+
     private bool TryGetCurrentUserId(out Guid userId)
     {
         userId = Guid.Empty;
