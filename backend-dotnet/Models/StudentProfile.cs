@@ -18,6 +18,7 @@ public class StudentProfile
     public string[] Skills { get; set; } = Array.Empty<string>();
     public string[] ToolsAndTechnologies { get; set; } = Array.Empty<string>();
     public string[] InternshipType { get; set; } = Array.Empty<string>();
+    public string[] PreferredLocations { get; set; } = Array.Empty<string>();
     public string CvPdfUrl { get; set; } = string.Empty;
 
     // Navigation property
