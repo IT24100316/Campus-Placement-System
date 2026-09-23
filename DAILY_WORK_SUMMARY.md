@@ -733,3 +733,28 @@ Today's development sprint focused on kickstarting the **Flutter Mobile Applicat
   * Re-architected the layout to include dynamic company logos, job roles, description texts, and custom badges.
   * Integrated the pre-existing `AiMatchScoreBadge` effectively into the header of the card.
   * Faithfully replicated the Tailwind spacing, fonts, and colors (e.g. `#003594` primary color, `#F8F9FF` background) into native Flutter `Color` constants.
+
+
+### 16. AI Service (Python): Analysis Agent & Orchestration Setup
+* **State Management (state.py)**:
+  * Created strongly-typed \AgentState\ (using \TypedDict\) to handle \job_id\, \initial_student_ids\, \candidates\, and \nalysis_results\.
+* **Agent Tools**:
+  * **Skill Equivalence Tool**: Implemented \skill_equivalence_tool.py\ connecting to Supabase PostgreSQL to cache and canonicalize skill pair resolutions, saving time and LLM costs.
+  * **LLM Equivalence Tool**: Implemented \llm_equivalence_tool.py\ using LangChain and Groq (\openai/gpt-oss-20b\). Refactored to use \JsonOutputParser\ to force raw JSON arrays for checking unmatched skill pairs globally in one batch.
+* **Tier 1 Hard Filtering (	ier1_filter.py)**:
+  * Created the Tier 1 Node to execute the pre-existing \check_hard_filters_tool\ across the \initial_student_ids\.
+  * Drops any student failing DB constraints (GPA, Year of Study, Internship Type, Domain, Degree, Location) instantly.
+  * Extracts full student profiles for surviving candidates and passes them forward to the Analysis Agent.
+* **Tier 2 Semantic Analysis Agent (nalysis.py)**:
+  * Rewrote the \nalysis_node\ to natively process batches of pre-filtered candidates simultaneously.
+  * Implemented an advanced Global Batching system: extracts unique missing skills across *all* candidates into one single LLM/Cache lookup.
+  * Applied strict deterministic scoring (60% weight for Mandatory skills, 40% for Nice-To-Have skills).
+  * Enforced a strict 60% threshold drop mechanism.
+  * Added beautiful, human-readable logging logic exporting to \nalysis_run_log.txt\.
+* **LangGraph Orchestrator (main.py)**:
+  * Defined the \StateGraph\ backbone mapping the exact agent flow: \START -> Tier 1 -> Planner -> Action -> Analysis -> Validation -> END\.
+  * Scaffolded Mock Nodes for the Planner, Action, and Validation agents so teammates can independently hook up their finished agents.
+  * Built a FastAPI \/analyze\ POST endpoint to trigger the workflow.
+* **Documentation & Testing**:
+  * Wrote \README_AGENTS.md\ with a mermaid architecture diagram and clear integration instructions for teammate Antigravity agents.
+  * Developed \	est_analysis_agent.py\ for pytest, and standalone mock runners (\live_batch_test.py\, \live_pipeline_test.py\) to verify the multi-student threshold drops locally.
