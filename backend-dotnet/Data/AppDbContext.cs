@@ -17,6 +17,7 @@ public class AppDbContext : DbContext
     public DbSet<Application> Applications => Set<Application>();
     public DbSet<TargetDomain> TargetDomains => Set<TargetDomain>();
     public DbSet<JobTitleReference> JobTitles => Set<JobTitleReference>();
+    public DbSet<SkillEquivalence> SkillEquivalences => Set<SkillEquivalence>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -263,6 +264,22 @@ public class AppDbContext : DbContext
                 .WithMany(j => j.Applications)
                 .HasForeignKey(a => a.JobId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // -------------------------------------------------------------
+        // 6. SkillEquivalence Entity Configuration
+        // -------------------------------------------------------------
+        modelBuilder.Entity<SkillEquivalence>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            
+            entity.Property(e => e.TermA).IsRequired();
+            entity.Property(e => e.TermB).IsRequired();
+            
+            entity.HasIndex(e => new { e.TermA, e.TermB }).IsUnique();
+            
+            entity.Property(e => e.Source).HasDefaultValue("llm");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
         });
     }
 }
