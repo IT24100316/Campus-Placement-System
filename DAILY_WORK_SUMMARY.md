@@ -575,3 +575,17 @@ Today's development sprint focused on kickstarting the **Flutter Mobile Applicat
     * Built an expandable accordion-style detailed view for each candidate to reveal career objectives and resume assets.
     * Prepared a scheduling modal hook (candidateToSchedule) that will wire directly into the .NET ScheduleInterviewAsync endpoint.
 
+
+### 14. Placement Application Controller & API Endpoints (.NET Backend)
+* **ApplicationsController.cs Implementation**:
+  * Scaffoled a dedicated, route-mapped [ApiController] to act as the primary HTTP gateway for managing student applications within the corporate HR and staff portals.
+  * Injected the previously configured IApplicationService to maintain a clean controller-service architectural boundary.
+* **REST API Endpoints Developed**:
+  * [HttpGet("job/{jobId}")]: Returns a paginated list of applications tied to a specific job opening, fully supporting optional server-side filtering by status (Pending, Approved, Disapproved).
+  * [HttpGet("search")]: Exposes a robust search endpoint to rapidly query applications across the database via a provided keyword query.
+  * [HttpPut("{appId}/status")]: Safely orchestrates state transitions for applicant lifecycle management, gracefully returning 200 OK on success and 404 Not Found if the requested application is missing.
+  * [HttpPut("{appId}/interview")]: Executes the interview scheduling logic, preparing the application state to trigger the Python Fast-API Agent 4 matching service.
+  * [HttpGet("{appId}/cv")]: Dynamically resolves and securely returns the direct CV download URL for an applicant by navigating the EF Core relational graph.
+* **Dependency Injection Configuration**:
+  * Successfully wired up IApplicationService to its concrete implementation ApplicationService inside Program.cs (uilder.Services.AddScoped) to ensure the DI container can resolve the new controller's constructor payload at runtime.
+
