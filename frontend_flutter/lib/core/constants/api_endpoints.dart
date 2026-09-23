@@ -1,5 +1,8 @@
 class ApiEndpoints {
-  static const String baseUrl = 'http://localhost:5168/api';
+  static const String baseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'http://localhost:5168/api',
+  );
 
   // Auth
   static const String login = '$baseUrl/auth/login';
@@ -14,6 +17,6 @@ class ApiEndpoints {
   static String jobDetails(String id) => '$baseUrl/jobs/$id';
 
   // Applications
-  static const String myApplications = '$baseUrl/applications/my-applications';
+  static String myApplications(String studentId) => '$baseUrl/applications/student/$studentId';
   static const String applyJob = '$baseUrl/applications/apply';
 }

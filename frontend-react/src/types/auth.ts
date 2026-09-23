@@ -12,6 +12,7 @@ export interface CompanyHrRegistration {
   confirmPassword: string;
   documentName?: string;
   documentSize?: string;
+  documentFile?: File;
 }
 
 export interface CompanyStaffRegistration {
@@ -38,6 +39,7 @@ export interface RegistrationRecord {
   jobPosition?: string;
   documentName?: string;
   documentSize?: string;
+  documentUrl?: string;
   status: AccountApprovalStatus;
   submittedAt: string;
   refCode: string;

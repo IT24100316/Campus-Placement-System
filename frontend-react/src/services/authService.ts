@@ -9,6 +9,23 @@ import type {
 const STORAGE_KEY_REGISTRATIONS = 'campusai_registrations';
 const STORAGE_KEY_COMPANIES = 'campusai_approved_companies';
 
+interface BackendRegistration {
+  userId: string;
+  role: string;
+  fullName: string;
+  email: string;
+  phone?: string;
+  companyName: string;
+  industry?: string;
+  staffId?: string;
+  jobPosition?: string;
+  businessRegistrationDocumentUrl?: string;
+  status: AccountApprovalStatus;
+  createdAt: string;
+}
+
+interface BackendCompany { id: string; name: string; industry?: string }
+
 const INITIAL_COMPANIES: ApprovedCompanyOption[] = [
   {
     id: 'campusai-platform',
@@ -62,7 +79,7 @@ const INITIAL_REGISTRATIONS: RegistrationRecord[] = [
   },
 ];
 
-const API_BASE = 'http://localhost:5168/api';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5168/api';
 
 export const authService = {
   getRegistrations(): RegistrationRecord[] {
@@ -222,6 +239,7 @@ export const authService = {
   },
 
   async registerHr(data: CompanyHrRegistration): Promise<RegistrationRecord> {
+    if (!data.documentFile) throw new Error('A business registration document is required.');
     const refCode = `REG-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`;
     const newRecord: RegistrationRecord = {
       id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
@@ -238,9 +256,18 @@ export const authService = {
       refCode,
     };
 
-    // Try sending to .NET backend API
-    try {
-      await fetch(`${API_BASE}/auth/register-hr`, {
+    const documentForm = new FormData();
+    documentForm.append('file', data.documentFile);
+    const uploadResponse = await fetch(`${API_BASE}/documents/business-registration`, {
+      method: 'POST',
+      body: documentForm,
+    });
+    if (!uploadResponse.ok) {
+      const error = await uploadResponse.json().catch(() => ({}));
+      throw new Error(error.message || 'Business document upload failed.');
+    }
+    const uploaded: { storageKey: string } = await uploadResponse.json();
+    const registrationResponse = await fetch(`${API_BASE}/auth/register-hr`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -250,11 +277,12 @@ export const authService = {
           companyName: data.companyName,
           industry: data.industry,
           password: data.password,
-          businessRegistrationDocumentUrl: data.documentName || 'https://storage.campusai.local/docs/sample_br.pdf',
+          businessRegistrationDocumentUrl: uploaded.storageKey,
         }),
-      });
-    } catch {
-      // Backend offline fallback
+    });
+    if (!registrationResponse.ok) {
+      const error = await registrationResponse.json().catch(() => ({}));
+      throw new Error(error.message || 'Employer registration failed.');
     }
 
     const current = this.getRegistrations();
@@ -395,7 +423,7 @@ export const authService = {
     try {
       const res = await fetch(`${API_BASE}/admin/pending-approvals`);
       if (res.ok) {
-        const backendUsers: any[] = await res.json();
+        const backendUsers: BackendRegistration[] = await res.json();
         const mapped: RegistrationRecord[] = backendUsers.map((u) => ({
           id: u.userId,
           role: u.role === 'Company HR' ? 'hr' : 'staff',
@@ -406,6 +434,10 @@ export const authService = {
           industry: u.industry,
           staffId: u.staffId,
           jobPosition: u.jobPosition,
+          documentName: u.businessRegistrationDocumentUrl?.split('/').pop(),
+          documentUrl: u.businessRegistrationDocumentUrl
+            ? `${API_BASE}/documents/view?key=${encodeURIComponent(u.businessRegistrationDocumentUrl)}`
+            : undefined,
           status: u.status as AccountApprovalStatus,
           submittedAt: new Date(u.createdAt).toLocaleDateString() + ' ' + new Date(u.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           refCode: `REG-${u.userId.substring(0, 8).toUpperCase()}`,
@@ -433,7 +465,7 @@ export const authService = {
     try {
       const res = await fetch(`${API_BASE}/auth/companies`);
       if (res.ok) {
-        const list: any[] = await res.json();
+        const list: BackendCompany[] = await res.json();
         if (list && list.length > 0) {
           const mapped: ApprovedCompanyOption[] = list.map((c) => ({
             id: c.id,
@@ -457,17 +489,13 @@ export const authService = {
 
     // 1. Send status update to Backend API (sync directly with PostgreSQL)
     const endpoint = status === 'Approved' ? 'approve' : 'reject';
-    try {
-      let res = await fetch(`${API_BASE}/admin/${endpoint}/${encodeURIComponent(id)}`, {
-        method: 'POST',
-      });
-      if (!res.ok && email) {
-        res = await fetch(`${API_BASE}/admin/${endpoint}/${encodeURIComponent(email)}`, {
-          method: 'POST',
-        });
-      }
-    } catch {
-      // Backend offline fallback
+    let res = await fetch(`${API_BASE}/admin/${endpoint}/${encodeURIComponent(id)}`, { method: 'POST' });
+    if (!res.ok && email) {
+      res = await fetch(`${API_BASE}/admin/${endpoint}/${encodeURIComponent(email)}`, { method: 'POST' });
+    }
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({}));
+      throw new Error(error.message || `Could not ${endpoint} this account.`);
     }
 
     // 2. Update local state
