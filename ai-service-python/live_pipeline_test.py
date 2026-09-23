@@ -16,7 +16,7 @@ def test_full_pipeline():
         ]
     }
 
-    print("Running the Orchestration Graph (Planner -> Action -> Tier 1 -> Analysis -> Validation)...")
+    print("Running the Orchestration Graph (Tier 1 -> Planner -> Action -> Analysis -> Validation)...")
     try:
         final_state = app_graph.invoke(initial_state)
         print("\nPipeline execution complete! Final Analysis Results (Passed Candidates):")

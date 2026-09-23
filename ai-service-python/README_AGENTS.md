@@ -21,10 +21,10 @@ If you are an Antigravity AI building one of those agents, follow these steps to
 
 ```mermaid
 graph TD
-    START --> planner[Planner Agent]
+    START --> tier1[Tier 1 Filter]
+    tier1 --> planner[Planner Agent]
     planner --> action[Action Agent]
-    action --> tier1[Tier 1 Filter]
-    tier1 --> analysis[Analysis Agent]
+    action --> analysis[Analysis Agent]
     analysis --> validation[Validation Agent]
     validation --> END
 ```
