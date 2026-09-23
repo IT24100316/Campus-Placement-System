@@ -575,17 +575,55 @@ Today's development sprint focused on kickstarting the **Flutter Mobile Applicat
     * Built an expandable accordion-style detailed view for each candidate to reveal career objectives and resume assets.
     * Prepared a scheduling modal hook (candidateToSchedule) that will wire directly into the .NET ScheduleInterviewAsync endpoint.
 
+### 14. Architecture Refactoring: Controller-Service Decoupling (.NET Backend)
+* **Refactoring Objective**: Eliminate direct database context (`AppDbContext`), password hashing, and complex business logic from API controllers, migrating all domain and persistence logic into dedicated interfaces and services inside `/Services` adhering to the Single Responsibility Principle and Dependency Injection.
 
-### 14. Placement Application Controller & API Endpoints (.NET Backend)
-* **ApplicationsController.cs Implementation**:
-  * Scaffoled a dedicated, route-mapped [ApiController] to act as the primary HTTP gateway for managing student applications within the corporate HR and staff portals.
-  * Injected the previously configured IApplicationService to maintain a clean controller-service architectural boundary.
-* **REST API Endpoints Developed**:
-  * [HttpGet("job/{jobId}")]: Returns a paginated list of applications tied to a specific job opening, fully supporting optional server-side filtering by status (Pending, Approved, Disapproved).
-  * [HttpGet("search")]: Exposes a robust search endpoint to rapidly query applications across the database via a provided keyword query.
-  * [HttpPut("{appId}/status")]: Safely orchestrates state transitions for applicant lifecycle management, gracefully returning 200 OK on success and 404 Not Found if the requested application is missing.
-  * [HttpPut("{appId}/interview")]: Executes the interview scheduling logic, preparing the application state to trigger the Python Fast-API Agent 4 matching service.
-  * [HttpGet("{appId}/cv")]: Dynamically resolves and securely returns the direct CV download URL for an applicant by navigating the EF Core relational graph.
-* **Dependency Injection Configuration**:
-  * Successfully wired up IApplicationService to its concrete implementation ApplicationService inside Program.cs (uilder.Services.AddScoped) to ensure the DI container can resolve the new controller's constructor payload at runtime.
+#### 📊 Controller Refactoring Status & Roadmap
 
+| Controller | Status | Service Interface & Implementation | Key Responsibilities Decoupled |
+| :--- | :--- | :--- | :--- |
+| **`ApplicationsController.cs`** | ✅ Complete | `IApplicationService` / `ApplicationService` | Student application lifecycle, interview scheduling, CV download URLs *(Friend's part - maintained)* |
+| **`AdminController.cs`** | ✅ **Done** | `IAdminService` / `AdminService` | Decoupled user approval/rejection, company defaulting, auto-provisioning placement drives, password hashing, and employee registration into `AdminService`. Controller streamlined to ~65 lines. Verified via Swagger & live API test. |
+| **`AuthController.cs`** | ✅ **Done** | `IAuthService` / `AuthService` | Decoupled multi-role authentication (`Admin`, `CompanyHR`, `CompanyStaff`), credential verification via `PasswordHasher<User>`, role resolution, HR registration, and staff registration into `AuthService`. Controller streamlined to ~110 lines. Verified via live API tests. |
+| **`CompanyController.cs`** | ✅ **Done** | `ICompanyService` / `CompanyService` | Decoupled company profile retrieval, staff fallback resolution, live placement drive sorting, candidate shortlist linkages, and stats aggregation into `CompanyService`. Controller streamlined from 316 lines to ~30 lines. Verified via live API tests. |
+| **`JobController.cs`** | ✅ **Done** | `IJobService` / `JobService` | Decoupled controlled target domains query, dependent job titles query, internship type enums, and job creation with domain/title cross-validation into `JobService`. Controller streamlined from 293 lines to ~65 lines. Verified via live API tests. |
+
+* **Completed Implementation Details for `AdminController`**:
+  * Extracted all Entity Framework Core queries and database mutations into [`AdminService.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Services/AdminService.cs) implementing [`IAdminService.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Services/IAdminService.cs).
+  * Added type-safe result DTOs in [`AdminDtos.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/DTOs/AdminDtos.cs) (`AdminApprovalResponseDto`, `AdminRegisterEmployeeResponseDto`).
+  * Registered `builder.Services.AddScoped<IAdminService, AdminService>();` in [`Program.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Program.cs).
+  * Added `EnableRetryOnFailure` resilience policy to Npgsql PostgreSQL provider.
+  * Verified: `dotnet build` succeeded with 0 errors; live endpoint `GET /api/admin/pending-approvals` verified returning 200 OK.
+
+* **Completed Implementation Details for `AuthController`**:
+  * Created [`IAuthService.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Services/IAuthService.cs) and [`AuthService.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Services/AuthService.cs) encapsulating user credential verification, password hashing with `PasswordHasher<User>`, multi-role resolution (`Admin`, `CompanyHR`, `CompanyStaff`), company HR registration, and company staff onboarding.
+  * Added type-safe service response DTOs in [`AuthServiceDtos.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/DTOs/AuthServiceDtos.cs) (`AuthLoginResultDto`, `AuthRegisterResultDto`).
+  * Refactored [`AuthController.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Controllers/AuthController.cs) to remove direct `AppDbContext` and `PasswordHasher<User>` dependencies, reducing it to clean HTTP action handlers with proper status codes (`200 OK`, `400 Bad Request`, `401 Unauthorized`, `403 Forbidden`, `404 Not Found`).
+  * Registered `builder.Services.AddScoped<IAuthService, AuthService>();` in [`Program.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Program.cs).
+  * Verified: `dotnet build` succeeded with 0 errors; live endpoints `POST /api/auth/login` (Admin & HR) and `GET /api/auth/companies` confirmed 200 OK with accurate JSON responses.
+
+* **Completed Implementation Details for `CompanyController`**:
+  * Created [`ICompanyService.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Services/ICompanyService.cs) and [`CompanyService.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Services/CompanyService.cs) encapsulating company profile lookup by ID or email, fallback resolution for registered staff members, latest-to-oldest active drive sorting, pre-screened Sri Lankan student candidate matching, and recruitment analytics computation.
+  * Added type-safe dashboard DTOs in [`CompanyDtos.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/DTOs/CompanyDtos.cs) (`CompanyDashboardResponseDto`, `CompanyStatsDto`, `CompanyActiveJobDto`, `CompanyCandidateDto`).
+  * Streamlined [`CompanyController.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Controllers/CompanyController.cs) from 316 lines down to ~30 lines, converting it into a clean, lightweight endpoint that delegates directly to `_companyService.GetCompanyDashboardAsync`.
+  * Registered `builder.Services.AddScoped<ICompanyService, CompanyService>();` in [`Program.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Program.cs).
+  * Verified: `dotnet build` succeeded with 0 warnings/errors; live endpoint `GET /api/company/profile?email=virtusa@company.com` verified returning 200 OK with identical payload schema.
+
+* **Completed Implementation Details for `JobController`**:
+  * Created [`IJobService.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Services/IJobService.cs) and [`JobService.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Services/JobService.cs) extracting controlled target domains querying, domain-dependent job title lookups, internship type enumeration, and full job posting creation with domain cross-validation, GPA bounds checking, deadline validation, and employer resolution.
+  * Added `JobCreationResultDto` to [`JobDtos.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/DTOs/JobDtos.cs).
+  * Streamlined [`JobController.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Controllers/JobController.cs) (class `JobsController`) from 293 lines down to ~65 lines, strictly delegating all database and business operations to `_jobService`.
+  * Registered `builder.Services.AddScoped<IJobService, JobService>();` in [`Program.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Program.cs).
+  * Verified: `dotnet build` succeeded with 0 errors; live endpoints `GET /api/jobs/reference/domains`, `GET /api/jobs/reference/titles`, `GET /api/jobs/reference/internship-types`, and validation on `POST /api/jobs` confirmed 200 OK and 400 Bad Request error gating.
+  * **Milestone Complete**: All 5 backend API controllers now adhere 100% to the decoupled Controller-Service pattern, with [`ApplicationsController.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Controllers/ApplicationsController.cs) / [`ApplicationService.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Services/ApplicationService.cs) preserved untouched.
+
+### 15. Flutter Mobile App: Job Feed UI Implementation
+* **Job Feed Screen (`job_feed_screen.dart`)**:
+  * Successfully replaced the dummy UI with a comprehensive structure mapping the provided HTML mockup.
+  * Added a custom App Bar matching the `CampusAI Portal` branding.
+  * Implemented an advanced search bar and horizontal filter chips (`All Roles`, `AI & ML`, `Full Stack`, etc.).
+  * Added visual active filter tags and pagination controls directly within the Flutter UI.
+* **Job Card Component (`job_card.dart`)**:
+  * Re-architected the layout to include dynamic company logos, job roles, description texts, and custom badges.
+  * Integrated the pre-existing `AiMatchScoreBadge` effectively into the header of the card.
+  * Faithfully replicated the Tailwind spacing, fonts, and colors (e.g. `#003594` primary color, `#F8F9FF` background) into native Flutter `Color` constants.
