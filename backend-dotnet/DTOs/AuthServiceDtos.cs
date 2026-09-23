@@ -4,6 +4,7 @@ namespace backend_dotnet.DTOs;
 
 public class AuthLoginResultDto
 {
+    public Guid UserId { get; set; }
     public bool Success { get; set; }
     public bool IsPending { get; set; }
     public bool IsRejected { get; set; }

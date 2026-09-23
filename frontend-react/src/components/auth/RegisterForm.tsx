@@ -35,10 +35,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onNavigat
   const [confirmPassword, setConfirmPassword] = useState('');
 
   // BR Document State
-  const [documentFile, setDocumentFile] = useState<{ name: string; size: string } | null>({
-    name: 'Acme_Incorporation_BR.pdf',
-    size: '2.4 MB',
-  });
+  const [documentFile, setDocumentFile] = useState<File | null>(null);
 
   // Validation Errors State
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -134,8 +131,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onNavigat
       return;
     }
 
-    const sizeMb = (file.size / (1024 * 1024)).toFixed(1) + ' MB';
-    setDocumentFile({ name: file.name, size: sizeMb });
+    setDocumentFile(file);
     setErrors((prev) => {
       const next = { ...prev };
       delete next.document;
@@ -158,9 +154,15 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onNavigat
         password,
         confirmPassword,
         documentName: documentFile?.name,
-        documentSize: documentFile?.size,
+        documentSize: documentFile ? `${(documentFile.size / (1024 * 1024)).toFixed(1)} MB` : undefined,
+        documentFile: documentFile ?? undefined,
       });
       onSuccess(record);
+    } catch (error) {
+      setErrors((previous) => ({
+        ...previous,
+        submit: error instanceof Error ? error.message : 'Registration could not be submitted.',
+      }));
     } finally {
       setIsSubmitting(false);
     }
@@ -485,7 +487,9 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onNavigat
                         Attached
                       </span>
                     </div>
-                    <span className="text-[11px] text-slate-500">{documentFile.size} • Ready for verification</span>
+                    <span className="text-[11px] text-slate-500">
+                      {(documentFile.size / (1024 * 1024)).toFixed(1)} MB • Ready for verification
+                    </span>
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
@@ -538,6 +542,11 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onNavigat
           </div>
 
           {/* Submit Action */}
+          {errors.submit && (
+            <p className="text-sm text-rose-600 flex items-center gap-1.5">
+              <AlertCircle className="w-4 h-4" /> {errors.submit}
+            </p>
+          )}
           <button
             type="submit"
             disabled={isSubmitting}
