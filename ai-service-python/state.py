@@ -15,9 +15,13 @@ class CandidateResult(TypedDict):
     skill_breakdown: List[SkillBreakdown]
 
 class AgentState(TypedDict):
-    # Inputs
-    candidates: List[Dict[str, Any]]
-    job_posting: Dict[str, Any]
+    # Inputs from HTTP request
+    job_id: str
+    initial_student_ids: List[str]
+    
+    # State tracking
+    job_posting: NotRequired[Dict[str, Any]]
+    candidates: NotRequired[List[Dict[str, Any]]]
     
     # Outputs populated by Analysis Agent
     analysis_results: NotRequired[List[CandidateResult]]
