@@ -63,12 +63,32 @@ class _JobFeedScreenState extends State<JobFeedScreen> {
                     'Showing 1–3 of 18 campus drives',
                     style: TextStyle(color: onSurfaceVariant, fontSize: 12),
                   ),
-                  Text(
-                    'Page 1 of 6',
-                    style: TextStyle(
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.chevron_left),
+                        color: onSurfaceVariant,
+                        onPressed: () {}, // TODO: Add logic for previous page
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Page 1 of 6',
+                        style: TextStyle(
+                            color: primaryColor,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(width: 12),
+                      IconButton(
+                        icon: const Icon(Icons.chevron_right),
                         color: primaryColor,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold),
+                        onPressed: () {}, // TODO: Add logic for next page
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
+                    ],
                   )
                 ],
               ),
