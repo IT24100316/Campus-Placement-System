@@ -148,6 +148,11 @@ namespace backend_dotnet.Migrations
                     b.Property<Guid>("CompanyId")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
                     b.Property<int>("DurationMonths")
                         .HasColumnType("integer");
 
@@ -163,6 +168,9 @@ namespace backend_dotnet.Migrations
                         .IsRequired()
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)");
+
+                    b.Property<int?>("JobTitleId")
+                        .HasColumnType("integer");
 
                     b.Property<string>("LocationCity")
                         .IsRequired()
@@ -195,11 +203,83 @@ namespace backend_dotnet.Migrations
                         .HasMaxLength(150)
                         .HasColumnType("character varying(150)");
 
+                    b.Property<int?>("TargetDomainId")
+                        .HasColumnType("integer");
+
                     b.HasKey("JobId");
 
                     b.HasIndex("CompanyId");
 
+                    b.HasIndex("JobTitleId");
+
+                    b.HasIndex("TargetDomainId");
+
                     b.ToTable("Jobs");
+                });
+
+            modelBuilder.Entity("backend_dotnet.Models.JobTitleReference", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("TargetDomainId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TargetDomainId");
+
+                    b.HasIndex("Title", "TargetDomainId")
+                        .IsUnique();
+
+                    b.ToTable("JobTitles");
+                });
+
+            modelBuilder.Entity("backend_dotnet.Models.SkillEquivalence", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<bool>("IsMatch")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Reason")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("llm");
+
+                    b.Property<string>("TermA")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("TermB")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TermA", "TermB")
+                        .IsUnique();
+
+                    b.ToTable("SkillEquivalences");
                 });
 
             modelBuilder.Entity("backend_dotnet.Models.StudentProfile", b =>
@@ -285,6 +365,30 @@ namespace backend_dotnet.Migrations
                     b.HasKey("UserId");
 
                     b.ToTable("StudentProfiles");
+                });
+
+            modelBuilder.Entity("backend_dotnet.Models.TargetDomain", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("TargetDomains");
                 });
 
             modelBuilder.Entity("backend_dotnet.Models.User", b =>
@@ -378,7 +482,32 @@ namespace backend_dotnet.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("backend_dotnet.Models.JobTitleReference", "JobTitleReference")
+                        .WithMany("Jobs")
+                        .HasForeignKey("JobTitleId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("backend_dotnet.Models.TargetDomain", "DomainReference")
+                        .WithMany("Jobs")
+                        .HasForeignKey("TargetDomainId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.Navigation("Company");
+
+                    b.Navigation("DomainReference");
+
+                    b.Navigation("JobTitleReference");
+                });
+
+            modelBuilder.Entity("backend_dotnet.Models.JobTitleReference", b =>
+                {
+                    b.HasOne("backend_dotnet.Models.TargetDomain", "TargetDomain")
+                        .WithMany("JobTitles")
+                        .HasForeignKey("TargetDomainId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("TargetDomain");
                 });
 
             modelBuilder.Entity("backend_dotnet.Models.StudentProfile", b =>
@@ -402,6 +531,18 @@ namespace backend_dotnet.Migrations
             modelBuilder.Entity("backend_dotnet.Models.Job", b =>
                 {
                     b.Navigation("Applications");
+                });
+
+            modelBuilder.Entity("backend_dotnet.Models.JobTitleReference", b =>
+                {
+                    b.Navigation("Jobs");
+                });
+
+            modelBuilder.Entity("backend_dotnet.Models.TargetDomain", b =>
+                {
+                    b.Navigation("JobTitles");
+
+                    b.Navigation("Jobs");
                 });
 
             modelBuilder.Entity("backend_dotnet.Models.User", b =>

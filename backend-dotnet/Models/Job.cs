@@ -18,6 +18,14 @@ public class Job
     public string? StipendAmountOrDetails { get; set; }
     public int DurationMonths { get; set; }
     public DateTime ApplicationDeadline { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    // Controlled reference IDs
+    public int? TargetDomainId { get; set; }
+    public TargetDomain? DomainReference { get; set; }
+
+    public int? JobTitleId { get; set; }
+    public JobTitleReference? JobTitleReference { get; set; }
 
     // Navigation properties
     public CompanyProfile Company { get; set; } = null!;

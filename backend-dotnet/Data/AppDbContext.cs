@@ -15,6 +15,9 @@ public class AppDbContext : DbContext
     public DbSet<CompanyStaffProfile> CompanyStaffProfiles => Set<CompanyStaffProfile>();
     public DbSet<Job> Jobs => Set<Job>();
     public DbSet<Application> Applications => Set<Application>();
+    public DbSet<TargetDomain> TargetDomains => Set<TargetDomain>();
+    public DbSet<JobTitleReference> JobTitles => Set<JobTitleReference>();
+    public DbSet<SkillEquivalence> SkillEquivalences => Set<SkillEquivalence>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -183,10 +186,56 @@ public class AppDbContext : DbContext
             entity.Property(j => j.PreferredDegreePrograms)
                 .HasColumnType("text[]");
 
+            entity.Property(j => j.CreatedAt)
+                .IsRequired()
+                .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
             entity.HasOne(j => j.Company)
                 .WithMany(cp => cp.Jobs)
                 .HasForeignKey(j => j.CompanyId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(j => j.DomainReference)
+                .WithMany(td => td.Jobs)
+                .HasForeignKey(j => j.TargetDomainId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(j => j.JobTitleReference)
+                .WithMany(jt => jt.Jobs)
+                .HasForeignKey(j => j.JobTitleId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // -------------------------------------------------------------
+        // 4b. TargetDomain & JobTitleReference Configurations
+        // -------------------------------------------------------------
+        modelBuilder.Entity<TargetDomain>(entity =>
+        {
+            entity.HasKey(td => td.Id);
+
+            entity.Property(td => td.Name)
+                .IsRequired()
+                .HasMaxLength(150);
+
+            entity.HasIndex(td => td.Name)
+                .IsUnique();
+        });
+
+        modelBuilder.Entity<JobTitleReference>(entity =>
+        {
+            entity.HasKey(jt => jt.Id);
+
+            entity.Property(jt => jt.Title)
+                .IsRequired()
+                .HasMaxLength(200);
+
+            entity.HasOne(jt => jt.TargetDomain)
+                .WithMany(td => td.JobTitles)
+                .HasForeignKey(jt => jt.TargetDomainId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(jt => new { jt.Title, jt.TargetDomainId })
+                .IsUnique();
         });
 
         // -------------------------------------------------------------
@@ -215,6 +264,22 @@ public class AppDbContext : DbContext
                 .WithMany(j => j.Applications)
                 .HasForeignKey(a => a.JobId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // -------------------------------------------------------------
+        // 6. SkillEquivalence Entity Configuration
+        // -------------------------------------------------------------
+        modelBuilder.Entity<SkillEquivalence>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            
+            entity.Property(e => e.TermA).IsRequired();
+            entity.Property(e => e.TermB).IsRequired();
+            
+            entity.HasIndex(e => new { e.TermA, e.TermB }).IsUnique();
+            
+            entity.Property(e => e.Source).HasDefaultValue("llm");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
         });
     }
 }
