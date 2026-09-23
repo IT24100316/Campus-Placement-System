@@ -627,3 +627,109 @@ Today's development sprint focused on kickstarting the **Flutter Mobile Applicat
   * Re-architected the layout to include dynamic company logos, job roles, description texts, and custom badges.
   * Integrated the pre-existing `AiMatchScoreBadge` effectively into the header of the card.
   * Faithfully replicated the Tailwind spacing, fonts, and colors (e.g. `#003594` primary color, `#F8F9FF` background) into native Flutter `Color` constants.
+
+### 16. AI Analysis Agent Setup & Database Readiness
+* **Database Connection Resolution (.NET)**:
+  * Diagnosed and resolved `SocketException: No such host is known` caused by Supabase's IPv4 deprecation on direct connections. Migrated the local environment to use the Supavisor IPv4 connection pooler.
+* **Skill Equivalency Caching System (.NET)**:
+  * Created the `SkillEquivalence.cs` EF Core model to act as a fast lookup table mapping synonymous tech skills (e.g., `C#` to `.NET`, `React` to `ReactJS`).
+  * Configured `SkillEquivalences` in `AppDbContext`, generated the `AddSkillEquivalences` migration, and successfully applied the database update.
+  * Prepared `seed_skill_equivalences.sql` populated with foundational tech synonyms ready to be executed in the Supabase SQL editor.
+* **Tier 1 Hard Filters Tool (Python AI Service)**:
+  * Added `psycopg2-binary` to `requirements.txt` to support high-performance direct database reads from the Python orchestration service.
+  * Implemented `sql_filter_tool.py` exposing a LangChain `@tool` (`check_hard_filters_tool`).
+  * The tool instantly evaluates candidates against strict constraints (GPA, Year of Study, Domain, Internship Type, Degree, Location) via direct Postgres queries, rejecting incompatible pairs immediately to save LLM token costs and latency.
+
+### 10. Flutter Profile Engine Integration & Data Consistency Enforcement
+* **Strict AI Matching Engine Alignment (profile_screen.dart)**:
+  * Converted the free-text Cumulative GPA field to a highly strict, numeric-only TextFormField validating boundaries exactly between  .00 and 4.00.
+  * Replaced the free-text Degree Program field with a controlled DropdownButtonFormField, hardcoding the specific Sri Lankan computing degree arrays (e.g., BSc (Hons) Software Engineering).
+  * Updated the Internship Work Arrangement array to strictly use 'Remote', 'Hybrid', and 'On-Site' utilizing interactive, multi-select FilterChip components to precisely match the backend ENUM expectations.
+* **Cascading Database-Driven API Dropdowns**:
+  * **Primary Domain**: Successfully hooked up to the local .NET backend endpoint (GET /api/Jobs/reference/domains). Replaces static arrays with real database entities featuring proper loading states (CircularProgressIndicator).
+  * **Target Job Title**: Developed a dynamically responsive dropdown that remains locked until a Primary Domain is selected, then fires a live GET /api/Jobs/reference/titles?domainId={id} query to fetch strictly associated roles.
+* **Network Tuning for Physical Android Devices**:
+  * Resolved Connection Refused errors experienced on physical Android devices (e.g., Redmi Note 8) by abandoning emulator-only 10.0.2.2 addresses.
+  * Injected ndroid:usesCleartextTraffic="true" into AndroidManifest.xml to prevent the Android OS from silently dropping local HTTP packets.
+  * Updated the C# .NET backend launchSettings.json to eagerly bind to the developer machine's local IP Address (192.168.8.101:5168) alongside localhost.
+  * Initialized an ADB Reverse Port Forward tunnel (db reverse tcp:5168 tcp:5168) over the active USB debugging session, guaranteeing flawless cross-device connectivity over standard 127.0.0.1 routing.
+
+
+### 11. Placement Application Management (.NET Backend)
+* **ApplicationService.cs EF Core Integration**:
+  * Implemented robust EF Core logic for ScheduleInterviewAsync, securely fetching the application and updating InterviewDate and InterviewTime.
+  * Added a strategic // TODO placeholder to construct the Agent4InterviewPayload DTO and trigger the Python Fast-API Agent 4 upon successful interview scheduling.
+  * Implemented GetCvDownloadUrlAsync leveraging eager loading (.Include(a => a.Student).ThenInclude(u => u.StudentProfile)) to dynamically retrieve the applicant's CvPdfUrl.
+  * Added clear, concise developer documentation comments detailing the responsibilities of each implemented method within the service layer.
+
+### 12. Cross-Platform Form & Model Alignment Analysis
+* **End-to-End Consistency Audit**:
+  * Conducted a deep comparative analysis between the Flutter Student Profile form, the React Employer Job Posting form (JobPostingForm.tsx), and the .NET database models.
+  * Identified critical schema mismatches: the Flutter app was allowing free-text inputs for GPA and domains, while the React web frontend and .NET backend strictly enforced normalized references and decimals.
+  * Authored the orm_model_alignment_analysis.md artifact summarizing these discrepancies, which directly informed and guided the immediate critical fixes implemented in the Flutter profile_screen.dart to prevent AI matching engine failures.
+
+
+### 13. AI-Powered Application & Candidate Matching Interface (React Frontend)
+* **ApplicationsPage.tsx Implementation**:
+  * Designed a dedicated portal for HR and Staff to review incoming student applications and AI-driven match recommendations.
+  * **Intelligent Candidate Profiles**: Displayed key candidate metrics including Cumulative GPA, Graduation Year, University, and technical skills alongside dynamic avatars.
+  * **AI Screening Insights**: Integrated an iScreeningPoints engine that highlights the top reasons a candidate is a strong fit (e.g., "Top 1% alignment for Hardware Systems...").
+  * **Match Scoring**: Prominently featured the matchScore quantitative metric generated by the AI Matching Engine.
+  * **Workflow Management**:
+    * Implemented a segmented tab system (Pending, Approved, Disapproved) for application lifecycle management.
+    * Added comprehensive search filtering (by name, university, or technical skills) and pagination.
+    * Built an expandable accordion-style detailed view for each candidate to reveal career objectives and resume assets.
+    * Prepared a scheduling modal hook (candidateToSchedule) that will wire directly into the .NET ScheduleInterviewAsync endpoint.
+
+### 14. Architecture Refactoring: Controller-Service Decoupling (.NET Backend)
+* **Refactoring Objective**: Eliminate direct database context (`AppDbContext`), password hashing, and complex business logic from API controllers, migrating all domain and persistence logic into dedicated interfaces and services inside `/Services` adhering to the Single Responsibility Principle and Dependency Injection.
+
+#### 📊 Controller Refactoring Status & Roadmap
+
+| Controller | Status | Service Interface & Implementation | Key Responsibilities Decoupled |
+| :--- | :--- | :--- | :--- |
+| **`ApplicationsController.cs`** | ✅ Complete | `IApplicationService` / `ApplicationService` | Student application lifecycle, interview scheduling, CV download URLs *(Friend's part - maintained)* |
+| **`AdminController.cs`** | ✅ **Done** | `IAdminService` / `AdminService` | Decoupled user approval/rejection, company defaulting, auto-provisioning placement drives, password hashing, and employee registration into `AdminService`. Controller streamlined to ~65 lines. Verified via Swagger & live API test. |
+| **`AuthController.cs`** | ✅ **Done** | `IAuthService` / `AuthService` | Decoupled multi-role authentication (`Admin`, `CompanyHR`, `CompanyStaff`), credential verification via `PasswordHasher<User>`, role resolution, HR registration, and staff registration into `AuthService`. Controller streamlined to ~110 lines. Verified via live API tests. |
+| **`CompanyController.cs`** | ✅ **Done** | `ICompanyService` / `CompanyService` | Decoupled company profile retrieval, staff fallback resolution, live placement drive sorting, candidate shortlist linkages, and stats aggregation into `CompanyService`. Controller streamlined from 316 lines to ~30 lines. Verified via live API tests. |
+| **`JobController.cs`** | ✅ **Done** | `IJobService` / `JobService` | Decoupled controlled target domains query, dependent job titles query, internship type enums, and job creation with domain/title cross-validation into `JobService`. Controller streamlined from 293 lines to ~65 lines. Verified via live API tests. |
+
+* **Completed Implementation Details for `AdminController`**:
+  * Extracted all Entity Framework Core queries and database mutations into [`AdminService.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Services/AdminService.cs) implementing [`IAdminService.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Services/IAdminService.cs).
+  * Added type-safe result DTOs in [`AdminDtos.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/DTOs/AdminDtos.cs) (`AdminApprovalResponseDto`, `AdminRegisterEmployeeResponseDto`).
+  * Registered `builder.Services.AddScoped<IAdminService, AdminService>();` in [`Program.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Program.cs).
+  * Added `EnableRetryOnFailure` resilience policy to Npgsql PostgreSQL provider.
+  * Verified: `dotnet build` succeeded with 0 errors; live endpoint `GET /api/admin/pending-approvals` verified returning 200 OK.
+
+* **Completed Implementation Details for `AuthController`**:
+  * Created [`IAuthService.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Services/IAuthService.cs) and [`AuthService.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Services/AuthService.cs) encapsulating user credential verification, password hashing with `PasswordHasher<User>`, multi-role resolution (`Admin`, `CompanyHR`, `CompanyStaff`), company HR registration, and company staff onboarding.
+  * Added type-safe service response DTOs in [`AuthServiceDtos.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/DTOs/AuthServiceDtos.cs) (`AuthLoginResultDto`, `AuthRegisterResultDto`).
+  * Refactored [`AuthController.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Controllers/AuthController.cs) to remove direct `AppDbContext` and `PasswordHasher<User>` dependencies, reducing it to clean HTTP action handlers with proper status codes (`200 OK`, `400 Bad Request`, `401 Unauthorized`, `403 Forbidden`, `404 Not Found`).
+  * Registered `builder.Services.AddScoped<IAuthService, AuthService>();` in [`Program.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Program.cs).
+  * Verified: `dotnet build` succeeded with 0 errors; live endpoints `POST /api/auth/login` (Admin & HR) and `GET /api/auth/companies` confirmed 200 OK with accurate JSON responses.
+
+* **Completed Implementation Details for `CompanyController`**:
+  * Created [`ICompanyService.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Services/ICompanyService.cs) and [`CompanyService.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Services/CompanyService.cs) encapsulating company profile lookup by ID or email, fallback resolution for registered staff members, latest-to-oldest active drive sorting, pre-screened Sri Lankan student candidate matching, and recruitment analytics computation.
+  * Added type-safe dashboard DTOs in [`CompanyDtos.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/DTOs/CompanyDtos.cs) (`CompanyDashboardResponseDto`, `CompanyStatsDto`, `CompanyActiveJobDto`, `CompanyCandidateDto`).
+  * Streamlined [`CompanyController.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Controllers/CompanyController.cs) from 316 lines down to ~30 lines, converting it into a clean, lightweight endpoint that delegates directly to `_companyService.GetCompanyDashboardAsync`.
+  * Registered `builder.Services.AddScoped<ICompanyService, CompanyService>();` in [`Program.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Program.cs).
+  * Verified: `dotnet build` succeeded with 0 warnings/errors; live endpoint `GET /api/company/profile?email=virtusa@company.com` verified returning 200 OK with identical payload schema.
+
+* **Completed Implementation Details for `JobController`**:
+  * Created [`IJobService.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Services/IJobService.cs) and [`JobService.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Services/JobService.cs) extracting controlled target domains querying, domain-dependent job title lookups, internship type enumeration, and full job posting creation with domain cross-validation, GPA bounds checking, deadline validation, and employer resolution.
+  * Added `JobCreationResultDto` to [`JobDtos.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/DTOs/JobDtos.cs).
+  * Streamlined [`JobController.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Controllers/JobController.cs) (class `JobsController`) from 293 lines down to ~65 lines, strictly delegating all database and business operations to `_jobService`.
+  * Registered `builder.Services.AddScoped<IJobService, JobService>();` in [`Program.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Program.cs).
+  * Verified: `dotnet build` succeeded with 0 errors; live endpoints `GET /api/jobs/reference/domains`, `GET /api/jobs/reference/titles`, `GET /api/jobs/reference/internship-types`, and validation on `POST /api/jobs` confirmed 200 OK and 400 Bad Request error gating.
+  * **Milestone Complete**: All 5 backend API controllers now adhere 100% to the decoupled Controller-Service pattern, with [`ApplicationsController.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Controllers/ApplicationsController.cs) / [`ApplicationService.cs`](file:///d:/se_project/Campus-Placement-System/backend-dotnet/Services/ApplicationService.cs) preserved untouched.
+
+### 15. Flutter Mobile App: Job Feed UI Implementation
+* **Job Feed Screen (`job_feed_screen.dart`)**:
+  * Successfully replaced the dummy UI with a comprehensive structure mapping the provided HTML mockup.
+  * Added a custom App Bar matching the `CampusAI Portal` branding.
+  * Implemented an advanced search bar and horizontal filter chips (`All Roles`, `AI & ML`, `Full Stack`, etc.).
+  * Added visual active filter tags and pagination controls directly within the Flutter UI.
+* **Job Card Component (`job_card.dart`)**:
+  * Re-architected the layout to include dynamic company logos, job roles, description texts, and custom badges.
+  * Integrated the pre-existing `AiMatchScoreBadge` effectively into the header of the card.
+  * Faithfully replicated the Tailwind spacing, fonts, and colors (e.g. `#003594` primary color, `#F8F9FF` background) into native Flutter `Color` constants.
