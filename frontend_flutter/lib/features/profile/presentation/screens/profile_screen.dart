@@ -6,6 +6,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/api_endpoints.dart';
+import '../../../../core/services/cv_upload_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -36,8 +37,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? _selectedAcademicStatus;
   int? _selectedYearOfStudy;
 
-  bool _isSaving = false;
-  String _saveButtonText = 'Save Resume';
+  bool _isUploadingCv = false;
+  String _saveButtonText = 'Upload CV';
   IconData _saveButtonIcon = Icons.verified;
 
   List<dynamic> _domains = [];
@@ -53,7 +54,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   PlatformFile? _selectedCvFile;
   int? _selectedCvFileSize;
   String? _cvSelectionError;
+  String? _cvUploadError;
+  String? _uploadedCvStorageKey;
   bool _isSelectingCv = false;
+
+  final CvUploadService _cvUploadService = CvUploadService();
 
   static const List<String> degreePrograms = ['BSc (Hons) Information Technology', 'BSc (Hons) Software Engineering', 'BSc (Hons) Computer Science', 'BSc (Hons) Data Science', 'BSc (Hons) Cyber Security'];
   static const List<String> internshipTypes = ['OnSite', 'Hybrid', 'Remote'];
@@ -121,7 +126,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _selectCvFile() async {
-    if (_isSelectingCv) {
+    if (_isSelectingCv || _isUploadingCv) {
       return;
     }
 
@@ -170,6 +175,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _selectedCvFile = file;
         _selectedCvFileSize = fileSize;
         _cvSelectionError = null;
+        _cvUploadError = null;
+        _uploadedCvStorageKey = null;
       });
     } catch (_) {
       _setCvSelectionError('Unable to access the selected file. Please check permissions and try again.');
@@ -185,6 +192,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _selectedCvFile = null;
       _selectedCvFileSize = null;
       _cvSelectionError = null;
+      _cvUploadError = null;
     });
   }
 
@@ -210,6 +218,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _triggerSaveAnimation() async {
+    if (_isUploadingCv) {
+      return;
+    }
+
     final isFormValid = _formKey.currentState?.validate() ?? false;
     setState(() {
       _skillsError = _skills.isEmpty ? 'Add at least one skill.' : null;
@@ -234,20 +246,53 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return;
     }
 
+    final selectedFile = _selectedCvFile;
+    if (selectedFile == null) {
+      return;
+    }
+
     setState(() {
-      _isSaving = true;
-      _saveButtonText = 'Profile Synchronized!';
-      _saveButtonIcon = Icons.check_circle;
+      _isUploadingCv = true;
+      _cvUploadError = null;
+      _saveButtonText = 'Uploading CV...';
     });
 
-    await Future.delayed(const Duration(milliseconds: 2200));
+    try {
+      final fileBytes = await selectedFile.readAsBytes();
+      final result = await _cvUploadService.uploadPdf(
+        fileBytes: fileBytes,
+        fileName: selectedFile.name,
+      );
 
-    if (mounted) {
+      if (!mounted) {
+        return;
+      }
+
       setState(() {
-        _isSaving = false;
-        _saveButtonText = 'Save Resume';
-        _saveButtonIcon = Icons.verified;
+        _uploadedCvStorageKey = result.storageKey;
+        _saveButtonText = 'CV Uploaded';
+        _saveButtonIcon = Icons.check_circle;
       });
+    } on CvUploadException catch (error) {
+      if (mounted) {
+        setState(() {
+          _cvUploadError = error.message;
+          _saveButtonText = 'Upload CV';
+          _saveButtonIcon = Icons.upload_file;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _cvUploadError = 'Unable to prepare the selected CV for upload. Please try again.';
+          _saveButtonText = 'Upload CV';
+          _saveButtonIcon = Icons.upload_file;
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isUploadingCv = false);
+      }
     }
   }
 
@@ -526,11 +571,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 border: Border(top: BorderSide(color: Colors.grey.shade200)),
               ),
               child: ElevatedButton.icon(
-                onPressed: _triggerSaveAnimation,
-                icon: Icon(_saveButtonIcon, size: 20),
+                onPressed: _isUploadingCv ? null : _triggerSaveAnimation,
+                icon: _isUploadingCv
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                      )
+                    : Icon(_saveButtonIcon, size: 20),
                 label: Text(_saveButtonText, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _isSaving ? Colors.teal : AppColors.primary,
+                  backgroundColor: _isUploadingCv ? Colors.teal : AppColors.primary,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
@@ -680,7 +731,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(height: 16),
           OutlinedButton.icon(
-            onPressed: _isSelectingCv ? null : _selectCvFile,
+            onPressed: _isSelectingCv || _isUploadingCv ? null : _selectCvFile,
             icon: _isSelectingCv
                 ? const SizedBox(
                     height: 16,
@@ -695,6 +746,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
               padding: const EdgeInsets.only(top: 8),
               child: Text(
                 _cvSelectionError!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.red, fontSize: 12),
+              ),
+            ),
+          if (_cvUploadError != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                _cvUploadError!,
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: Colors.red, fontSize: 12),
               ),
@@ -745,17 +805,39 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     const SizedBox(width: 6),
                     Container(width: 4, height: 4, decoration: const BoxDecoration(color: Colors.grey, shape: BoxShape.circle)),
                     const SizedBox(width: 6),
-                    const Icon(Icons.check_circle_outline, color: Colors.teal, size: 12),
+                    Icon(
+                      _uploadedCvStorageKey == null
+                          ? Icons.pending_outlined
+                          : Icons.check_circle_outline,
+                      color: _uploadedCvStorageKey == null ? Colors.orange : Colors.teal,
+                      size: 12,
+                    ),
                     const SizedBox(width: 4),
-                    const Text('Ready to upload', style: TextStyle(fontSize: 11, color: Colors.teal, fontWeight: FontWeight.bold)),
+                    Text(
+                      _uploadedCvStorageKey == null ? 'Ready to upload' : 'Uploaded',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: _uploadedCvStorageKey == null ? Colors.orange : Colors.teal,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ],
                 ),
+                if (_uploadedCvStorageKey != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    'Storage ID: $_uploadedCvStorageKey',
+                    style: const TextStyle(fontSize: 11, color: AppColors.textSecondaryLight),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ],
             ),
           ),
           IconButton(
             icon: const Icon(Icons.delete_sweep_outlined, color: Colors.red, size: 20),
-            onPressed: _removeSelectedCv,
+            onPressed: _isUploadingCv ? null : _removeSelectedCv,
             style: IconButton.styleFrom(backgroundColor: Colors.red.shade50, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
           ),
         ],
