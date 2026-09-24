@@ -16,6 +16,44 @@ public class ApplicationsController : ControllerBase
         _applicationService = applicationService;
     }
 
+    /// <summary>Runs Agent 4 CV validation and pauses the workflow for administrator review.</summary>
+    [HttpPost("{appId:guid}/evaluate")]
+    public async Task<IActionResult> Evaluate(Guid appId, [FromBody] EvaluateApplicationDto request, CancellationToken cancellationToken)
+    {
+        try { return Ok(await _applicationService.EvaluateAsync(appId, request, cancellationToken)); }
+        catch (KeyNotFoundException ex) { return NotFound(new { message = ex.Message }); }
+        catch (InvalidOperationException ex) { return Conflict(new { message = ex.Message }); }
+        catch (HttpRequestException ex) { return StatusCode(502, new { message = ex.Message }); }
+    }
+
+    /// <summary>Lists Agent 4 results paused for administrator approval.</summary>
+    [HttpGet("pending-admin-approval")]
+    public async Task<IActionResult> PendingAdminApproval(CancellationToken cancellationToken) =>
+        Ok(await _applicationService.GetPendingAdminApprovalAsync(cancellationToken));
+
+    [HttpPost("{appId:guid}/admin-approve")]
+    public async Task<IActionResult> AdminApprove(Guid appId, CancellationToken cancellationToken) =>
+        await AdminDecision(appId, true, cancellationToken);
+
+    [HttpPost("{appId:guid}/admin-reject")]
+    public async Task<IActionResult> AdminReject(Guid appId, CancellationToken cancellationToken) =>
+        await AdminDecision(appId, false, cancellationToken);
+
+    [HttpGet("student/{studentId:guid}")]
+    public async Task<IActionResult> StudentApplications(Guid studentId, CancellationToken cancellationToken) =>
+        Ok(await _applicationService.GetStudentApplicationsAsync(studentId, cancellationToken));
+
+    private async Task<IActionResult> AdminDecision(Guid appId, bool approved, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var application = await _applicationService.AdminDecisionAsync(appId, approved, cancellationToken);
+            return Ok(new { applicationId = application.AppId, status = application.Status.ToString(), workflowResumed = approved });
+        }
+        catch (KeyNotFoundException ex) { return NotFound(new { message = ex.Message }); }
+        catch (InvalidOperationException ex) { return Conflict(new { message = ex.Message }); }
+    }
+
     /// <summary>
     /// Submits an internship application for the authenticated student.
     /// </summary>
@@ -91,6 +129,10 @@ public class ApplicationsController : ControllerBase
         {
             return NotFound(new { message = ex.Message });
         }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
     }
 
     /// <summary>
@@ -107,6 +149,10 @@ public class ApplicationsController : ControllerBase
         catch (KeyNotFoundException ex)
         {
             return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
         }
     }
 

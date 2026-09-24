@@ -28,6 +28,7 @@ export const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
   const [records, setRecords] = useState<RegistrationRecord[]>([]);
   const [filter, setFilter] = useState<'all' | 'hr' | 'staff' | 'pending'>('pending');
   const [selectedRecord, setSelectedRecord] = useState<RegistrationRecord | null>(null);
+  const [actionError, setActionError] = useState('');
 
   // Register Employee Modal State
   const [isAddStaffOpen, setIsAddStaffOpen] = useState(false);
@@ -50,10 +51,13 @@ export const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
   }, []);
 
   const handleAction = async (id: string, newStatus: 'Approved' | 'Rejected') => {
-    const updated = await authService.updateStatus(id, newStatus);
-    setRecords([...updated]);
-    if (selectedRecord && selectedRecord.id === id) {
-      setSelectedRecord({ ...selectedRecord, status: newStatus });
+    setActionError('');
+    try {
+      const updated = await authService.updateStatus(id, newStatus);
+      setRecords([...updated]);
+      if (selectedRecord && selectedRecord.id === id) setSelectedRecord({ ...selectedRecord, status: newStatus });
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'The account status could not be updated.');
     }
   };
 
@@ -176,6 +180,7 @@ export const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
         </div>
       </div>
 
+      {actionError && <div className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{actionError}</div>}
       {/* Filter Tabs */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div className="inline-flex p-1 rounded-lg bg-slate-100 border border-slate-200 text-xs">
@@ -454,9 +459,11 @@ export const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
                         </p>
                       </div>
                     </div>
-                    <span className="px-2 py-0.5 bg-blue-50 text-primary font-semibold text-[11px] rounded">
-                      PDF Document
-                    </span>
+                    {selectedRecord.documentUrl ? (
+                      <a href={selectedRecord.documentUrl} target="_blank" rel="noreferrer" className="px-2 py-1 bg-blue-50 text-primary font-semibold text-[11px] rounded hover:bg-blue-100">Open Document</a>
+                    ) : (
+                      <span className="px-2 py-0.5 bg-slate-100 text-slate-500 font-semibold text-[11px] rounded">No upload</span>
+                    )}
                   </div>
                 </div>
               )}

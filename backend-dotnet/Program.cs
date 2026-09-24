@@ -4,6 +4,7 @@ using backend_dotnet.Data;
 using backend_dotnet.Services;
 using backend_dotnet.Models;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,6 +21,9 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 // 2. Controllers
 builder.Services.AddControllers();
+builder.Services.AddHttpClient();
+builder.Services.AddScoped<IDocumentStorageService, DocumentStorageService>();
+builder.Services.AddScoped<IEmailService, SendGridEmailService>();
 
 // 2.1 CV storage configuration
 builder.Services.Configure<CvStorageOptions>(
@@ -47,13 +51,24 @@ builder.Services.AddCors(options =>
 
 // 4. Swagger / OpenAPI
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "CampusAI Placement API",
+        Version = "v1",
+        Description = "Account verification, document storage, AI validation approval gates, and interview scheduling."
+    });
+    var xmlPath = Path.Combine(AppContext.BaseDirectory, "backend-dotnet.xml");
+    if (File.Exists(xmlPath)) options.IncludeXmlComments(xmlPath);
+});
 
 var app = builder.Build();
 
 // 5. Seed Single Inbuilt Admin Account and Default Approved Companies on Startup
-using (var scope = app.Services.CreateScope())
+if (builder.Configuration.GetValue("SeedAdminOnStartup", true))
 {
+    using var scope = app.Services.CreateScope();
     var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     var hasher = new PasswordHasher<User>();
 

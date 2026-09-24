@@ -7,6 +7,7 @@ public class AdminApprovalResponseDto
     public Guid UserId { get; set; }
     public string Email { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
+    public bool EmailSent { get; set; }
 }
 
 public class AdminRegisterEmployeeResponseDto

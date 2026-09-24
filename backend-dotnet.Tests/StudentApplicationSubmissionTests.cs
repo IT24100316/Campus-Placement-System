@@ -47,7 +47,7 @@ public class StudentApplicationSubmissionTests
     {
         await using var context = CreateContext();
         var (studentId, jobId) = await SeedValidScenario(context);
-        var service = new ApplicationService(context);
+        var service = CreateService(context);
         await service.SubmitStudentApplicationAsync(studentId, jobId, CancellationToken.None);
 
         var error = await Assert.ThrowsAsync<StudentApplicationSubmissionException>(
@@ -98,7 +98,7 @@ public class StudentApplicationSubmissionTests
 
         await context.SaveChangesAsync();
         var error = await Assert.ThrowsAsync<StudentApplicationSubmissionException>(
-            () => new ApplicationService(context).SubmitStudentApplicationAsync(
+            () => CreateService(context).SubmitStudentApplicationAsync(
                 studentId, jobId, CancellationToken.None));
 
         Assert.Equal(expectedError, error.Error);
@@ -133,7 +133,7 @@ public class StudentApplicationSubmissionTests
         var (studentId, jobId) = await SeedValidScenario(context);
         if (scenario == "duplicate")
         {
-            await new ApplicationService(context).SubmitStudentApplicationAsync(
+            await CreateService(context).SubmitStudentApplicationAsync(
                 studentId, jobId, CancellationToken.None);
         }
         else
@@ -234,7 +234,7 @@ public class StudentApplicationSubmissionTests
             : new[] { new Claim(ClaimTypes.NameIdentifier, claimValue) };
         var identity = new ClaimsIdentity(
             claims, authenticated ? "TestAuthentication" : null);
-        return new ApplicationsController(new ApplicationService(context))
+        return new ApplicationsController(CreateService(context))
         {
             ControllerContext = new ControllerContext
             {
@@ -245,4 +245,7 @@ public class StudentApplicationSubmissionTests
             }
         };
     }
+
+    private static ApplicationService CreateService(AppDbContext context) =>
+        new(context, null!, null!, null!, null!);
 }

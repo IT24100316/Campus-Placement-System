@@ -99,6 +99,16 @@ The following components and foundations were established in the original projec
     - `GET /api/admin/pending-approvals`: Lists all pending registrations with profile and document data.
     - `POST /api/admin/approve/{userId}`: Sets user status to `Approved`.
     - `POST /api/admin/reject/{userId}`: Sets user status to `Rejected`.
+
+#### Completed verification and AI workflow
+
+- Employer and campus-ID uploads now use multipart requests and a real storage service. With `Supabase:Url` and `Supabase:ServiceRoleKey`, files are written to the private `verification-docs` bucket; local development has a non-public disk fallback.
+- Account approvals and rejections send SendGrid notifications when configured.
+- Student registration uploads the campus ID atomically, and CV PDFs can be uploaded through `POST /api/students/upload-cv`.
+- Agent 4 extracts text from the student's CV PDF, compares it with the generated summary, and returns evidence overlap plus unsupported terms.
+- Evaluated applications enter `Agent_Evaluated` and remain paused until `POST /api/applications/{id}/admin-approve` or `admin-reject` is called. Interview scheduling is rejected until approval succeeds.
+- The Flutter application reads live application state and displays an Interview Scheduled alert for `Company_Scheduled` applications.
+- Swagger XML documentation and backend/Python unit tests are included.
 - **In-Built Admin Account Seeding**:
   - `Program.cs` automatically seeds a single institutional administrator on service startup if one does not already exist:
     - **Email**: `admin@campusai.edu`

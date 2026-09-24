@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/services/api_service.dart';
 import 'account_pending_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -12,6 +14,73 @@ class RegisterScreen extends StatefulWidget {
 class _RegisterScreenState extends State<RegisterScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  bool _isSubmitting = false;
+  String? _error;
+  PlatformFile? _campusId;
+  final _fullName = TextEditingController();
+  final _email = TextEditingController();
+  final _phone = TextEditingController();
+  final _university = TextEditingController();
+  final _password = TextEditingController();
+  final _confirmPassword = TextEditingController();
+
+  @override
+  void dispose() {
+    for (final controller in [_fullName, _email, _phone, _university, _password, _confirmPassword]) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  Future<void> _pickCampusId() async {
+    final file = await FilePicker.pickFile(
+      type: FileType.custom,
+      allowedExtensions: ['jpg', 'jpeg', 'png'],
+    );
+    if (file == null) return;
+    final fileSize = await file.length();
+    if (fileSize == null) {
+      setState(() => _error = 'The selected campus ID could not be read.');
+      return;
+    }
+    if (fileSize > 5 * 1024 * 1024) {
+      setState(() => _error = 'Campus ID must be smaller than 5 MB.');
+      return;
+    }
+    setState(() { _campusId = file; _error = null; });
+  }
+
+  Future<void> _submit() async {
+    if ([_fullName, _email, _phone, _university, _password, _confirmPassword].any((c) => c.text.trim().isEmpty)) {
+      setState(() => _error = 'Complete every required field.');
+      return;
+    }
+    if (_password.text.length < 8 || _password.text != _confirmPassword.text) {
+      setState(() => _error = 'Passwords must match and contain at least 8 characters.');
+      return;
+    }
+    if (_campusId == null) {
+      setState(() => _error = 'Upload a campus ID photo.');
+      return;
+    }
+    setState(() { _isSubmitting = true; _error = null; });
+    try {
+      await ApiService().registerStudent(
+        fullName: _fullName.text,
+        email: _email.text,
+        phone: _phone.text,
+        universityName: _university.text,
+        password: _password.text,
+        campusId: _campusId!,
+      );
+      if (!mounted) return;
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AccountPendingScreen()));
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -104,6 +173,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               required: true,
               hint: 'Enter full legal name',
               icon: Icons.person_outline,
+              controller: _fullName,
               trailing: const Icon(Icons.check_circle, color: AppColors.primary, size: 20),
             ),
             const SizedBox(height: 20),
@@ -113,6 +183,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               required: true,
               hint: 'your.name@university.edu',
               icon: Icons.mail_outline,
+              controller: _email,
               trailing: const Icon(Icons.check_circle, color: AppColors.primary, size: 20),
               helperText: 'Use official university student domain (@university.edu)',
               helperIcon: Icons.domain,
@@ -124,8 +195,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
               required: true,
               hint: '+1 (555) 000-0000',
               icon: Icons.phone_iphone_outlined,
+              controller: _phone,
               trailing: const Icon(Icons.verified, color: AppColors.primary, size: 20),
               helperText: 'Used for secure two-factor auth & drive interview alerts',
+            ),
+            const SizedBox(height: 20),
+
+            _buildLabeledField(
+              label: 'University Name',
+              required: true,
+              hint: 'Enter your university',
+              icon: Icons.account_balance_outlined,
+              controller: _university,
             ),
             const SizedBox(height: 20),
 
@@ -134,6 +215,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               required: true,
               hint: 'At least 8 characters',
               icon: Icons.lock_outline,
+              controller: _password,
               obscureText: _obscurePassword,
               onToggleVisibility: () {
                 setState(() {
@@ -149,6 +231,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               required: true,
               hint: 'Re-enter password',
               icon: Icons.shield_outlined,
+              controller: _confirmPassword,
               obscureText: _obscureConfirmPassword,
               onToggleVisibility: () {
                 setState(() {
@@ -165,14 +248,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
             _buildCampusIdUploadSection(),
             const SizedBox(height: 32),
 
+            if (_error != null) ...[
+              Text(_error!, style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 12),
+            ],
+
             // Submit Button
             ElevatedButton(
-              onPressed: () {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (_) => const AccountPendingScreen()),
-                );
-              },
+              onPressed: _isSubmitting ? null : _submit,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
@@ -182,12 +265,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 elevation: 2,
               ),
-              child: const Row(
+              child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.person_add_alt_1, size: 20),
-                  SizedBox(width: 8),
-                  Text('Create Student Account', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  if (_isSubmitting) const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  else const Icon(Icons.person_add_alt_1, size: 20),
+                  const SizedBox(width: 8),
+                  Text(_isSubmitting ? 'Uploading ID...' : 'Create Student Account', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 ],
               ),
             ),
@@ -256,6 +340,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     required bool required,
     required String hint,
     required IconData icon,
+    TextEditingController? controller,
     Widget? trailing,
     bool obscureText = false,
     VoidCallback? onToggleVisibility,
@@ -291,6 +376,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ],
           ),
           child: TextField(
+            controller: controller,
             obscureText: obscureText,
             style: const TextStyle(color: Colors.black, fontSize: 14),
             decoration: InputDecoration(
@@ -373,15 +459,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
         const SizedBox(height: 8),
         InkWell(
-          onTap: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Image Picker will be integrated here'),
-                backgroundColor: AppColors.primary,
-                duration: Duration(seconds: 2),
-              ),
-            );
-          },
+          onTap: _pickCampusId,
           borderRadius: BorderRadius.circular(12),
           child: Container(
             width: double.infinity,
@@ -391,16 +469,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
             ),
-            child: const Column(
+            child: Column(
               children: [
-                Icon(Icons.cloud_upload_outlined, color: AppColors.primary, size: 36),
-                SizedBox(height: 12),
+                const Icon(Icons.cloud_upload_outlined, color: AppColors.primary, size: 36),
+                const SizedBox(height: 12),
                 Text(
-                  'Tap to upload your ID card',
-                  style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary),
+                  _campusId?.name ?? 'Tap to upload your ID card',
+                  style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary),
                 ),
-                SizedBox(height: 4),
-                Text(
+                const SizedBox(height: 4),
+                const Text(
                   'JPG, PNG (Max 5MB)',
                   style: TextStyle(fontSize: 12, color: Colors.grey),
                 ),

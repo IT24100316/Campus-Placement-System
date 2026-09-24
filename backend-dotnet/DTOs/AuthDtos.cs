@@ -106,3 +106,24 @@ public class AdminRegisterEmployeeDto
     [Required]
     public string JobPosition { get; set; } = string.Empty;
 }
+
+public class RegisterStudentFormDto
+{
+    [Required, MinLength(2)]
+    public string FullName { get; set; } = string.Empty;
+
+    [Required, EmailAddress]
+    public string Email { get; set; } = string.Empty;
+
+    [Required, MinLength(8)]
+    public string Password { get; set; } = string.Empty;
+
+    [Required]
+    public string Phone { get; set; } = string.Empty;
+
+    [Required]
+    public string UniversityName { get; set; } = string.Empty;
+
+    [Required]
+    public IFormFile CampusIdPhoto { get; set; } = null!;
+}
