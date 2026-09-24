@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:convert';
+import 'dart:typed_data';
+import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/api_endpoints.dart';
@@ -13,6 +15,8 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  static const int _maxCvFileSizeBytes = 10 * 1024 * 1024;
+
   final _formKey = GlobalKey<FormState>();
   final List<String> _skills = [];
   final List<String> _tools = [];
@@ -46,6 +50,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? _toolsError;
   String? _internshipTypeError;
   String? _locationError;
+  PlatformFile? _selectedCvFile;
+  int? _selectedCvFileSize;
+  String? _cvSelectionError;
+  bool _isSelectingCv = false;
 
   static const List<String> degreePrograms = ['BSc (Hons) Information Technology', 'BSc (Hons) Software Engineering', 'BSc (Hons) Computer Science', 'BSc (Hons) Data Science', 'BSc (Hons) Cyber Security'];
   static const List<String> internshipTypes = ['OnSite', 'Hybrid', 'Remote'];
@@ -112,6 +120,95 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  Future<void> _selectCvFile() async {
+    if (_isSelectingCv) {
+      return;
+    }
+
+    setState(() {
+      _isSelectingCv = true;
+      _cvSelectionError = null;
+    });
+
+    try {
+      final file = await FilePicker.pickFile(
+        type: FileType.custom,
+        allowedExtensions: const ['pdf'],
+      );
+
+      if (file == null) {
+        return;
+      }
+
+      final fileSize = file.lengthSync() ?? await file.length();
+      if (fileSize == null || fileSize <= 0) {
+        _setCvSelectionError('The selected PDF could not be read. Please try again.');
+        return;
+      }
+
+      if (fileSize > _maxCvFileSizeBytes) {
+        _setCvSelectionError('The CV must not exceed 10 MB.');
+        return;
+      }
+
+      if (!file.name.toLowerCase().endsWith('.pdf')) {
+        _setCvSelectionError('Only PDF files can be selected.');
+        return;
+      }
+
+      final bytes = await file.readAsBytes();
+      if (!_hasPdfSignature(bytes)) {
+        _setCvSelectionError('The selected file does not contain valid PDF content.');
+        return;
+      }
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _selectedCvFile = file;
+        _selectedCvFileSize = fileSize;
+        _cvSelectionError = null;
+      });
+    } catch (_) {
+      _setCvSelectionError('Unable to access the selected file. Please check permissions and try again.');
+    } finally {
+      if (mounted) {
+        setState(() => _isSelectingCv = false);
+      }
+    }
+  }
+
+  void _removeSelectedCv() {
+    setState(() {
+      _selectedCvFile = null;
+      _selectedCvFileSize = null;
+      _cvSelectionError = null;
+    });
+  }
+
+  void _setCvSelectionError(String message) {
+    if (mounted) {
+      setState(() => _cvSelectionError = message);
+    }
+  }
+
+  bool _hasPdfSignature(Uint8List bytes) {
+    const pdfSignature = [0x25, 0x50, 0x44, 0x46, 0x2D];
+    if (bytes.length < pdfSignature.length) {
+      return false;
+    }
+
+    return List.generate(pdfSignature.length, (index) => index)
+        .every((index) => bytes[index] == pdfSignature[index]);
+  }
+
+  String _formatFileSize(int bytes) {
+    const bytesPerMegabyte = 1024 * 1024;
+    return '${(bytes / bytesPerMegabyte).toStringAsFixed(1)} MB';
+  }
+
   void _triggerSaveAnimation() async {
     final isFormValid = _formKey.currentState?.validate() ?? false;
     setState(() {
@@ -123,13 +220,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _locationError = _selectedLocations.isEmpty
           ? 'Select at least one preferred location.'
           : null;
+      _cvSelectionError = _selectedCvFile == null
+          ? 'Select a PDF CV before saving.'
+          : null;
     });
 
     if (!isFormValid
         || _skillsError != null
         || _toolsError != null
         || _internshipTypeError != null
-        || _locationError != null) {
+        || _locationError != null
+        || _cvSelectionError != null) {
       return;
     }
 
@@ -576,13 +677,39 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: const Text('Campus AI OCR', style: TextStyle(fontSize: 11, color: AppColors.primary, fontWeight: FontWeight.bold)),
               ),
             ],
-          )
+          ),
+          const SizedBox(height: 16),
+          OutlinedButton.icon(
+            onPressed: _isSelectingCv ? null : _selectCvFile,
+            icon: _isSelectingCv
+                ? const SizedBox(
+                    height: 16,
+                    width: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.attach_file),
+            label: Text(_selectedCvFile == null ? 'Select PDF' : 'Change PDF'),
+          ),
+          if (_cvSelectionError != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                _cvSelectionError!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.red, fontSize: 12),
+              ),
+            ),
         ],
       ),
     );
   }
 
   Widget _buildUploadedFileItem() {
+    final file = _selectedCvFile;
+    if (file == null) {
+      return const SizedBox.shrink();
+    }
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -605,31 +732,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('alex_morgan_cv_2025.pdf', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
+                Text(file.name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
                 const SizedBox(height: 2),
                 Row(
                   children: [
-                    const Text('1.8 MB', style: TextStyle(fontSize: 12, color: AppColors.textSecondaryLight)),
+                    Text(
+                      _selectedCvFileSize == null
+                          ? 'Size unavailable'
+                          : _formatFileSize(_selectedCvFileSize!),
+                      style: const TextStyle(fontSize: 12, color: AppColors.textSecondaryLight),
+                    ),
                     const SizedBox(width: 6),
                     Container(width: 4, height: 4, decoration: const BoxDecoration(color: Colors.grey, shape: BoxShape.circle)),
                     const SizedBox(width: 6),
-                    const Icon(Icons.task_alt, color: Colors.teal, size: 12),
+                    const Icon(Icons.check_circle_outline, color: Colors.teal, size: 12),
                     const SizedBox(width: 4),
-                    const Text('AI Parsed', style: TextStyle(fontSize: 11, color: Colors.teal, fontWeight: FontWeight.bold)),
+                    const Text('Ready to upload', style: TextStyle(fontSize: 11, color: Colors.teal, fontWeight: FontWeight.bold)),
                   ],
                 ),
               ],
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.visibility_outlined, color: Colors.grey, size: 20),
-            onPressed: () {},
-            style: IconButton.styleFrom(backgroundColor: Colors.grey.shade100, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-          ),
-          const SizedBox(width: 4),
-          IconButton(
             icon: const Icon(Icons.delete_sweep_outlined, color: Colors.red, size: 20),
-            onPressed: () {},
+            onPressed: _removeSelectedCv,
             style: IconButton.styleFrom(backgroundColor: Colors.red.shade50, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
           ),
         ],
