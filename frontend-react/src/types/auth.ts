@@ -1,4 +1,4 @@
-export type RecruiterRole = 'hr' | 'staff';
+export type RegistrationRole = 'hr' | 'staff' | 'student';
 
 export type AccountApprovalStatus = 'Pending' | 'Approved' | 'Rejected';
 
@@ -29,7 +29,7 @@ export interface CompanyStaffRegistration {
 
 export interface RegistrationRecord {
   id: string;
-  role: RecruiterRole;
+  role: RegistrationRole;
   fullName: string;
   email: string;
   phone: string;
@@ -37,6 +37,8 @@ export interface RegistrationRecord {
   industry?: string;
   staffId?: string;
   jobPosition?: string;
+  universityName?: string;
+  campusIdPhotoUrl?: string;
   documentName?: string;
   documentSize?: string;
   documentUrl?: string;

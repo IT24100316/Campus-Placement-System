@@ -5,7 +5,8 @@ class ApiEndpoints {
 
   // Auth
   static String get login => '$baseUrl/auth/login';
-  static String get registerStudent => '$baseUrl/auth/register-student';
+  static String get currentUser => '$baseUrl/auth/me';
+  static String get registerStudent => '$baseUrl/Auth/register-student';
 
   // Profile
   static String get studentProfile => '$baseUrl/students/profile';
@@ -16,6 +17,7 @@ class ApiEndpoints {
   static String jobDetails(String id) => '$baseUrl/jobs/$id';
 
   // Applications
-  static String myApplications(String studentId) => '$baseUrl/applications/student/$studentId';
+  static String myApplications(String studentId) =>
+      '$baseUrl/applications/student/$studentId';
   static String get applyJob => '$baseUrl/applications/apply';
 }
