@@ -48,7 +48,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       const res = await authService.login(email, password);
       if (res.success) {
         onClose();
-        onLoginSuccess(res.role || 'Admin', email.trim(), res.companyName);
+        onLoginSuccess(res.role || 'Admin', res.user?.email || email.trim(), res.companyName);
       } else if (res.isPending && res.record) {
         onClose();
         onPendingFound(res.record);

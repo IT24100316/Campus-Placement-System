@@ -15,11 +15,78 @@ public class AuthService : IAuthService
     private readonly AppDbContext _context;
     private readonly PasswordHasher<User> _passwordHasher = new();
     private readonly IDocumentStorageService _documentStorage;
+    private readonly IJwtService _jwtService;
 
-    public AuthService(AppDbContext context, IDocumentStorageService documentStorage)
+    public AuthService(AppDbContext context, IDocumentStorageService documentStorage, IJwtService jwtService)
     {
         _context = context;
         _documentStorage = documentStorage;
+        _jwtService = jwtService;
+    }
+
+    public async Task<AuthRegisterResultDto> RegisterAsync(
+        RegisterRequestDto dto,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedEmail = dto.Email.Trim().ToLowerInvariant();
+
+        if (dto.Role.Equals("CompanyHR", StringComparison.OrdinalIgnoreCase)
+            || dto.Role.Equals("Company", StringComparison.OrdinalIgnoreCase))
+        {
+            if (string.IsNullOrWhiteSpace(dto.Phone)
+                || string.IsNullOrWhiteSpace(dto.CompanyName)
+                || string.IsNullOrWhiteSpace(dto.Industry))
+            {
+                throw new InvalidOperationException(
+                    "Company registration requires phone, companyName, and industry.");
+            }
+
+            return await RegisterCompanyHrAsync(new RegisterCompanyHrDto
+            {
+                FullName = dto.FullName,
+                Email = normalizedEmail,
+                Password = dto.Password,
+                Phone = dto.Phone,
+                CompanyName = dto.CompanyName,
+                Industry = dto.Industry,
+                BusinessRegistrationDocumentUrl = dto.BusinessRegistrationDocumentUrl ?? string.Empty
+            });
+        }
+
+        if (await _context.Users.AnyAsync(u => u.Email.ToLower() == normalizedEmail, cancellationToken))
+            throw new InvalidOperationException("Email is already registered in the system.");
+
+        if (!Enum.TryParse<UserRole>(dto.Role, true, out var role) || role != UserRole.Student)
+            throw new InvalidOperationException(
+                "Registration supports Student or CompanyHR accounts. Staff accounts require the staff registration endpoint.");
+
+        var user = new User
+        {
+            Id = Guid.NewGuid(),
+            Email = normalizedEmail,
+            Role = role,
+            Status = AccountStatus.Pending,
+            CreatedAt = DateTime.UtcNow
+        };
+        user.PasswordHash = _passwordHasher.HashPassword(user, dto.Password);
+
+        user.StudentProfile = new StudentProfile
+        {
+            UserId = user.Id,
+            FullName = dto.FullName.Trim(),
+            AcademicStatus = "Pending verification"
+        };
+
+        _context.Users.Add(user);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return new AuthRegisterResultDto
+        {
+            Success = true,
+            Message = "User registered successfully",
+            UserId = user.Id,
+            Status = user.Status.ToString()
+        };
     }
 
     /// <summary>
@@ -30,6 +97,7 @@ public class AuthService : IAuthService
         var normalizedEmail = dto.Email.Trim().ToLower();
 
         var user = await _context.Users
+            .Include(u => u.StudentProfile)
             .Include(u => u.CompanyProfile)
             .Include(u => u.CompanyStaffProfile)
                 .ThenInclude(sp => sp!.Company)
@@ -44,9 +112,7 @@ public class AuthService : IAuthService
 
         var isStaff = user.CompanyStaffProfile != null;
         var isHr = user.CompanyProfile != null;
-        var detailedRole = user.Role == UserRole.Admin
-            ? "Admin"
-            : (isStaff ? "CompanyStaff" : (isHr ? "CompanyHR" : user.Role.ToString()));
+        var detailedRole = GetDetailedRole(user);
 
         var companyName = isStaff
             ? user.CompanyStaffProfile?.Company?.CompanyName
@@ -54,7 +120,7 @@ public class AuthService : IAuthService
 
         var fullName = isStaff
             ? user.CompanyStaffProfile?.FullName
-            : user.CompanyProfile?.ContactPersonName;
+            : user.CompanyProfile?.ContactPersonName ?? user.StudentProfile?.FullName;
 
         // Pending approval check
         if (user.Status == AccountStatus.Pending)
@@ -87,6 +153,7 @@ public class AuthService : IAuthService
         }
 
         // Approved active user
+        var authUser = ToAuthUser(user);
         return new AuthLoginResultDto
         {
             UserId = user.Id,
@@ -98,8 +165,45 @@ public class AuthService : IAuthService
             FullName = fullName,
             StaffId = user.CompanyStaffProfile?.StaffId,
             JobPosition = user.CompanyStaffProfile?.JobPosition,
+            Token = _jwtService.GenerateToken(user),
+            User = authUser,
             Message = "Authentication successful."
         };
+    }
+
+    public async Task<AuthUserDto?> GetUserAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        var user = await _context.Users
+            .AsNoTracking()
+            .Include(u => u.StudentProfile)
+            .Include(u => u.CompanyProfile)
+            .Include(u => u.CompanyStaffProfile)
+            .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
+
+        return user == null ? null : ToAuthUser(user);
+    }
+
+    private static AuthUserDto ToAuthUser(User user)
+    {
+        var fullName = user.StudentProfile?.FullName
+            ?? user.CompanyStaffProfile?.FullName
+            ?? user.CompanyProfile?.ContactPersonName;
+
+        return new AuthUserDto
+        {
+            Id = user.Id,
+            FullName = fullName,
+            Email = user.Email,
+            Role = GetDetailedRole(user)
+        };
+    }
+
+    private static string GetDetailedRole(User user)
+    {
+        if (user.Role == UserRole.Admin) return "Admin";
+        if (user.CompanyStaffProfile != null) return "CompanyStaff";
+        if (user.CompanyProfile != null) return "CompanyHR";
+        return user.Role.ToString();
     }
 
     /// <summary>
