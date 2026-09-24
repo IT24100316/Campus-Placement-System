@@ -82,6 +82,8 @@ public class PendingUserDto
     public string? StaffId { get; set; }
     public string? JobPosition { get; set; }
     public string? BusinessRegistrationDocumentUrl { get; set; }
+    public string? UniversityName { get; set; }
+    public string? CampusIdPhotoUrl { get; set; }
     public DateTime CreatedAt { get; set; }
 }
 

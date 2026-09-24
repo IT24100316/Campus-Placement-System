@@ -20,6 +20,8 @@ interface BackendRegistration {
   staffId?: string;
   jobPosition?: string;
   businessRegistrationDocumentUrl?: string;
+  universityName?: string;
+  campusIdPhotoUrl?: string;
   status: AccountApprovalStatus;
   createdAt: string;
 }
@@ -426,7 +428,7 @@ export const authService = {
         const backendUsers: BackendRegistration[] = await res.json();
         const mapped: RegistrationRecord[] = backendUsers.map((u) => ({
           id: u.userId,
-          role: u.role === 'Company HR' ? 'hr' : 'staff',
+          role: u.role === 'Student' ? 'student' : (u.role === 'Company HR' ? 'hr' : 'staff'),
           fullName: u.fullName,
           email: u.email,
           phone: u.phone || '+1 (555) 000-0000',
@@ -434,6 +436,10 @@ export const authService = {
           industry: u.industry,
           staffId: u.staffId,
           jobPosition: u.jobPosition,
+          universityName: u.universityName,
+          campusIdPhotoUrl: u.campusIdPhotoUrl
+            ? `${API_BASE}/documents/view?key=${encodeURIComponent(u.campusIdPhotoUrl)}`
+            : undefined,
           documentName: u.businessRegistrationDocumentUrl?.split('/').pop(),
           documentUrl: u.businessRegistrationDocumentUrl
             ? `${API_BASE}/documents/view?key=${encodeURIComponent(u.businessRegistrationDocumentUrl)}`
