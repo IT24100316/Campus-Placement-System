@@ -13,6 +13,7 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  final _formKey = GlobalKey<FormState>();
   final List<String> _skills = [];
   final List<String> _tools = [];
   
@@ -41,6 +42,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isLoadingTitles = false;
   int? _selectedDomainId;
   int? _selectedJobTitleId;
+  String? _skillsError;
+  String? _toolsError;
+  String? _internshipTypeError;
+  String? _locationError;
 
   static const List<String> degreePrograms = ['BSc (Hons) Information Technology', 'BSc (Hons) Software Engineering', 'BSc (Hons) Computer Science', 'BSc (Hons) Data Science', 'BSc (Hons) Cyber Security'];
   static const List<String> internshipTypes = ['OnSite', 'Hybrid', 'Remote'];
@@ -108,6 +113,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _triggerSaveAnimation() async {
+    final isFormValid = _formKey.currentState?.validate() ?? false;
+    setState(() {
+      _skillsError = _skills.isEmpty ? 'Add at least one skill.' : null;
+      _toolsError = _tools.isEmpty ? 'Add at least one tool or technology.' : null;
+      _internshipTypeError = _selectedWorkArrangements.isEmpty
+          ? 'Select at least one internship type.'
+          : null;
+      _locationError = _selectedLocations.isEmpty
+          ? 'Select at least one preferred location.'
+          : null;
+    });
+
+    if (!isFormValid
+        || _skillsError != null
+        || _toolsError != null
+        || _internshipTypeError != null
+        || _locationError != null) {
+      return;
+    }
+
     setState(() {
       _isSaving = true;
       _saveButtonText = 'Profile Synchronized!';
@@ -223,7 +248,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         children: [
           SingleChildScrollView(
             padding: const EdgeInsets.only(left: 16.0, right: 16.0, top: 16.0, bottom: 100.0),
-            child: Column(
+            child: Form(
+              key: _formKey,
+              child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // Header & Completeness
@@ -282,7 +309,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   title: 'Academic Information',
                   headerBadgeIcon: Icons.verified_user,
                   children: [
-                    _buildInputField('University / Institution', Icons.account_balance, _universityController),
+                    _buildInputField(
+                      'University / Institution',
+                      Icons.account_balance,
+                      _universityController,
+                      validator: _validateRequired,
+                    ),
                     const SizedBox(height: 16),
                     _buildDegreeDropdown(),
                     const SizedBox(height: 16),
@@ -298,7 +330,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       children: [
                         Expanded(child: _buildGpaField()),
                         const SizedBox(width: 12),
-                        Expanded(child: _buildInputField('Expected Grad', Icons.event, _expectedGraduationController)),
+                        Expanded(
+                          child: _buildInputField(
+                            'Expected Grad',
+                            Icons.event,
+                            _expectedGraduationController,
+                            hintText: 'YYYY-MM-DD',
+                            keyboardType: TextInputType.datetime,
+                            validator: _validateExpectedGraduationDate,
+                          ),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 16),
@@ -312,13 +353,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   icon: Icons.track_changes,
                   title: 'Career Goals & Preferences',
                   children: [
-                    _buildInputField('Portfolio URL', Icons.link, _portfolioUrlController),
+                    _buildInputField(
+                      'Portfolio URL',
+                      Icons.link,
+                      _portfolioUrlController,
+                      keyboardType: TextInputType.url,
+                      validator: _validateOptionalUrl,
+                    ),
                     const SizedBox(height: 16),
                     _buildDomainDropdown(),
                     const SizedBox(height: 16),
                     _buildJobTitleDropdown(),
                     const SizedBox(height: 16),
-                    _buildTextAreaField('Career Objectives Summary', _careerObjectivesController),
+                    _buildTextAreaField(
+                      'Career Objectives Summary',
+                      _careerObjectivesController,
+                      validator: _validateCareerObjectives,
+                    ),
                     const SizedBox(height: 16),
                     _buildInternshipTypeChips(),
                     const SizedBox(height: 16),
@@ -340,6 +391,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       controller: _skillController,
                       onAdd: _addSkill,
                       onRemove: (tag) => setState(() => _skills.remove(tag)),
+                      validationMessage: _skillsError,
                       tagColor: AppColors.primary,
                       tagBgColor: AppColors.primary.withValues(alpha: 0.1),
                     ),
@@ -350,12 +402,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       controller: _toolController,
                       onAdd: _addTool,
                       onRemove: (tag) => setState(() => _tools.remove(tag)),
+                      validationMessage: _toolsError,
                       tagColor: Colors.deepPurple,
                       tagBgColor: Colors.deepPurple.withValues(alpha: 0.1),
                     ),
                   ],
                 ),
               ],
+              ),
             ),
           ),
 
@@ -630,7 +684,53 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildInputField(String label, IconData? icon, TextEditingController controller) {
+  String? _validateRequired(String? value) {
+    return value == null || value.trim().isEmpty ? 'This field is required.' : null;
+  }
+
+  String? _validateExpectedGraduationDate(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'Expected graduation date is required.';
+    }
+
+    final date = DateTime.tryParse(value.trim());
+    if (date == null) {
+      return 'Use YYYY-MM-DD.';
+    }
+
+    final today = DateUtils.dateOnly(DateTime.now());
+    return date.isBefore(today) ? 'Date cannot be in the past.' : null;
+  }
+
+  String? _validateOptionalUrl(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return null;
+    }
+
+    final uri = Uri.tryParse(value.trim());
+    return uri != null && uri.hasScheme && uri.hasAuthority
+        ? null
+        : 'Enter a valid URL.';
+  }
+
+  String? _validateCareerObjectives(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'Career objectives are required.';
+    }
+
+    return value.trim().length < 20
+        ? 'Enter at least 20 characters.'
+        : null;
+  }
+
+  Widget _buildInputField(
+    String label,
+    IconData? icon,
+    TextEditingController controller, {
+    String? hintText,
+    TextInputType? keyboardType,
+    String? Function(String?)? validator,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -641,9 +741,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
           decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
           child: TextFormField(
             controller: controller,
+            keyboardType: keyboardType,
+            validator: validator,
             style: const TextStyle(fontSize: 14, color: AppColors.textPrimaryLight),
             decoration: InputDecoration(
               icon: icon != null ? Icon(icon, color: Colors.grey, size: 20) : null,
+              hintText: hintText,
               border: InputBorder.none,
               isDense: true,
               contentPadding: const EdgeInsets.symmetric(vertical: 12),
@@ -672,6 +775,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 .map((status) => DropdownMenuItem(value: status, child: Text(status)))
                 .toList(),
             onChanged: (status) => setState(() => _selectedAcademicStatus = status),
+            validator: _validateRequired,
           ),
         ),
       ],
@@ -700,13 +804,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
               },
             ),
             onChanged: (year) => setState(() => _selectedYearOfStudy = year),
+            validator: (year) => year == null ? 'Select a year.' : null,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildTextAreaField(String label, TextEditingController controller) {
+  Widget _buildTextAreaField(
+    String label,
+    TextEditingController controller, {
+    String? Function(String?)? validator,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -724,6 +833,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           child: TextFormField(
             controller: controller,
             maxLines: 3,
+            validator: validator,
             style: const TextStyle(fontSize: 14, color: AppColors.textPrimaryLight, height: 1.5),
             decoration: const InputDecoration(
               border: InputBorder.none,
@@ -767,6 +877,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 setState(() => _selectedSchedule = newValue);
               }
             },
+            validator: _validateRequired,
           ),
         ),
       ],
@@ -816,6 +927,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
             );
           }).toList(),
         ),
+        if (_locationError != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(_locationError!, style: const TextStyle(color: Colors.red, fontSize: 12)),
+          ),
       ],
     );
   }
@@ -863,6 +979,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
             );
           }).toList(),
         ),
+        if (_internshipTypeError != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(_internshipTypeError!, style: const TextStyle(color: Colors.red, fontSize: 12)),
+          ),
       ],
     );
   }
@@ -887,10 +1008,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
               contentPadding: EdgeInsets.symmetric(vertical: 12),
             ),
             validator: (value) {
-              if (value == null || value.isEmpty) return null;
+              if (value == null || value.trim().isEmpty) return 'GPA is required.';
               final numValue = double.tryParse(value);
               if (numValue == null || numValue < 0.0 || numValue > 4.0) {
-                return 'Invalid';
+                return 'Enter a GPA from 0.00 to 4.00.';
               }
               return null;
             },
@@ -931,6 +1052,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onChanged: (newValue) {
               setState(() => _selectedDegree = newValue);
             },
+            validator: _validateRequired,
           ),
         ),
       ],
@@ -977,6 +1099,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 _fetchJobTitles(newValue);
               }
             },
+            validator: (domainId) => domainId == null || domainId == -1
+                ? 'Select a primary domain.'
+                : null,
           ),
         ),
       ],
@@ -1022,6 +1147,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 });
               }
             },
+            validator: (jobTitleId) => jobTitleId == null || jobTitleId == -1
+                ? 'Select a target job title.'
+                : null,
           ),
         ),
       ],
@@ -1034,6 +1162,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required TextEditingController controller,
     required VoidCallback onAdd,
     required Function(String) onRemove,
+    String? validationMessage,
     required Color tagColor,
     required Color tagBgColor,
   }) {
@@ -1098,6 +1227,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ],
           ),
         ),
+        if (validationMessage != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(validationMessage, style: const TextStyle(color: Colors.red, fontSize: 12)),
+          ),
       ],
     );
   }
