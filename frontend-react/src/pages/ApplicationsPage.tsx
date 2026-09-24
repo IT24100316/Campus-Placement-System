@@ -120,8 +120,6 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({ onNavigateDa
   const [activeTab, setActiveTab] = useState<'pending' | 'approved' | 'disapproved'>('pending');
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>('1'); // Expand first candidate by default
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [candidateToSchedule, setCandidateToSchedule] = useState<Candidate | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
@@ -152,17 +150,6 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({ onNavigateDa
     // Prevent toggle if clicking on quick action buttons
     if ((e.target as HTMLElement).closest('button')) return;
     setExpandedId(prev => (prev === id ? null : id));
-  };
-
-  const openScheduleModal = (candidate: Candidate) => {
-    setCandidateToSchedule(candidate);
-    setIsModalOpen(true);
-  };
-
-  const handleConfirmSchedule = (e: React.FormEvent) => {
-    e.preventDefault();
-    alert(`Interview successfully scheduled for ${candidateToSchedule?.name}!`);
-    setIsModalOpen(false);
   };
 
   return (
@@ -479,11 +466,10 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({ onNavigateDa
                             </button>
                             <button 
                               type="button" 
-                              onClick={() => openScheduleModal(c)}
-                              className="flex-[2] inline-flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-semibold text-white bg-blue-700 rounded-lg hover:bg-blue-800 transition-colors shadow-sm text-center"
+                              className="flex-[2] inline-flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors shadow-sm text-center"
                             >
-                              <span className="material-symbols-outlined text-[16px]">calendar_month</span>
-                              Schedule Interview
+                              <span className="material-symbols-outlined text-[16px]">check_circle</span>
+                              Approve Candidate
                             </button>
                           </div>
                         </div>
@@ -521,80 +507,6 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({ onNavigateDa
       </main>
       
       <Footer />
-
-      {/* Schedule Interview Modal */}
-      {isModalOpen && candidateToSchedule && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 transition-all">
-          <div className="bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-lg overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50/70">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center border border-blue-100">
-                  <span className="material-symbols-outlined text-[18px]">calendar_month</span>
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900">Schedule Interview - {candidateToSchedule.name}</h3>
-                  <p className="text-[11px] text-slate-500">Role: {candidateToSchedule.role}</p>
-                </div>
-              </div>
-              <button 
-                type="button" 
-                onClick={() => setIsModalOpen(false)}
-                className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors"
-              >
-                <span className="material-symbols-outlined text-[18px]">close</span>
-              </button>
-            </div>
-            
-            <form className="p-6 space-y-4" onSubmit={handleConfirmSchedule}>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Interview Date</label>
-                  <div className="relative flex items-center">
-                    <span className="material-symbols-outlined absolute left-3 text-slate-400 text-[18px]">event</span>
-                    <input required type="date" defaultValue="2026-03-24" className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-blue-600/20 outline-none transition-all" />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Interview Time</label>
-                  <div className="relative flex items-center">
-                    <span className="material-symbols-outlined absolute left-3 text-slate-400 text-[18px]">schedule</span>
-                    <input required type="time" defaultValue="14:00" className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-blue-600/20 outline-none transition-all" />
-                  </div>
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Interview Type / Round</label>
-                <select className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-medium focus:ring-2 focus:ring-blue-600/20 outline-none cursor-pointer">
-                  <option value="tech1">Technical Round 1 (FPGA & Systems Architecture)</option>
-                  <option value="screen">Hiring Manager Screen</option>
-                  <option value="pair">Live Embedded Systems Coding</option>
-                  <option value="final">Executive / Final Round</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Interviewer / Host</label>
-                <div className="relative flex items-center">
-                  <span className="material-symbols-outlined absolute left-3 text-slate-400 text-[18px]">person</span>
-                  <input type="text" placeholder="e.g. Dr. Arthur Hayes" defaultValue="Dr. Arthur Hayes (Lead Hardware Architect)" className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-blue-600/20 outline-none transition-all" />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Meeting Notes & Instructions</label>
-                <textarea rows={2} placeholder="Add meeting agenda, video call link details..." defaultValue="Technical discussion on Xilinx Artix-7 RISC-V pipelined core synthesis and FreeRTOS drivers." className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-blue-600/20 outline-none transition-all"></textarea>
-              </div>
-              <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-200">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-900 border border-slate-200 bg-white rounded-lg hover:bg-slate-50 transition-colors">
-                  Cancel
-                </button>
-                <button type="submit" className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-blue-700 rounded-lg hover:bg-blue-800 shadow-sm transition-colors">
-                  <span className="material-symbols-outlined text-[16px]">send</span>
-                  Confirm Schedule
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
