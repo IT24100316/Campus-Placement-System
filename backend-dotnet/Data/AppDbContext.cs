@@ -245,6 +245,9 @@ public class AppDbContext : DbContext
         {
             entity.HasKey(a => a.AppId);
 
+            entity.HasIndex(a => new { a.StudentId, a.JobId })
+                .IsUnique();
+
             entity.Property(a => a.SummaryReport)
                 .HasColumnType("jsonb")
                 .IsRequired();
