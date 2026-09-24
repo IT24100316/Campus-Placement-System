@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { LandingPage } from './pages/LandingPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { AdminDashboardPage } from './pages/AdminDashboardPage';
@@ -9,6 +9,7 @@ import { JobPostingForm } from './components/company/JobPostingForm';
 import { LoginModal } from './components/auth/LoginModal';
 import { Sparkles, UserPlus, Home, LogIn, ShieldCheck, LogOut, Building2, PlusCircle } from 'lucide-react';
 import type { RegistrationRecord } from './types/auth';
+import { authService } from './services/authService';
 
 export type AppView = 'landing' | 'register' | 'login' | 'admin' | 'hr' | 'hr-post-job' | 'applications';
 
@@ -26,7 +27,27 @@ function App() {
     }
   });
 
+  useEffect(() => {
+    if (!localStorage.getItem('token')) {
+      setCurrentUser(null);
+      localStorage.removeItem('campusai_auth_user');
+      return;
+    }
+
+    authService.getCurrentUser()
+      .then((user) => {
+        const verifiedUser = { email: user.email, role: user.role };
+        setCurrentUser(verifiedUser);
+        localStorage.setItem('campusai_auth_user', JSON.stringify(verifiedUser));
+      })
+      .catch(() => {
+        setCurrentUser(null);
+        localStorage.removeItem('campusai_auth_user');
+      });
+  }, []);
+
   const handleLogout = () => {
+    authService.logout();
     setCurrentUser(null);
     localStorage.removeItem('campusai_auth_user');
     setCurrentView('landing');

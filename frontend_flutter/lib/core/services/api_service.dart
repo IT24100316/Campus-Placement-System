@@ -8,6 +8,18 @@ import '../constants/api_endpoints.dart';
 
 class StudentSession {
   static String? userId;
+  static String? token;
+  static String? fullName;
+  static String? email;
+  static String? role;
+
+  static void clear() {
+    userId = null;
+    token = null;
+    fullName = null;
+    email = null;
+    role = null;
+  }
 }
 
 class ApiService {
@@ -63,15 +75,48 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> login(String email, String password) async {
+    StudentSession.clear();
     final response = await http.post(
       Uri.parse(ApiEndpoints.login),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'email': email.trim(), 'password': password}),
     );
     final data = _decode(response);
-    if (data['success'] == true && data['userId'] != null)
-      StudentSession.userId = data['userId'].toString();
-    return data;
+    if (data['isPending'] == true || data['success'] != true) {
+      return data;
+    }
+
+    final token = data['token'] as String?;
+    if (token == null || token.isEmpty) {
+      throw Exception('The authentication server did not return a JWT.');
+    }
+
+    final meResponse = await http.get(
+      Uri.parse(ApiEndpoints.currentUser),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    final user = _decode(meResponse);
+    final userId = user['id']?.toString();
+    if (userId == null) {
+      throw Exception('The authenticated user identity is invalid.');
+    }
+
+    StudentSession.token = token;
+    StudentSession.userId = userId;
+    StudentSession.fullName = user['fullName']?.toString();
+    StudentSession.email = user['email']?.toString();
+    StudentSession.role = user['role']?.toString();
+
+    // Keep the screen-facing shape stable while taking identity exclusively
+    // from the JWT-protected /me response.
+    return {
+      ...data,
+      'userId': userId,
+      'role': user['role'],
+      'email': user['email'],
+      'fullName': user['fullName'],
+      'user': user,
+    };
   }
 
   Future<List<Map<String, dynamic>>> getApplications() async {

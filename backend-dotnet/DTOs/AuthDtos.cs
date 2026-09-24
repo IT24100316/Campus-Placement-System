@@ -12,6 +12,34 @@ public class LoginDto
     public string Password { get; set; } = string.Empty;
 }
 
+public class RegisterRequestDto
+{
+    [Required, MinLength(2)]
+    public string FullName { get; set; } = string.Empty;
+
+    [Required, EmailAddress]
+    public string Email { get; set; } = string.Empty;
+
+    [Required, MinLength(8)]
+    public string Password { get; set; } = string.Empty;
+
+    [Required]
+    public string Role { get; set; } = string.Empty;
+
+    public string? Phone { get; set; }
+    public string? CompanyName { get; set; }
+    public string? Industry { get; set; }
+    public string? BusinessRegistrationDocumentUrl { get; set; }
+}
+
+public class AuthUserDto
+{
+    public Guid Id { get; set; }
+    public string? FullName { get; set; }
+    public string Email { get; set; } = string.Empty;
+    public string Role { get; set; } = string.Empty;
+}
+
 public class RegisterCompanyHrDto
 {
     [Required]
