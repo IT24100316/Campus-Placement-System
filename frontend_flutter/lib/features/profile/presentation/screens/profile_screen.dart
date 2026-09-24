@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/constants/api_endpoints.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -12,23 +13,27 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  final List<String> _skills = ['Python', 'Dart / Flutter', 'TypeScript', 'React', 'PyTorch', 'PostgreSQL'];
-  final List<String> _tools = ['Docker', 'AWS', 'Git & GitHub', 'Kubernetes', 'Figma', 'FastAPI'];
+  final List<String> _skills = [];
+  final List<String> _tools = [];
   
   final TextEditingController _skillController = TextEditingController();
   final TextEditingController _toolController = TextEditingController();
-  final TextEditingController _gpaController = TextEditingController(text: '3.88');
+  final TextEditingController _universityController = TextEditingController();
+  final TextEditingController _gpaController = TextEditingController();
+  final TextEditingController _expectedGraduationController = TextEditingController();
+  final TextEditingController _portfolioUrlController = TextEditingController();
+  final TextEditingController _careerObjectivesController = TextEditingController();
 
-  final Set<String> _selectedWorkArrangements = {'Remote', 'Hybrid'};
-  final Set<String> _selectedLocations = {'Colombo', 'Remote'};
-  String _selectedSchedule = 'Weekday';
+  final Set<String> _selectedWorkArrangements = {};
+  final Set<String> _selectedLocations = {};
+  String? _selectedSchedule;
   String? _selectedDegree;
+  String? _selectedAcademicStatus;
+  int? _selectedYearOfStudy;
 
   bool _isSaving = false;
   String _saveButtonText = 'Save Resume';
   IconData _saveButtonIcon = Icons.verified;
-
-  final String _baseUrl = 'http://127.0.0.1:5168';
 
   List<dynamic> _domains = [];
   List<dynamic> _jobTitles = [];
@@ -49,7 +54,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _fetchDomains() async {
     setState(() => _isLoadingDomains = true);
     try {
-      final response = await http.get(Uri.parse('$_baseUrl/api/Jobs/reference/domains'));
+      final response = await http.get(Uri.parse('${ApiEndpoints.baseUrl}/jobs/reference/domains'));
       if (response.statusCode == 200) {
         setState(() {
           _domains = json.decode(response.body);
@@ -69,7 +74,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _selectedJobTitleId = null;
     });
     try {
-      final response = await http.get(Uri.parse('$_baseUrl/api/Jobs/reference/titles?domainId=$domainId'));
+      final response = await http.get(Uri.parse('${ApiEndpoints.baseUrl}/jobs/reference/titles?domainId=$domainId'));
       if (response.statusCode == 200) {
         setState(() {
           _jobTitles = json.decode(response.body);
@@ -124,7 +129,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void dispose() {
     _skillController.dispose();
     _toolController.dispose();
+    _universityController.dispose();
     _gpaController.dispose();
+    _expectedGraduationController.dispose();
+    _portfolioUrlController.dispose();
+    _careerObjectivesController.dispose();
     super.dispose();
   }
 
@@ -273,15 +282,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   title: 'Academic Information',
                   headerBadgeIcon: Icons.verified_user,
                   children: [
-                    _buildInputField('University / Institution', Icons.account_balance, 'Stanford University / National Institute of Technology'),
+                    _buildInputField('University / Institution', Icons.account_balance, _universityController),
                     const SizedBox(height: 16),
                     _buildDegreeDropdown(),
                     const SizedBox(height: 16),
                     Row(
                       children: [
-                        Expanded(child: _buildDropdownField('Status', null, ['Full-time Student', 'Graduating Senior'])),
+                        Expanded(child: _buildAcademicStatusDropdown()),
                         const SizedBox(width: 12),
-                        Expanded(child: _buildDropdownField('Year of Study', null, ['4th Year (Final)', '3rd Year (Junior)'])),
+                        Expanded(child: _buildYearOfStudyDropdown()),
                       ],
                     ),
                     const SizedBox(height: 16),
@@ -289,7 +298,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       children: [
                         Expanded(child: _buildGpaField()),
                         const SizedBox(width: 12),
-                        Expanded(child: _buildInputField('Expected Grad', Icons.event, 'June 2026')),
+                        Expanded(child: _buildInputField('Expected Grad', Icons.event, _expectedGraduationController)),
                       ],
                     ),
                     const SizedBox(height: 16),
@@ -303,13 +312,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   icon: Icons.track_changes,
                   title: 'Career Goals & Preferences',
                   children: [
-                    _buildInputField('Portfolio URL', Icons.link, 'https://github.com/alexmorgan'),
+                    _buildInputField('Portfolio URL', Icons.link, _portfolioUrlController),
                     const SizedBox(height: 16),
                     _buildDomainDropdown(),
                     const SizedBox(height: 16),
                     _buildJobTitleDropdown(),
                     const SizedBox(height: 16),
-                    _buildTextAreaField('Career Objectives Summary', 'Passionate software engineer focused on building robust scalable systems and generative AI infrastructure. Seeking summer internship or graduate engineering role.'),
+                    _buildTextAreaField('Career Objectives Summary', _careerObjectivesController),
                     const SizedBox(height: 16),
                     _buildInternshipTypeChips(),
                     const SizedBox(height: 16),
@@ -621,7 +630,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildInputField(String label, IconData? icon, String initialValue) {
+  Widget _buildInputField(String label, IconData? icon, TextEditingController controller) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -631,7 +640,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
           decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
           child: TextFormField(
-            initialValue: initialValue,
+            controller: controller,
             style: const TextStyle(fontSize: 14, color: AppColors.textPrimaryLight),
             decoration: InputDecoration(
               icon: icon != null ? Icon(icon, color: Colors.grey, size: 20) : null,
@@ -645,33 +654,59 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildDropdownField(String label, IconData? icon, List<String> items) {
+  Widget _buildAcademicStatusDropdown() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 11, color: AppColors.textSecondaryLight)),
+        const Text('Status', style: TextStyle(fontSize: 11, color: AppColors.textSecondaryLight)),
         const SizedBox(height: 4),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
           decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
-          child: Row(
-            children: [
-              if (icon != null) ...[
-                Icon(icon, color: Colors.grey, size: 20),
-                const SizedBox(width: 8),
-              ],
-              Expanded(
-                child: Text(items.first, style: const TextStyle(fontSize: 13, color: AppColors.textPrimaryLight), maxLines: 1, overflow: TextOverflow.ellipsis),
-              ),
-              const Icon(Icons.expand_more, color: Colors.grey, size: 18),
-            ],
+          child: DropdownButtonFormField<String>(
+            value: _selectedAcademicStatus,
+            hint: const Text('Select status', style: TextStyle(fontSize: 13, color: AppColors.textSecondaryLight)),
+            isExpanded: true,
+            decoration: const InputDecoration(border: InputBorder.none, isDense: true),
+            items: const ['Full-time Student', 'Graduating Senior']
+                .map((status) => DropdownMenuItem(value: status, child: Text(status)))
+                .toList(),
+            onChanged: (status) => setState(() => _selectedAcademicStatus = status),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildTextAreaField(String label, String initialValue) {
+  Widget _buildYearOfStudyDropdown() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Year of Study', style: TextStyle(fontSize: 11, color: AppColors.textSecondaryLight)),
+        const SizedBox(height: 4),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+          decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
+          child: DropdownButtonFormField<int>(
+            value: _selectedYearOfStudy,
+            hint: const Text('Select year', style: TextStyle(fontSize: 13, color: AppColors.textSecondaryLight)),
+            isExpanded: true,
+            decoration: const InputDecoration(border: InputBorder.none, isDense: true),
+            items: List.generate(
+              4,
+              (index) {
+                final year = index + 1;
+                return DropdownMenuItem(value: year, child: Text('Year $year'));
+              },
+            ),
+            onChanged: (year) => setState(() => _selectedYearOfStudy = year),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTextAreaField(String label, TextEditingController controller) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -687,7 +722,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
           child: TextFormField(
-            initialValue: initialValue,
+            controller: controller,
             maxLines: 3,
             style: const TextStyle(fontSize: 14, color: AppColors.textPrimaryLight, height: 1.5),
             decoration: const InputDecoration(
