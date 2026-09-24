@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using backend_dotnet.DTOs;
 using backend_dotnet.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 
 namespace backend_dotnet.Controllers;
 
@@ -16,6 +18,23 @@ public class AuthController : ControllerBase
     public AuthController(IAuthService authService)
     {
         _authService = authService;
+    }
+
+    /// <summary>Registers a student account using the existing User and StudentProfile entities.</summary>
+    [HttpPost("register")]
+    public async Task<IActionResult> Register([FromBody] RegisterRequestDto dto, CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+
+        try
+        {
+            var result = await _authService.RegisterAsync(dto, cancellationToken);
+            return Ok(new { message = result.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
     }
 
     /// <summary>Registers a student and stores the campus ID in the private verification document store.</summary>
@@ -80,16 +99,26 @@ public class AuthController : ControllerBase
         return Ok(new
         {
             success = true,
-            userId = result.UserId,
-            email = result.Email,
-            role = result.Role,
-            status = result.Status,
-            companyName = result.CompanyName,
-            fullName = result.FullName,
-            staffId = result.StaffId,
-            jobPosition = result.JobPosition,
+            token = result.Token,
+            user = result.User,
             message = result.Message
         });
+    }
+
+    /// <summary>Returns the exact user identified by the JWT NameIdentifier claim.</summary>
+    [Authorize]
+    [HttpGet("me")]
+    public async Task<IActionResult> Me(CancellationToken cancellationToken)
+    {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (userIdClaim == null || !Guid.TryParse(userIdClaim, out var userId))
+            return Unauthorized(new { message = "The authentication token does not contain a valid user identifier." });
+
+        var user = await _authService.GetUserAsync(userId, cancellationToken);
+        if (user == null)
+            return Unauthorized(new { message = "The authenticated user no longer exists." });
+
+        return Ok(user);
     }
 
     /// <summary>
