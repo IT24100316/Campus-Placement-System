@@ -23,8 +23,15 @@ void main() {
     );
 
     expect(result.storageKey, 'student/cv.pdf');
+    expect(
+      client.requestUrl,
+      Uri.parse('https://example.test/api/students/upload-cv'),
+    );
     expect(client.authorizationHeader, 'Bearer student-token');
     expect(client.contentType, startsWith('multipart/form-data; boundary='));
+    expect(client.requestBody, contains('name="file"; filename="resume.pdf"'));
+    expect(client.requestBody, contains('content-type: application/pdf'));
+    expect(client.requestBody, contains('%PDF-test'));
   });
 
   test('returns a user-friendly error for an unauthorized upload', () async {
@@ -56,12 +63,16 @@ class _RecordingClient extends http.BaseClient {
   final String responseBody;
   String? authorizationHeader;
   String? contentType;
+  Uri? requestUrl;
+  String? requestBody;
 
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
     authorizationHeader = request.headers['Authorization'];
+    requestUrl = request.url;
+    final requestStream = request.finalize();
     contentType = request.headers['content-type'];
-    await request.finalize().drain<void>();
+    requestBody = utf8.decode(await requestStream.expand((chunk) => chunk).toList());
 
     return http.StreamedResponse(
       Stream<List<int>>.value(utf8.encode(responseBody)),
