@@ -8,6 +8,7 @@ import type {
 
 const STORAGE_KEY_REGISTRATIONS = 'campusai_registrations';
 const STORAGE_KEY_COMPANIES = 'campusai_approved_companies';
+const STORAGE_KEY_TOKEN = 'token';
 
 interface BackendRegistration {
   userId: string;
@@ -20,11 +21,20 @@ interface BackendRegistration {
   staffId?: string;
   jobPosition?: string;
   businessRegistrationDocumentUrl?: string;
+  universityName?: string;
+  campusIdPhotoUrl?: string;
   status: AccountApprovalStatus;
   createdAt: string;
 }
 
 interface BackendCompany { id: string; name: string; industry?: string }
+
+export interface AuthenticatedUser {
+  id: string;
+  fullName?: string;
+  email: string;
+  role: string;
+}
 
 const INITIAL_COMPANIES: ApprovedCompanyOption[] = [
   {
@@ -125,117 +135,87 @@ export const authService = {
     message?: string;
     companyName?: string;
     fullName?: string;
+    user?: AuthenticatedUser;
     record?: RegistrationRecord;
   }> {
     const normalizedEmail = email.trim().toLowerCase();
-
-    // 1. Check for seeded Admin credentials
-    if (normalizedEmail === 'admin@campusai.edu' && password === 'Admin@2025') {
-      try {
-        await fetch(`${API_BASE}/auth/login`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: normalizedEmail, password }),
-        });
-      } catch {
-        // Backend offline fallback
-      }
-      return { 
-        success: true, 
-        role: 'Admin', 
-        companyName: 'CampusAI',
-        fullName: 'Institutional Placement Administrator',
-        message: 'Logged in as Institutional Administrator' 
-      };
-    }
-
-    // 2. Attempt real backend authentication first (Direct DB integration)
     try {
       const res = await fetch(`${API_BASE}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: normalizedEmail, password }),
       });
-      if (res.ok) {
-        const data = await res.json();
-        const roleLabel = data.role === 'CompanyStaff' ? 'Company Staff' : (data.role === 'CompanyHR' ? 'Company HR' : data.role);
-        if (data.isPending) {
-          const rec: RegistrationRecord = {
-            id: data.email,
-            role: data.role === 'CompanyStaff' ? 'staff' : 'hr',
-            fullName: data.fullName || (data.role === 'CompanyStaff' ? 'Staff Member' : 'Company HR'),
-            email: data.email,
-            phone: '+1 (555) 000-0000',
-            companyName: data.companyName || 'Enterprise Partner',
-            staffId: data.staffId,
-            jobPosition: data.jobPosition,
-            status: 'Pending',
-            submittedAt: 'Recently',
-            refCode: data.role === 'CompanyStaff' ? 'STF-2025-ONLINE' : 'REG-2025-ONLINE',
-          };
-          return {
-            success: false,
-            isPending: true,
-            role: roleLabel,
-            record: rec,
-            companyName: data.companyName,
-            fullName: data.fullName,
-            message: data.message || 'Your registration application is currently under administrative review.',
-          };
-        }
-        // Synchronize local storage if backend confirmed Approved status
-        const currentRecords = this.getRegistrations();
-        const localMatch = currentRecords.find((r) => r.email.toLowerCase() === normalizedEmail);
-        if (localMatch && localMatch.status !== 'Approved') {
-          localMatch.status = 'Approved';
-          localStorage.setItem(STORAGE_KEY_REGISTRATIONS, JSON.stringify(currentRecords));
-        }
+      const data = await res.json().catch(() => ({}));
 
-        return { 
-          success: true, 
-          role: roleLabel, 
-          companyName: data.companyName,
-          fullName: data.fullName,
-          message: data.message 
-        };
+      if (!res.ok) {
+        return { success: false, message: data.message || 'Invalid email or password credentials.' };
       }
-    } catch {
-      // Backend offline fallback - continue to local records
-    }
 
-    // 3. Fallback to local storage registered user records
-    const records = this.getRegistrations();
-    const userRecord = records.find((r) => r.email.toLowerCase() === normalizedEmail);
-
-    if (userRecord) {
-      if (userRecord.status === 'Pending') {
+      if (data.isPending) {
+        const roleLabel = data.role === 'CompanyStaff' ? 'Company Staff' : (data.role === 'CompanyHR' ? 'Company HR' : data.role);
+        const rec: RegistrationRecord = {
+          id: data.email,
+          role: data.role === 'CompanyStaff' ? 'staff' : 'hr',
+          fullName: data.fullName || (data.role === 'CompanyStaff' ? 'Staff Member' : 'Company HR'),
+          email: data.email,
+          phone: '+1 (555) 000-0000',
+          companyName: data.companyName || 'Enterprise Partner',
+          staffId: data.staffId,
+          jobPosition: data.jobPosition,
+          status: 'Pending',
+          submittedAt: 'Recently',
+          refCode: data.role === 'CompanyStaff' ? 'STF-2025-ONLINE' : 'REG-2025-ONLINE',
+        };
         return {
           success: false,
           isPending: true,
-          record: userRecord,
-          role: userRecord.role === 'staff' ? 'Company Staff' : 'Company HR',
-          companyName: userRecord.companyName,
-          fullName: userRecord.fullName,
-          message: 'Your registration application is currently under administrative review.',
+          role: roleLabel,
+          record: rec,
+          companyName: data.companyName,
+          fullName: data.fullName,
+          message: data.message || 'Your registration application is currently under administrative review.',
         };
       }
-      if (userRecord.status === 'Rejected') {
-        return {
-          success: false,
-          message: 'Your registration application has been declined by the administrator.',
-        };
+
+      if (!data.token || !data.user) {
+        return { success: false, message: 'The authentication server returned an invalid login response.' };
       }
+
+      localStorage.setItem(STORAGE_KEY_TOKEN, data.token);
+      const user = await this.getCurrentUser(data.token);
+      const roleLabel = user.role === 'CompanyStaff'
+        ? 'Company Staff'
+        : (user.role === 'CompanyHR' ? 'Company HR' : user.role);
+
       return {
         success: true,
-        role: userRecord.role === 'staff' ? 'Company Staff' : 'Company HR',
-        record: userRecord,
-        companyName: userRecord.companyName,
-        fullName: userRecord.fullName,
-        message: 'Welcome back!',
+        role: roleLabel,
+        fullName: user.fullName,
+        user,
+        message: data.message,
       };
+    } catch {
+      localStorage.removeItem(STORAGE_KEY_TOKEN);
+      return { success: false, message: 'Unable to connect to the authentication service.' };
+    }
+  },
+
+  async getCurrentUser(token = localStorage.getItem(STORAGE_KEY_TOKEN)): Promise<AuthenticatedUser> {
+    if (!token) throw new Error('No authentication token is available.');
+
+    const response = await fetch(`${API_BASE}/auth/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) {
+      localStorage.removeItem(STORAGE_KEY_TOKEN);
+      throw new Error('The authentication session is invalid or expired.');
     }
 
-    return { success: false, message: 'Invalid corporate or institutional credentials.' };
+    return response.json();
+  },
+
+  logout(): void {
+    localStorage.removeItem(STORAGE_KEY_TOKEN);
   },
 
   async registerHr(data: CompanyHrRegistration): Promise<RegistrationRecord> {
@@ -267,10 +247,11 @@ export const authService = {
       throw new Error(error.message || 'Business document upload failed.');
     }
     const uploaded: { storageKey: string } = await uploadResponse.json();
-    const registrationResponse = await fetch(`${API_BASE}/auth/register-hr`, {
+    const registrationResponse = await fetch(`${API_BASE}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          role: 'CompanyHR',
           fullName: data.fullName,
           email: data.email,
           phone: data.phone,
@@ -308,9 +289,7 @@ export const authService = {
       refCode,
     };
 
-    // Try sending to .NET backend API
-    try {
-      await fetch(`${API_BASE}/auth/register-staff`, {
+    const registrationResponse = await fetch(`${API_BASE}/auth/register-staff`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -322,9 +301,10 @@ export const authService = {
           staffId: data.staffId,
           jobPosition: data.jobPosition,
         }),
-      });
-    } catch {
-      // Backend offline fallback
+    });
+    if (!registrationResponse.ok) {
+      const error = await registrationResponse.json().catch(() => ({}));
+      throw new Error(error.message || 'Staff registration failed.');
     }
 
     const current = this.getRegistrations();
@@ -426,7 +406,7 @@ export const authService = {
         const backendUsers: BackendRegistration[] = await res.json();
         const mapped: RegistrationRecord[] = backendUsers.map((u) => ({
           id: u.userId,
-          role: u.role === 'Company HR' ? 'hr' : 'staff',
+          role: u.role === 'Student' ? 'student' : (u.role === 'Company HR' ? 'hr' : 'staff'),
           fullName: u.fullName,
           email: u.email,
           phone: u.phone || '+1 (555) 000-0000',
@@ -434,6 +414,10 @@ export const authService = {
           industry: u.industry,
           staffId: u.staffId,
           jobPosition: u.jobPosition,
+          universityName: u.universityName,
+          campusIdPhotoUrl: u.campusIdPhotoUrl
+            ? `${API_BASE}/documents/view?key=${encodeURIComponent(u.campusIdPhotoUrl)}`
+            : undefined,
           documentName: u.businessRegistrationDocumentUrl?.split('/').pop(),
           documentUrl: u.businessRegistrationDocumentUrl
             ? `${API_BASE}/documents/view?key=${encodeURIComponent(u.businessRegistrationDocumentUrl)}`

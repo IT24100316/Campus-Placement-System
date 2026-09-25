@@ -11,7 +11,7 @@ class ApiConfig {
     'API_BASE_URL',
   );
 
-  static const String _desktopAndWebBaseUrl = 'http://localhost:5168/api';
+  static const String _desktopAndWebBaseUrl = 'http://192.168.1.4:5168/api';
   static const String _androidEmulatorBaseUrl = 'http://10.0.2.2:5168/api';
 
   static String get baseUrl {

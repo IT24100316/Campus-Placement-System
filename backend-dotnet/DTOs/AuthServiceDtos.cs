@@ -16,6 +16,8 @@ public class AuthLoginResultDto
     public string? FullName { get; set; }
     public string? StaffId { get; set; }
     public string? JobPosition { get; set; }
+    public string? Token { get; set; }
+    public AuthUserDto? User { get; set; }
 }
 
 public class AuthRegisterResultDto

@@ -148,6 +148,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
         // Enforce strict category tab role validation
         const roleCheck = validateRoleTab(res.role, selectedRole);
         if (!roleCheck.match) {
+          authService.logout();
           setAuthAlert({
             type: 'error',
             title: 'Role Category Mismatch',
@@ -167,7 +168,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 
         setTimeout(() => {
           const roleLabel = res.role || (selectedRole === 'admin' ? 'Admin' : (selectedRole === 'staff' ? 'Company Staff' : 'Company HR'));
-          onLoginSuccess(roleLabel, email.trim(), res.companyName);
+          onLoginSuccess(roleLabel, res.user?.email || email.trim(), res.companyName);
         }, 800);
       } else if (res.isPending && res.record) {
         const roleCheck = validateRoleTab(res.role || res.record.role, selectedRole);

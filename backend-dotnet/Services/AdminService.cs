@@ -25,32 +25,43 @@ public class AdminService : IAdminService
     public async Task<IEnumerable<PendingUserDto>> GetPendingApprovalsAsync()
     {
         return await _context.Users
+            .Include(u => u.StudentProfile)
             .Include(u => u.CompanyProfile)
             .Include(u => u.CompanyStaffProfile)
                 .ThenInclude(csp => csp!.Company)
-            .Where(u => u.Role == UserRole.Company && u.Status == AccountStatus.Pending)
+            .Where(u => u.Role != UserRole.Admin && u.Status == AccountStatus.Pending)
             .OrderByDescending(u => u.CreatedAt)
             .Select(u => new PendingUserDto
             {
                 UserId = u.Id,
                 Email = u.Email,
-                FullName = u.CompanyProfile != null
+                FullName = u.StudentProfile != null
+                    ? u.StudentProfile.FullName
+                    : u.CompanyProfile != null
                     ? u.CompanyProfile.ContactPersonName
                     : (u.CompanyStaffProfile != null ? u.CompanyStaffProfile.FullName : "Unknown"),
-                Role = u.CompanyProfile != null ? "Company HR" : "Company Staff",
+                Role = u.StudentProfile != null
+                    ? "Student"
+                    : (u.CompanyProfile != null ? "Company HR" : "Company Staff"),
                 Status = u.Status.ToString(),
-                CompanyName = u.CompanyProfile != null
+                CompanyName = u.StudentProfile != null
+                    ? u.StudentProfile.UniversityName
+                    : u.CompanyProfile != null
                     ? u.CompanyProfile.CompanyName
                     : (u.CompanyStaffProfile != null && u.CompanyStaffProfile.Company != null
                         ? u.CompanyStaffProfile.Company.CompanyName
                         : "N/A"),
                 Industry = u.CompanyProfile != null ? u.CompanyProfile.Industry : null,
-                Phone = u.CompanyProfile != null ? u.CompanyProfile.Phone : null,
+                Phone = u.StudentProfile != null
+                    ? u.StudentProfile.Phone
+                    : (u.CompanyProfile != null ? u.CompanyProfile.Phone : null),
                 StaffId = u.CompanyStaffProfile != null ? u.CompanyStaffProfile.StaffId : null,
                 JobPosition = u.CompanyStaffProfile != null ? u.CompanyStaffProfile.JobPosition : null,
                 BusinessRegistrationDocumentUrl = u.CompanyProfile != null
                     ? u.CompanyProfile.BusinessRegistrationDocumentUrl
                     : null,
+                UniversityName = u.StudentProfile != null ? u.StudentProfile.UniversityName : null,
+                CampusIdPhotoUrl = u.StudentProfile != null ? u.StudentProfile.CampusIdPhotoUrl : null,
                 CreatedAt = u.CreatedAt
             })
             .ToListAsync();
@@ -61,12 +72,12 @@ public class AdminService : IAdminService
         User? user = null;
         if (Guid.TryParse(identifier, out var parsedGuid))
         {
-            user = await _context.Users.Include(u => u.CompanyProfile).Include(u => u.CompanyStaffProfile).FirstOrDefaultAsync(u => u.Id == parsedGuid);
+            user = await _context.Users.Include(u => u.StudentProfile).Include(u => u.CompanyProfile).Include(u => u.CompanyStaffProfile).FirstOrDefaultAsync(u => u.Id == parsedGuid);
         }
         if (user == null)
         {
             var normalized = identifier.Trim().ToLower();
-            user = await _context.Users.Include(u => u.CompanyProfile).Include(u => u.CompanyStaffProfile).FirstOrDefaultAsync(u => u.Email.ToLower() == normalized);
+            user = await _context.Users.Include(u => u.StudentProfile).Include(u => u.CompanyProfile).Include(u => u.CompanyStaffProfile).FirstOrDefaultAsync(u => u.Email.ToLower() == normalized);
         }
 
         if (user == null)
@@ -120,7 +131,7 @@ public class AdminService : IAdminService
         }
 
         await _context.SaveChangesAsync();
-        var displayName = user.CompanyProfile?.ContactPersonName ?? user.CompanyStaffProfile?.FullName ?? user.Email;
+        var displayName = user.StudentProfile?.FullName ?? user.CompanyProfile?.ContactPersonName ?? user.CompanyStaffProfile?.FullName ?? user.Email;
         var emailSent = await _emailService.SendAccountDecisionAsync(user.Email, displayName, true);
 
         return new AdminApprovalResponseDto
@@ -139,12 +150,12 @@ public class AdminService : IAdminService
         User? user = null;
         if (Guid.TryParse(identifier, out var parsedGuid))
         {
-            user = await _context.Users.Include(u => u.CompanyProfile).Include(u => u.CompanyStaffProfile).FirstOrDefaultAsync(u => u.Id == parsedGuid);
+            user = await _context.Users.Include(u => u.StudentProfile).Include(u => u.CompanyProfile).Include(u => u.CompanyStaffProfile).FirstOrDefaultAsync(u => u.Id == parsedGuid);
         }
         if (user == null)
         {
             var normalized = identifier.Trim().ToLower();
-            user = await _context.Users.Include(u => u.CompanyProfile).Include(u => u.CompanyStaffProfile).FirstOrDefaultAsync(u => u.Email.ToLower() == normalized);
+            user = await _context.Users.Include(u => u.StudentProfile).Include(u => u.CompanyProfile).Include(u => u.CompanyStaffProfile).FirstOrDefaultAsync(u => u.Email.ToLower() == normalized);
         }
 
         if (user == null)
@@ -152,7 +163,7 @@ public class AdminService : IAdminService
 
         user.Status = AccountStatus.Rejected;
         await _context.SaveChangesAsync();
-        var displayName = user.CompanyProfile?.ContactPersonName ?? user.CompanyStaffProfile?.FullName ?? user.Email;
+        var displayName = user.StudentProfile?.FullName ?? user.CompanyProfile?.ContactPersonName ?? user.CompanyStaffProfile?.FullName ?? user.Email;
         var emailSent = await _emailService.SendAccountDecisionAsync(user.Email, displayName, false);
 
         return new AdminApprovalResponseDto

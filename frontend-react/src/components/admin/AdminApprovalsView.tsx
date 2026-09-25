@@ -13,6 +13,8 @@ import {
   Filter,
   ArrowLeft,
   UserPlus,
+  GraduationCap,
+  Image as ImageIcon,
 } from 'lucide-react';
 import type { RegistrationRecord, AccountApprovalStatus } from '../../types/auth';
 import { authService } from '../../services/authService';
@@ -26,7 +28,7 @@ export const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
   onBackToHome,
 }) => {
   const [records, setRecords] = useState<RegistrationRecord[]>([]);
-  const [filter, setFilter] = useState<'all' | 'hr' | 'staff' | 'pending'>('pending');
+  const [filter, setFilter] = useState<'all' | 'hr' | 'staff' | 'student' | 'pending'>('pending');
   const [selectedRecord, setSelectedRecord] = useState<RegistrationRecord | null>(null);
   const [actionError, setActionError] = useState('');
 
@@ -65,12 +67,14 @@ export const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
     if (filter === 'pending') return r.status === 'Pending';
     if (filter === 'hr') return r.role === 'hr';
     if (filter === 'staff') return r.role === 'staff';
+    if (filter === 'student') return r.role === 'student';
     return true;
   });
 
   const pendingCount = records.filter((r) => r.status === 'Pending').length;
   const hrCount = records.filter((r) => r.role === 'hr').length;
   const staffCount = records.filter((r) => r.role === 'staff').length;
+  const studentCount = records.filter((r) => r.role === 'student').length;
   const approvedCount = records.filter((r) => r.status === 'Approved').length;
 
   const renderStatusBadge = (status: AccountApprovalStatus) => {
@@ -112,7 +116,7 @@ export const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
             Pending User Approvals
           </h1>
           <p className="text-sm text-slate-500 mt-1">
-            Review corporate recruiter profiles, verify statutory documents, and authorize campus placement seats.
+            Review student and recruiter registrations, verify identity documents, and approve or reject access.
           </p>
         </div>
 
@@ -142,7 +146,16 @@ export const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
       </div>
 
       {/* KPI Statistic Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 my-6">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 my-6">
+        <div className="p-4 rounded-xl bg-white border border-slate-200/80 shadow-sm flex flex-col">
+          <div className="flex items-center justify-between text-violet-600 mb-1">
+            <span className="text-xs font-semibold uppercase tracking-wide">Students</span>
+            <GraduationCap className="w-4 h-4" />
+          </div>
+          <span className="text-2xl font-bold text-slate-900">{studentCount}</span>
+          <span className="text-[11px] text-slate-500 mt-0.5">Campus ID verification</span>
+        </div>
+
         <div className="p-4 rounded-xl bg-white border border-slate-200/80 shadow-sm flex flex-col">
           <div className="flex items-center justify-between text-amber-600 mb-1">
             <span className="text-xs font-semibold uppercase tracking-wide">Waiting Approval</span>
@@ -184,6 +197,15 @@ export const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
       {/* Filter Tabs */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div className="inline-flex p-1 rounded-lg bg-slate-100 border border-slate-200 text-xs">
+          <button
+            type="button"
+            onClick={() => setFilter('student')}
+            className={`px-3 py-1.5 rounded-md font-semibold transition-all cursor-pointer ${
+              filter === 'student' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            Students ({studentCount})
+          </button>
           <button
             type="button"
             onClick={() => setFilter('pending')}
@@ -236,9 +258,9 @@ export const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
               <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider">
                 <th className="py-3.5 px-4">Applicant &amp; Email</th>
                 <th className="py-3.5 px-4">Role</th>
-                <th className="py-3.5 px-4">Corporate Entity</th>
-                <th className="py-3.5 px-4">Designation / Staff ID</th>
-                <th className="py-3.5 px-4">BR Document</th>
+                <th className="py-3.5 px-4">Organization</th>
+                <th className="py-3.5 px-4">Profile Details</th>
+                <th className="py-3.5 px-4">Verification Document</th>
                 <th className="py-3.5 px-4">Status</th>
                 <th className="py-3.5 px-4 text-right">Actions</th>
               </tr>
@@ -268,7 +290,12 @@ export const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
 
                     {/* Role Badge */}
                     <td className="py-3.5 px-4">
-                      {item.role === 'hr' ? (
+                      {item.role === 'student' ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-violet-50 text-violet-700 border border-violet-200">
+                          <GraduationCap className="w-3 h-3" />
+                          Student
+                        </span>
+                      ) : item.role === 'hr' ? (
                         <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
                           <Building2 className="w-3 h-3" />
                           Company HR
@@ -286,14 +313,16 @@ export const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
                       <div className="flex flex-col">
                         <span className="font-semibold text-slate-800">{item.companyName}</span>
                         <span className="text-[11px] text-slate-500">
-                          {item.role === 'hr' ? item.industry : 'Affiliated Seat'}
+                          {item.role === 'student' ? 'University / Campus' : (item.role === 'hr' ? item.industry : 'Affiliated Seat')}
                         </span>
                       </div>
                     </td>
 
                     {/* Designation / Staff ID */}
                     <td className="py-3.5 px-4">
-                      {item.role === 'hr' ? (
+                      {item.role === 'student' ? (
+                        <span className="text-slate-600 font-medium">Pending identity verification</span>
+                      ) : item.role === 'hr' ? (
                         <span className="text-slate-600 font-medium">Head of Talent Acquisition</span>
                       ) : (
                         <div className="flex flex-col">
@@ -307,7 +336,27 @@ export const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
 
                     {/* BR Document */}
                     <td className="py-3.5 px-4">
-                      {item.role === 'hr' ? (
+                      {item.role === 'student' ? (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedRecord(item)}
+                          className="group inline-flex items-center gap-2 rounded-lg border border-violet-200 bg-violet-50 p-1.5 pr-2.5 text-violet-700 hover:bg-violet-100 transition-colors cursor-pointer"
+                          title="View campus ID image"
+                        >
+                          {item.campusIdPhotoUrl ? (
+                            <img
+                              src={item.campusIdPhotoUrl}
+                              alt={`${item.fullName}'s campus ID`}
+                              className="h-10 w-14 rounded object-cover border border-violet-200 bg-white"
+                            />
+                          ) : (
+                            <span className="flex h-10 w-14 items-center justify-center rounded border border-violet-200 bg-white">
+                              <ImageIcon className="h-5 w-5" />
+                            </span>
+                          )}
+                          <span className="font-semibold text-[11px]">View ID</span>
+                        </button>
+                      ) : item.role === 'hr' ? (
                         <button
                           type="button"
                           onClick={() => setSelectedRecord(item)}
@@ -387,7 +436,7 @@ export const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
       {/* Document & Applicant Detail Modal */}
       {selectedRecord && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-xl w-full max-w-xl p-6 relative">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-xl w-full max-w-2xl max-h-[92vh] overflow-y-auto p-6 relative">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
                 <ShieldCheck className="w-5 h-5 text-primary" />
@@ -413,11 +462,13 @@ export const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
                 <div>
                   <span className="text-slate-400 uppercase font-semibold text-[10px]">Role</span>
                   <p className="font-bold text-slate-900 text-sm mt-0.5">
-                    {selectedRecord.role === 'hr' ? 'Company HR' : 'Company Staff'}
+                    {selectedRecord.role === 'student'
+                      ? 'Student'
+                      : (selectedRecord.role === 'hr' ? 'Company HR' : 'Company Staff')}
                   </p>
                 </div>
                 <div>
-                  <span className="text-slate-400 uppercase font-semibold text-[10px]">Corporate Email</span>
+                  <span className="text-slate-400 uppercase font-semibold text-[10px]">Email Address</span>
                   <p className="font-semibold text-slate-800 mt-0.5">{selectedRecord.email}</p>
                 </div>
                 <div>
@@ -425,15 +476,21 @@ export const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
                   <p className="font-semibold text-slate-800 mt-0.5">{selectedRecord.phone}</p>
                 </div>
                 <div>
-                  <span className="text-slate-400 uppercase font-semibold text-[10px]">Registered Company</span>
+                  <span className="text-slate-400 uppercase font-semibold text-[10px]">
+                    {selectedRecord.role === 'student' ? 'University' : 'Registered Company'}
+                  </span>
                   <p className="font-bold text-primary mt-0.5">{selectedRecord.companyName}</p>
                 </div>
                 <div>
                   <span className="text-slate-400 uppercase font-semibold text-[10px]">
-                    {selectedRecord.role === 'hr' ? 'Industry Vertical' : 'Staff ID / Designation'}
+                    {selectedRecord.role === 'student'
+                      ? 'Verification State'
+                      : (selectedRecord.role === 'hr' ? 'Industry Vertical' : 'Staff ID / Designation')}
                   </span>
                   <p className="font-semibold text-slate-800 mt-0.5">
-                    {selectedRecord.role === 'hr'
+                    {selectedRecord.role === 'student'
+                      ? 'Campus ID awaiting admin review'
+                      : selectedRecord.role === 'hr'
                       ? selectedRecord.industry
                       : `${selectedRecord.staffId} (${selectedRecord.jobPosition})`}
                   </p>
@@ -465,6 +522,33 @@ export const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
                       <span className="px-2 py-0.5 bg-slate-100 text-slate-500 font-semibold text-[11px] rounded">No upload</span>
                     )}
                   </div>
+                </div>
+              )}
+
+              {selectedRecord.role === 'student' && (
+                <div className="p-4 rounded-xl border border-violet-200 bg-violet-50/40">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="font-semibold text-slate-800">Student Campus ID</span>
+                    <span className="text-[11px] text-violet-700 font-semibold flex items-center gap-1">
+                      <ImageIcon className="w-3.5 h-3.5" /> Identity evidence
+                    </span>
+                  </div>
+                  {selectedRecord.campusIdPhotoUrl ? (
+                    <a href={selectedRecord.campusIdPhotoUrl} target="_blank" rel="noreferrer" className="block">
+                      <img
+                        src={selectedRecord.campusIdPhotoUrl}
+                        alt={`${selectedRecord.fullName}'s campus ID document`}
+                        className="max-h-80 w-full rounded-xl border border-slate-200 bg-white object-contain shadow-sm"
+                      />
+                      <span className="mt-2 block text-center text-[11px] font-semibold text-violet-700">
+                        Open full-size image
+                      </span>
+                    </a>
+                  ) : (
+                    <div className="rounded-lg border border-dashed border-violet-300 bg-white px-4 py-8 text-center text-slate-500">
+                      Campus ID image is unavailable.
+                    </div>
+                  )}
                 </div>
               )}
 
