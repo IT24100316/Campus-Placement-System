@@ -7,7 +7,7 @@
 ---
 
 ## 🎯 Executive Summary
-Today's development sprint focused on streamlining and refining the **HR Dashboard (HrLandingPage)**. We removed redundant navigation elements, improved the core filtering mechanisms for candidate matching, and eliminated unused code to maintain a clean, high-performance UI.
+Today's development sprint focused on streamlining and refining the **HR Dashboard (HrLandingPage)**. We removed redundant navigation elements, improved the core filtering mechanisms for candidate matching, introduced a polished delete confirmation modal, and implemented strict backend validation to prevent duplicate active job drives.
 
 ---
 
@@ -30,26 +30,34 @@ Today's development sprint focused on streamlining and refining the **HR Dashboa
 * **Type Augmentation**: Added `cvPdfUrl` directly into the `ShortlistedCandidate` interface inside `types/company.ts` to properly support upcoming resume viewing features without breaking strict mode.
 * **Zero-Error Builds**: Guaranteed the frontend compiles perfectly in production by successfully executing `npm run build` with zero warnings or errors.
 
+### 4. Robust Job Deletion & Duplicate Prevention
+* **Custom Delete Verification Modal**: Replaced standard browser `window.confirm` dialogs with a beautiful, custom React modal in `HrLandingPage.tsx` using `rose-500` accents to clearly warn recruiters about the pipeline impact of deleting a job drive.
+* **Duplicate Active Job Prevention (`JobService.cs`)**: Implemented strict backend validation that prevents a company from creating a new job drive if an active drive with the same title already exists. This natively resolves a frontend issue where candidates from identical drives were being improperly clumped together under a single filter string.
+
 ---
 
 ## 📂 Modified Files
 | File | Type | Changes |
 | :--- | :--- | :--- |
 | `frontend-react/src/App.tsx` | Frontend | Removed floating quick switcher navigation and unused imports. |
-| `frontend-react/src/pages/HrLandingPage.tsx` | Frontend | Pruned top navigation, removed contact desk and banners, added min/max range inputs for GPA/Score, added custom text input for competencies, fixed TS errors. |
+| `frontend-react/src/pages/HrLandingPage.tsx` | Frontend | Pruned top navigation, added range inputs, implemented custom Delete Verification Modal, fixed TS errors. |
 | `frontend-react/src/types/company.ts` | Frontend | Added `cvPdfUrl` property to `ShortlistedCandidate` model. |
 | `backend-dotnet/DTOs/CompanyDtos.cs` | Backend | Synced `CvPdfUrl` property to `CompanyCandidateDto`. |
+| `backend-dotnet/Services/JobService.cs` | Backend | Added duplicate active job validation to `CreateJobAsync`. |
 
 ---
 
 ## ✅ Quality & Verification Checks
 1. **Frontend Production Build**: Successfully ran `tsc -b && vite build` with zero errors.
 2. **Visual Fidelity**: Verified appropriate vertical spacing is maintained after removing the top banner elements.
+3. **Backend Validation**: Confirmed that `JobService.cs` correctly identifies and blocks duplicate active job creation.
 
 ---
 
 ## 🚀 Git Commit Log for Today
 1. `[feat(hr-portal): streamline HR dashboard UI by removing redundant navigation elements, contact cards, banners, and resolving type errors]`
+2. `[feat(hr-portal): add beautiful delete verification modal with pipeline impact warning]`
+3. `[fix(hr-portal): prevent duplicate active job drives for the same role]`
 
 <br><br>
 # 📋 Comprehensive Daily Work Summary
