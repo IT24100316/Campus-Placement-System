@@ -25,3 +25,12 @@ To replace the old, manual synchronous logic with the new asynchronous webhook d
 
 **Purpose:** 
 To give the Python AI Service a secure, HTTP-accessible door to send its data back to the .NET orchestrator without requiring human intervention.
+
+## Step 4 & 5: Build and Enable the Automated Engine
+**Summary of Changes:**
+- Created a new background worker class: `EvaluationTriggerService.cs`. This service runs in a continuous loop in the background while the .NET app is alive.
+- The service wakes up every 30 seconds, uses scoped dependency injection to query the database, finds `Pending` applications, locks them as `Processing`, and automatically makes an asynchronous, fire-and-forget HTTP request to the Python AI.
+- In `Program.cs`, we registered this service (`builder.Services.AddHostedService<EvaluationTriggerService>();`) so the .NET runtime automatically starts it.
+
+**Purpose:** 
+To completely eliminate human involvement in the triggering process. .NET is now fully autonomous: scanning the database and orchestrating Agent 3 on its own.
