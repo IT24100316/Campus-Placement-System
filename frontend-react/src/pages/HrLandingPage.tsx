@@ -22,6 +22,9 @@ import {
   X,
   Search,
   RotateCcw,
+  Eye,
+  Trash2,
+  Edit,
 } from 'lucide-react';
 import type { CompanyDashboardData } from '../types/company';
 import { companyService } from '../services/companyService';
@@ -57,6 +60,7 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
   const [jobStatusFilter, setJobStatusFilter] = useState('all');
   const [jobSortBy, setJobSortBy] = useState<'default' | 'matches-desc' | 'gpa-desc' | 'deadline-asc'>('default');
   const [jobsCurrentPage, setJobsCurrentPage] = useState(1);
+  const [selectedJobDetails, setSelectedJobDetails] = useState<any>(null); // To store job details for modal
   const JOBS_PER_PAGE = 6;
 
   // If a new job was just published, ensure we are on page 1 with clear filters so it's immediately visible
@@ -96,6 +100,22 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
       isMounted = false;
     };
   }, [userEmail]);
+
+  const handleDeleteJob = async (jobId: string) => {
+    if (!window.confirm('Are you sure you want to completely remove this job drive? This cannot be undone.')) {
+      return;
+    }
+    const success = await companyService.deleteJob(jobId);
+    if (success && dashboardData) {
+      setDashboardData({
+        ...dashboardData,
+        activeJobs: dashboardData.activeJobs.filter((j) => j.jobId !== jobId),
+      });
+      alert('Job deleted successfully from database.');
+    } else {
+      alert('Failed to delete job.');
+    }
+  };
 
   const companyName = dashboardData?.companyName || initialCompanyName || 'Virtusa Corporation';
   const orgCode = dashboardData?.orgCode || 'VIR-8821';
@@ -890,44 +910,118 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                           <h3 className="font-display text-base font-bold text-slate-900 group-hover:text-primary transition-colors">
                             {job.jobTitle}
                           </h3>
-                          <p className="text-xs text-slate-500 mt-0.5">{job.targetDomain}</p>
-                          <p className="text-[11px] text-slate-400 mt-0.5 flex items-center gap-1">
-                            <span>📍</span>
-                            <span>{job.locationCity}</span>
+                          <p className="text-xs text-slate-500 mt-0.5 font-medium">{job.targetDomain}</p>
+                          <p className="text-[11px] text-slate-500 mt-1.5 line-clamp-2 leading-relaxed">
+                            {job.jobDescriptionSummary}
                           </p>
                         </div>
 
-                        <div className="flex flex-wrap gap-1.5 pt-1">
-                          <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[11px] font-medium">
-                            Min GPA: {job.minimumGPA}
-                          </span>
-                          {job.mandatorySkills.slice(0, 3).map((s) => (
-                            <span
-                              key={s}
-                              className="px-2 py-0.5 rounded bg-blue-50 text-blue-800 text-[11px] font-medium"
-                            >
-                              {s}
+                        {/* Full Structured Job Details */}
+                        <div className="grid grid-cols-2 gap-2 pt-2 mt-2 border-t border-slate-100">
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Location</span>
+                            <span className="text-xs text-slate-700 font-medium flex items-center gap-1">📍 {job.locationCity}</span>
+                          </div>
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Duration</span>
+                            <span className="text-xs text-slate-700 font-medium">⏱️ {job.durationMonths} Months</span>
+                          </div>
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Compensation</span>
+                            <span className="text-xs text-slate-700 font-medium">
+                              💰 {job.stipendOffered ? job.stipendAmountOrDetails || 'Paid' : 'Unpaid'}
                             </span>
-                          ))}
-                          {job.mandatorySkills.length > 3 && (
-                            <span className="px-1.5 py-0.5 rounded bg-slate-50 text-slate-500 text-[10px] font-medium">
-                              +{job.mandatorySkills.length - 3}
+                          </div>
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Deadline</span>
+                            <span className="text-xs text-slate-700 font-medium">
+                              📅 {new Date(job.applicationDeadline).toLocaleDateString()}
                             </span>
-                          )}
+                          </div>
                         </div>
 
-                        <div className="bg-slate-50 p-3 rounded-lg flex items-center justify-between mt-1 border border-slate-100">
+                        {/* Requirements & Skills */}
+                        <div className="pt-2 mt-2 border-t border-slate-100">
+                          <div className="flex flex-col gap-1.5">
+                            <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Key Requirements</span>
+                            <div className="flex flex-wrap gap-1.5">
+                              <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-100 text-[10px] font-semibold">
+                                Min GPA: {job.minimumGPA}
+                              </span>
+                              <span className="px-2 py-0.5 rounded bg-purple-50 text-purple-800 border border-purple-100 text-[10px] font-semibold">
+                                Year: {job.allowedYearsOfStudy.join(', ')}
+                              </span>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5 mt-1">
+                              {job.mandatorySkills.map((s) => (
+                                <span
+                                  key={s}
+                                  className="px-2 py-0.5 rounded bg-blue-50 text-blue-800 border border-blue-100 text-[10px] font-medium"
+                                >
+                                  {s}
+                                </span>
+                              ))}
+                              {job.niceToHaveSkills.length > 0 && job.niceToHaveSkills.map((s) => (
+                                <span
+                                  key={`nice-${s}`}
+                                  className="px-2 py-0.5 rounded bg-slate-50 text-slate-600 border border-slate-200 text-[10px] font-medium opacity-80"
+                                >
+                                  {s}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="bg-slate-50 p-3 rounded-lg flex items-center justify-between mt-3 border border-slate-100 shadow-inner">
                           <div className="flex flex-col">
                             <span className="font-display text-lg font-bold text-slate-900">
                               {job.matchesVerified}
                             </span>
-                            <span className="text-[10px] text-slate-500">Matches Verified</span>
+                            <span className="text-[10px] text-slate-500 font-medium">Matches Verified</span>
                           </div>
-                          <span className="text-xs text-primary font-semibold">100% Gated Match</span>
+                          <span className="text-[11px] text-emerald-600 font-bold bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100">
+                            ✓ 100% Gated Match
+                          </span>
                         </div>
                       </div>
 
-                      <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between">
+                      <div className="pt-4 mt-4 border-t border-slate-100 flex flex-col gap-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedJobDetails(job)}
+                            className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 text-xs font-semibold hover:bg-slate-50 transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
+                            title="View Full Job Details"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            <span>View Details</span>
+                          </button>
+
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                alert('Update Job Drive flow is not fully implemented yet.');
+                              }}
+                              className="px-2.5 py-1.5 rounded-md bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 font-semibold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                              title="Update Criteria"
+                            >
+                              <Edit className="w-3.5 h-3.5" />
+                              <span>Update</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteJob(job.jobId)}
+                              className="px-2.5 py-1.5 rounded-md bg-rose-50 text-rose-600 hover:bg-rose-100 hover:text-rose-700 font-semibold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                              title="Delete Drive"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>Delete</span>
+                            </button>
+                          </div>
+                        </div>
+
                         <button
                           type="button"
                           onClick={() => {
@@ -937,17 +1031,10 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                             const element = document.getElementById('candidates-section');
                             element?.scrollIntoView({ behavior: 'smooth' });
                           }}
-                          className="text-primary text-xs font-semibold hover:underline flex items-center gap-1 cursor-pointer"
+                          className="w-full py-2 bg-slate-900 text-white rounded-lg text-xs font-semibold hover:bg-slate-800 transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-sm group"
                         >
-                          <span>View Matched Candidates</span>
-                          <ArrowRight className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          className="text-slate-400 hover:text-slate-700 p-1 cursor-pointer"
-                          title="Edit Criteria"
-                        >
-                          <SlidersHorizontal className="w-4 h-4" />
+                          <span>View Screened Candidates</span>
+                          <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
                         </button>
                       </div>
                     </div>
@@ -1617,6 +1704,164 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
           </div>
         </div>
       </footer>
+
+      {/* -------------------------------------------------------------
+          Job Details Modal
+         ------------------------------------------------------------- */}
+      {selectedJobDetails && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200">
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between sticky top-0 bg-white z-10">
+              <div>
+                <h2 className="text-xl font-display font-bold text-slate-900">
+                  {selectedJobDetails.jobTitle}
+                </h2>
+                <p className="text-sm text-slate-500 font-medium mt-0.5 flex items-center gap-2">
+                  <span>{selectedJobDetails.targetDomain}</span>
+                  <span>•</span>
+                  <span className="flex items-center gap-1">📍 {selectedJobDetails.locationCity}</span>
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedJobDetails(null)}
+                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-full transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto flex-1 space-y-6">
+              
+              {/* Top Overview Cards */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Duration</span>
+                  <div className="text-sm font-semibold text-slate-900 mt-0.5">{selectedJobDetails.durationMonths} Months</div>
+                </div>
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Compensation</span>
+                  <div className="text-sm font-semibold text-slate-900 mt-0.5">{selectedJobDetails.stipendOffered ? selectedJobDetails.stipendAmountOrDetails || 'Paid' : 'Unpaid'}</div>
+                </div>
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Deadline</span>
+                  <div className="text-sm font-semibold text-slate-900 mt-0.5">{new Date(selectedJobDetails.applicationDeadline).toLocaleDateString()}</div>
+                </div>
+                <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-100">
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-600">Matches Verified</span>
+                  <div className="text-sm font-bold text-emerald-700 mt-0.5">{selectedJobDetails.matchesVerified} 100% Matches</div>
+                </div>
+              </div>
+
+              {/* Description Section */}
+              <section>
+                <h3 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1.5">
+                  <Briefcase className="w-4 h-4 text-primary" />
+                  Role Summary
+                </h3>
+                <p className="text-sm text-slate-600 leading-relaxed bg-slate-50 p-4 rounded-xl border border-slate-100">
+                  {selectedJobDetails.jobDescriptionSummary}
+                </p>
+              </section>
+
+              {/* Requirements Grid */}
+              <div className="grid md:grid-cols-2 gap-6">
+                <section>
+                  <h3 className="text-sm font-bold text-slate-900 mb-3 flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-primary" />
+                    Strict Gating Requirements
+                  </h3>
+                  <ul className="space-y-3">
+                    <li className="flex flex-col gap-1">
+                      <span className="text-xs text-slate-500 font-medium">Minimum Required GPA</span>
+                      <div className="flex items-center gap-2">
+                        <span className="px-2.5 py-1 rounded bg-amber-50 text-amber-800 border border-amber-100 text-xs font-bold">
+                          {selectedJobDetails.minimumGPA} or higher
+                        </span>
+                      </div>
+                    </li>
+                    <li className="flex flex-col gap-1">
+                      <span className="text-xs text-slate-500 font-medium">Allowed Years of Study</span>
+                      <div className="flex items-center gap-2">
+                        <span className="px-2.5 py-1 rounded bg-purple-50 text-purple-800 border border-purple-100 text-xs font-bold">
+                          Year {selectedJobDetails.allowedYearsOfStudy.join(', ')}
+                        </span>
+                      </div>
+                    </li>
+                    <li className="flex flex-col gap-1">
+                      <span className="text-xs text-slate-500 font-medium">Preferred Degree Programs</span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {selectedJobDetails.preferredDegreePrograms.length > 0 ? selectedJobDetails.preferredDegreePrograms.map((deg: string) => (
+                          <span key={deg} className="px-2 py-1 rounded bg-slate-100 text-slate-700 border border-slate-200 text-xs font-medium">
+                            {deg}
+                          </span>
+                        )) : <span className="text-xs text-slate-400">Any matching degree</span>}
+                      </div>
+                    </li>
+                  </ul>
+                </section>
+
+                <section>
+                  <h3 className="text-sm font-bold text-slate-900 mb-3 flex items-center gap-1.5">
+                    <Sparkles className="w-4 h-4 text-primary" />
+                    Required Competencies
+                  </h3>
+                  <div className="space-y-4">
+                    <div>
+                      <span className="text-xs text-slate-500 font-medium block mb-2">Mandatory Skills</span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {selectedJobDetails.mandatorySkills.map((s: string) => (
+                          <span key={s} className="px-2.5 py-1 rounded bg-blue-50 text-blue-800 border border-blue-100 text-xs font-semibold">
+                            {s}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-xs text-slate-500 font-medium block mb-2">Nice-to-Have Skills</span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {selectedJobDetails.niceToHaveSkills.length > 0 ? selectedJobDetails.niceToHaveSkills.map((s: string) => (
+                          <span key={`nice-${s}`} className="px-2.5 py-1 rounded bg-slate-50 text-slate-600 border border-slate-200 text-xs font-medium">
+                            {s}
+                          </span>
+                        )) : <span className="text-xs text-slate-400 italic">None specified</span>}
+                      </div>
+                    </div>
+                  </div>
+                </section>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-end gap-3 bg-slate-50">
+              <button
+                type="button"
+                onClick={() => setSelectedJobDetails(null)}
+                className="px-4 py-2 rounded-lg text-slate-700 text-sm font-bold hover:bg-slate-200 transition-colors cursor-pointer"
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setCandidatesOpeningFilter(selectedJobDetails.jobTitle);
+                  setIsCandidatesFilterOpen(true);
+                  setActiveTab('candidates');
+                  setSelectedJobDetails(null);
+                  const element = document.getElementById('candidates-section');
+                  element?.scrollIntoView({ behavior: 'smooth' });
+                }}
+                className="px-4 py-2 rounded-lg bg-primary text-white text-sm font-bold hover:bg-blue-700 transition-colors shadow-md cursor-pointer flex items-center gap-1.5"
+              >
+                View Screened Candidates
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
