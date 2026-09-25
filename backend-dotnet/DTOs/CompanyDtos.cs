@@ -47,6 +47,7 @@ public class CompanyCandidateDto
     public string[] Competencies { get; set; } = Array.Empty<string>();
     public string Status { get; set; } = string.Empty;
     public string StatusColor { get; set; } = string.Empty;
+    public string? CvPdfUrl { get; set; }
 }
 
 public class CompanyDashboardResponseDto
