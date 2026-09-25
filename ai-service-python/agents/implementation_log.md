@@ -34,3 +34,14 @@ To give the Python AI Service a secure, HTTP-accessible door to send its data ba
 
 **Purpose:** 
 To completely eliminate human involvement in the triggering process. .NET is now fully autonomous: scanning the database and orchestrating Agent 3 on its own.
+
+## Step 6: The Python Webhook Implementation
+**Summary of Changes:**
+- Added `.NET Webhook URL` and `Webhook Secret` to the Python `.env` file for secure communication.
+- Modified the `/validate` endpoint in `main.py` to accept `BackgroundTasks`. 
+- The endpoint now immediately returns a `202 Accepted` response, freeing up the .NET orchestrator's HTTP thread instantly.
+- Wrapped the heavy AI evaluation logic (`run_validation`) inside a new background function `process_validation_background`.
+- Added logic using the `httpx` library to send the generated JSON report (or an error payload if Gemini crashes) securely back to the `.NET` Webhook via a POST request containing the `x-webhook-secret` header.
+
+**Purpose:** 
+To ensure Python doesn't block .NET during long AI processing times, and to successfully bridge the gap back to the .NET database once the AI evaluation finishes.

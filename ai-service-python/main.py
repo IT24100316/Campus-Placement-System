@@ -1,7 +1,10 @@
 import os
 import asyncio
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+import httpx
+import json
 from typing import List, Dict, Any
 from dotenv import load_dotenv
 
@@ -158,17 +161,43 @@ class EmailRequest(BaseModel):
     message: str = Field(min_length=1, max_length=10_000)
 
 
-@app.post("/validate")
-def validate_application(request: ValidationRequest):
+def process_validation_background(request: ValidationRequest):
+    webhook_url = os.getenv("DOTNET_WEBHOOK_URL")
+    webhook_secret = os.getenv("WEBHOOK_SECRET")
+    
+    payload = {
+        "ApplicationId": request.application_id,
+        "IsSuccess": False,
+        "ResultJson": None
+    }
+    
     try:
         result = run_validation(
             request.summary,
             cv_pdf_url=request.cv_pdf_url,
             cv_pdf_base64=request.cv_pdf_base64,
         )
-        return {"application_id": request.application_id, **result}
-    except (ValueError, requests.RequestException) as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+        payload["IsSuccess"] = True
+        payload["ResultJson"] = json.dumps(result)
+    except Exception as e:
+        payload["IsSuccess"] = False
+        payload["ResultJson"] = json.dumps({"error": str(e)})
+        
+    if webhook_url:
+        try:
+            with httpx.Client() as client:
+                client.post(
+                    webhook_url,
+                    json=payload,
+                    headers={"x-webhook-secret": webhook_secret or ""}
+                )
+        except Exception as e:
+            print(f"Failed to call webhook: {e}")
+
+@app.post("/validate")
+def validate_application(request: ValidationRequest, background_tasks: BackgroundTasks):
+    background_tasks.add_task(process_validation_background, request)
+    return JSONResponse(status_code=202, content={"message": "Evaluation started in background"})
 
 
 @app.post("/notifications/email")
