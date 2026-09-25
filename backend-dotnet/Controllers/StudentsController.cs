@@ -3,6 +3,7 @@ using backend_dotnet.Data;
 using backend_dotnet.DTOs;
 using backend_dotnet.Models;
 using backend_dotnet.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -27,6 +28,7 @@ public class StudentsController : ControllerBase
     }
 
     [HttpGet("profile")]
+    [Authorize(Roles = "Student")]
     public async Task<IActionResult> GetProfile()
     {
         if (!TryGetCurrentUserId(out var userId))
@@ -88,6 +90,7 @@ public class StudentsController : ControllerBase
     }
 
     [HttpPost("upload-cv")]
+    [Authorize(Roles = "Student")]
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> UploadCv(
         [FromForm] IFormFile? file,
@@ -175,6 +178,7 @@ public class StudentsController : ControllerBase
     }
 
     [HttpPut("profile")]
+    [Authorize(Roles = "Student")]
     public async Task<IActionResult> SaveProfile([FromBody] StudentProfileUpsertRequest request)
     {
         if (!TryGetCurrentUserId(out var userId))

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using backend_dotnet.Services;
 using backend_dotnet.DTOs;
 using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 
 namespace backend_dotnet.Controllers;
 
@@ -58,6 +59,7 @@ public class ApplicationsController : ControllerBase
     /// Submits an internship application for the authenticated student.
     /// </summary>
     [HttpPost("apply")]
+    [Authorize(Roles = "Student")]
     public async Task<IActionResult> Apply(
         [FromBody] StudentApplicationSubmissionRequestDto request,
         CancellationToken cancellationToken)
