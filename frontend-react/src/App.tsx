@@ -7,7 +7,7 @@ import { HrLandingPage } from './pages/HrLandingPage';
 import { ApplicationsPage } from './pages/ApplicationsPage';
 import { JobPostingForm } from './components/company/JobPostingForm';
 import { LoginModal } from './components/auth/LoginModal';
-import { Sparkles, UserPlus, Home, LogIn, ShieldCheck, LogOut, Building2, PlusCircle } from 'lucide-react';
+
 import type { RegistrationRecord } from './types/auth';
 import { authService } from './services/authService';
 
@@ -192,10 +192,6 @@ function App() {
           onNavigatePostJob={() => {
             setNewlyCreatedJobId(null);
             setCurrentView('hr-post-job');
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-          }}
-          onNavigateApplications={() => {
-            setCurrentView('applications');
             window.scrollTo({ top: 0, behavior: 'smooth' });
           }}
         />
