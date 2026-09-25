@@ -35,6 +35,65 @@ void main() {
     'cvPdfUrl': '',
   };
 
+  test('loads the authenticated profile with a bearer token', () async {
+    final service = StudentProfileService(
+      profileEndpoint: endpoint,
+      client: MockClient((request) async {
+        expect(request.method, 'GET');
+        expect(request.url, endpoint);
+        expect(request.headers['Authorization'], 'Bearer verified-token');
+        expect(request.body, isEmpty);
+        return http.Response(jsonEncode(responseBody()), 200);
+      }),
+    );
+
+    final result = await service.loadProfile(bearerToken: ' verified-token ');
+    expect(result?.fullName, 'Alex Student');
+    expect(result?.userId, responseBody()['userId']);
+  });
+
+  test('treats a missing profile as a new profile', () async {
+    final service = StudentProfileService(
+      profileEndpoint: endpoint,
+      client: MockClient((_) async => http.Response('', 404)),
+    );
+    expect(await service.loadProfile(bearerToken: 'token'), isNull);
+  });
+
+  test('rejects a blank token before loading', () async {
+    final service = StudentProfileService(
+      profileEndpoint: endpoint,
+      client: MockClient((_) async => fail('Request must not be sent')),
+    );
+    await expectLater(
+      service.loadProfile(bearerToken: ' '),
+      throwsA(
+        isA<StudentProfileException>().having(
+          (error) => error.type,
+          'type',
+          StudentProfileErrorType.missingToken,
+        ),
+      ),
+    );
+  });
+
+  test('reports unauthorized loading', () async {
+    final service = StudentProfileService(
+      profileEndpoint: endpoint,
+      client: MockClient((_) async => http.Response('', 401)),
+    );
+    await expectLater(
+      service.loadProfile(bearerToken: 'token'),
+      throwsA(
+        isA<StudentProfileException>().having(
+          (error) => error.type,
+          'type',
+          StudentProfileErrorType.unauthorized,
+        ),
+      ),
+    );
+  });
+
   test('sends the complete JSON payload without a student ID', () async {
     final service = StudentProfileService(
       profileEndpoint: endpoint,
