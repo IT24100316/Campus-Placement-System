@@ -287,4 +287,20 @@ export const companyService = {
       return false;
     }
   },
+
+  async updateJob(jobId: string, updatedJob: any): Promise<boolean> {
+    try {
+      const url = `${API_BASE}/company/jobs/${jobId}`;
+      const res = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updatedJob),
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  },
 };

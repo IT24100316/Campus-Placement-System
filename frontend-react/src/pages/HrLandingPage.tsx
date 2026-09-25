@@ -60,7 +60,12 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
   const [jobStatusFilter, setJobStatusFilter] = useState('all');
   const [jobSortBy, setJobSortBy] = useState<'default' | 'matches-desc' | 'gpa-desc' | 'deadline-asc'>('default');
   const [jobsCurrentPage, setJobsCurrentPage] = useState(1);
-  const [selectedJobDetails, setSelectedJobDetails] = useState<any>(null); // To store job details for modal
+  const [selectedJobDetails, setSelectedJobDetails] = useState<any>(null); // To store job details for view modal
+  
+  // --- Update Job State ---
+  const [editingJob, setEditingJob] = useState<any>(null);
+  const [showUpdateConfirmation, setShowUpdateConfirmation] = useState(false);
+
   const JOBS_PER_PAGE = 6;
 
   // If a new job was just published, ensure we are on page 1 with clear filters so it's immediately visible
@@ -114,6 +119,43 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
       alert('Job deleted successfully from database.');
     } else {
       alert('Failed to delete job.');
+    }
+  };
+
+  const handleUpdateJobChange = (field: string, value: any) => {
+    if (editingJob) {
+      setEditingJob({ ...editingJob, [field]: value });
+    }
+  };
+
+  const submitUpdateJob = async () => {
+    if (!editingJob) return;
+    
+    // Convert comma separated strings to arrays if needed
+    const updatedJobPayload = {
+      ...editingJob,
+      mandatorySkills: typeof editingJob.mandatorySkills === 'string' 
+        ? editingJob.mandatorySkills.split(',').map((s: string) => s.trim()) 
+        : editingJob.mandatorySkills,
+      niceToHaveSkills: typeof editingJob.niceToHaveSkills === 'string'
+        ? editingJob.niceToHaveSkills.split(',').map((s: string) => s.trim())
+        : editingJob.niceToHaveSkills,
+      allowedYearsOfStudy: typeof editingJob.allowedYearsOfStudy === 'string'
+        ? editingJob.allowedYearsOfStudy.split(',').map((s: string) => parseInt(s.trim(), 10)).filter((n: number) => !isNaN(n))
+        : editingJob.allowedYearsOfStudy,
+    };
+
+    const success = await companyService.updateJob(editingJob.jobId, updatedJobPayload);
+    if (success && dashboardData) {
+      setDashboardData({
+        ...dashboardData,
+        activeJobs: dashboardData.activeJobs.map((j) => j.jobId === editingJob.jobId ? { ...j, ...updatedJobPayload } : j),
+      });
+      setShowUpdateConfirmation(false);
+      setEditingJob(null);
+      alert('Job updated successfully!');
+    } else {
+      alert('Failed to update job.');
     }
   };
 
@@ -1002,7 +1044,13 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                             <button
                               type="button"
                               onClick={() => {
-                                alert('Update Job Drive flow is not fully implemented yet.');
+                                setEditingJob({
+                                  ...job,
+                                  mandatorySkills: job.mandatorySkills.join(', '),
+                                  niceToHaveSkills: job.niceToHaveSkills.join(', '),
+                                  allowedYearsOfStudy: job.allowedYearsOfStudy.join(', '),
+                                  applicationDeadline: new Date(job.applicationDeadline).toISOString().split('T')[0]
+                                });
                               }}
                               className="px-2.5 py-1.5 rounded-md bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 font-semibold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
                               title="Update Criteria"
@@ -1858,6 +1906,142 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                 View Screened Candidates
                 <ArrowRight className="w-4 h-4" />
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* -------------------------------------------------------------
+          Update Job Modal
+         ------------------------------------------------------------- */}
+      {editingJob && !showUpdateConfirmation && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between sticky top-0 bg-white z-10">
+              <h2 className="text-xl font-display font-bold text-slate-900">
+                Update Job Drive: {editingJob.jobTitle}
+              </h2>
+              <button
+                type="button"
+                onClick={() => setEditingJob(null)}
+                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-full transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto flex-1 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Job Title</label>
+                  <input type="text" value={editingJob.jobTitle} onChange={(e) => handleUpdateJobChange('jobTitle', e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Target Domain</label>
+                  <input type="text" value={editingJob.targetDomain} onChange={(e) => handleUpdateJobChange('targetDomain', e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Job Description Summary</label>
+                  <textarea rows={3} value={editingJob.jobDescriptionSummary} onChange={(e) => handleUpdateJobChange('jobDescriptionSummary', e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"></textarea>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Location City</label>
+                  <input type="text" value={editingJob.locationCity} onChange={(e) => handleUpdateJobChange('locationCity', e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Application Deadline</label>
+                  <input type="date" value={editingJob.applicationDeadline} onChange={(e) => handleUpdateJobChange('applicationDeadline', e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Minimum GPA</label>
+                  <input type="number" step="0.01" value={editingJob.minimumGPA} onChange={(e) => handleUpdateJobChange('minimumGPA', parseFloat(e.target.value))} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Allowed Years of Study (comma separated)</label>
+                  <input type="text" value={editingJob.allowedYearsOfStudy} onChange={(e) => handleUpdateJobChange('allowedYearsOfStudy', e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Mandatory Skills (comma separated)</label>
+                  <input type="text" value={editingJob.mandatorySkills} onChange={(e) => handleUpdateJobChange('mandatorySkills', e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Nice-to-Have Skills (comma separated)</label>
+                  <input type="text" value={editingJob.niceToHaveSkills} onChange={(e) => handleUpdateJobChange('niceToHaveSkills', e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />
+                </div>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-end gap-3 bg-slate-50">
+              <button
+                type="button"
+                onClick={() => setEditingJob(null)}
+                className="px-4 py-2 rounded-lg text-slate-700 text-sm font-bold hover:bg-slate-200 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowUpdateConfirmation(true)}
+                className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 transition-colors shadow-md cursor-pointer"
+              >
+                Review Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* -------------------------------------------------------------
+          Update Confirmation Modal
+         ------------------------------------------------------------- */}
+      {showUpdateConfirmation && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                  <ShieldCheck className="w-5 h-5 text-amber-600" />
+                </div>
+                <h3 className="text-lg font-bold text-slate-900">Confirm Job Update</h3>
+              </div>
+              
+              <div className="bg-amber-50/50 border border-amber-200/60 rounded-xl p-4 mb-6">
+                <div className="flex gap-3">
+                  <div className="mt-0.5">
+                    <Sparkles className="w-4 h-4 text-amber-500" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-amber-900 mb-1">
+                      CampusAI Pipeline Impact
+                    </h4>
+                    <p className="text-xs text-amber-800/80 leading-relaxed font-medium">
+                      Modifying strict criteria (like GPA or Skills) will cause CampusAI to instantly re-score and re-qualify all current candidates.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <p className="text-sm font-semibold text-slate-700 mb-6 text-center">
+                Are you sure you want to apply these updates?
+              </p>
+
+              <div className="flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowUpdateConfirmation(false)}
+                  className="px-4 py-2 rounded-lg text-slate-700 text-sm font-bold hover:bg-slate-100 transition-colors cursor-pointer"
+                >
+                  Back to Editing
+                </button>
+                <button
+                  type="button"
+                  onClick={submitUpdateJob}
+                  className="px-4 py-2 rounded-lg bg-amber-500 text-white text-sm font-bold hover:bg-amber-600 transition-colors shadow-md cursor-pointer flex items-center gap-1.5"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  Apply Updates
+                </button>
+              </div>
             </div>
           </div>
         </div>
