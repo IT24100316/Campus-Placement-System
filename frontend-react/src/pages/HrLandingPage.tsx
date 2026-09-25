@@ -13,7 +13,6 @@ import {
   Filter,
   Download,
   Calendar,
-  MessageSquare,
   Bell,
   SlidersHorizontal,
   PlusCircle,
@@ -36,7 +35,6 @@ interface HrLandingPageProps {
   onLogout?: () => void;
   onNavigateHome?: () => void;
   onNavigatePostJob?: () => void;
-  onNavigateApplications?: () => void;
 }
 
 export const HrLandingPage: React.FC<HrLandingPageProps> = ({
@@ -46,13 +44,10 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
   onLogout,
   onNavigateHome,
   onNavigatePostJob,
-  onNavigateApplications,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [dashboardData, setDashboardData] = useState<CompanyDashboardData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [interviewInvited, setInterviewInvited] = useState<Record<string, boolean>>({});
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'jobs' | 'candidates'>('dashboard');
 
   // --- Active Placement Drives Filtering & Pagination State ---
   const [jobSearchQuery, setJobSearchQuery] = useState('');
@@ -83,10 +78,13 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
   const [candidatesSearchQuery, setCandidatesSearchQuery] = useState('');
   const [candidatesOpeningFilter, setCandidatesOpeningFilter] = useState('all');
   const [candidatesDegreeBatchFilter, setCandidatesDegreeBatchFilter] = useState('all');
-  const [candidatesMinGpaFilter, setCandidatesMinGpaFilter] = useState<number>(0);
-  const [candidatesCompetencyFilter, setCandidatesCompetencyFilter] = useState('all');
+  const [candidatesMinGpaFilter, setCandidatesMinGpaFilter] = useState<string>('');
+  const [candidatesMaxGpaFilter, setCandidatesMaxGpaFilter] = useState<string>('');
+  const [candidatesCustomCompetency, setCandidatesCustomCompetency] = useState<string>('');
   const [candidatesStatusFilter, setCandidatesStatusFilter] = useState('all');
-  const [candidatesMinMatchScore, setCandidatesMinMatchScore] = useState<number>(0);
+  const [candidatesMinMatchScore, setCandidatesMinMatchScore] = useState<string>('');
+  const [candidatesMaxMatchScore, setCandidatesMaxMatchScore] = useState<string>('');
+  const [candidatesSortBy, setCandidatesSortBy] = useState<'default' | 'gpa-desc' | 'gpa-asc' | 'score-desc' | 'score-asc'>('default');
   const [candidatesPerPage, setCandidatesPerPage] = useState<number>(5);
   const [candidatesCurrentPage, setCandidatesCurrentPage] = useState(1);
   const [isCandidatesFilterOpen, setIsCandidatesFilterOpen] = useState(false);
@@ -94,11 +92,17 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
 
   useEffect(() => {
     let isMounted = true;
-    setIsLoading(true);
     companyService.getDashboardData(userEmail).then((data) => {
       if (isMounted) {
         setDashboardData(data);
-        setIsLoading(false);
+        if (data && data.activeJobs && data.activeJobs.length > 0) {
+          const activeJobsSorted = [...data.activeJobs].sort((a, b) => {
+            const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+            const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+            return dateB - dateA;
+          });
+          setCandidatesOpeningFilter(activeJobsSorted[0].jobTitle);
+        }
       }
     });
     return () => {
@@ -270,14 +274,9 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
     return Array.from(set);
   }, [candidates]);
 
-  const availableCompetencies = useMemo(() => {
-    const set = new Set<string>();
-    candidates.forEach((c) => c.competencies.forEach((comp) => set.add(comp)));
-    return Array.from(set).sort();
-  }, [candidates]);
 
   const filteredCandidates = useMemo(() => {
-    return candidates.filter((c) => {
+    const filtered = candidates.filter((c) => {
       const isInvited = interviewInvited[c.id];
       const effectiveStatus = isInvited ? 'Interview Invited' : c.status;
 
@@ -308,15 +307,22 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
         }
       }
 
-      if (candidatesMinGpaFilter > 0 && c.gpa < candidatesMinGpaFilter) {
+      const minGpa = parseFloat(candidatesMinGpaFilter);
+      if (!isNaN(minGpa) && c.gpa < minGpa) {
+        return false;
+      }
+      
+      const maxGpa = parseFloat(candidatesMaxGpaFilter);
+      if (!isNaN(maxGpa) && c.gpa > maxGpa) {
         return false;
       }
 
-      if (candidatesCompetencyFilter !== 'all') {
-        const skill = candidatesCompetencyFilter.toLowerCase();
-        if (!c.competencies.some((comp) => comp.toLowerCase() === skill)) {
-          return false;
-        }
+      if (candidatesCustomCompetency.trim() !== '') {
+        const requiredSkills = candidatesCustomCompetency.split(',').map(s => s.trim().toLowerCase()).filter(s => s !== '');
+        const hasAll = requiredSkills.every(reqSkill => 
+          c.competencies.some(comp => comp.toLowerCase().includes(reqSkill))
+        );
+        if (!hasAll) return false;
       }
 
       if (candidatesStatusFilter !== 'all') {
@@ -325,12 +331,30 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
         }
       }
 
-      if (candidatesMinMatchScore > 0 && c.matchScore < candidatesMinMatchScore) {
+      const minMatch = parseFloat(candidatesMinMatchScore);
+      if (!isNaN(minMatch) && c.matchScore < minMatch) {
+        return false;
+      }
+      
+      const maxMatch = parseFloat(candidatesMaxMatchScore);
+      if (!isNaN(maxMatch) && c.matchScore > maxMatch) {
         return false;
       }
 
       return true;
     });
+
+    if (candidatesSortBy === 'gpa-desc') {
+      filtered.sort((a, b) => Number(b.gpa) - Number(a.gpa));
+    } else if (candidatesSortBy === 'gpa-asc') {
+      filtered.sort((a, b) => Number(a.gpa) - Number(b.gpa));
+    } else if (candidatesSortBy === 'score-desc') {
+      filtered.sort((a, b) => b.matchScore - a.matchScore);
+    } else if (candidatesSortBy === 'score-asc') {
+      filtered.sort((a, b) => a.matchScore - b.matchScore);
+    }
+
+    return filtered;
   }, [
     candidates,
     interviewInvited,
@@ -338,9 +362,12 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
     candidatesOpeningFilter,
     candidatesDegreeBatchFilter,
     candidatesMinGpaFilter,
-    candidatesCompetencyFilter,
+    candidatesMaxGpaFilter,
+    candidatesCustomCompetency,
     candidatesStatusFilter,
     candidatesMinMatchScore,
+    candidatesMaxMatchScore,
+    candidatesSortBy,
   ]);
 
   const totalCandidatePages = Math.max(1, Math.ceil(filteredCandidates.length / candidatesPerPage));
@@ -355,19 +382,25 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
     (candidatesSearchQuery ? 1 : 0) +
     (candidatesOpeningFilter !== 'all' ? 1 : 0) +
     (candidatesDegreeBatchFilter !== 'all' ? 1 : 0) +
-    (candidatesMinGpaFilter > 0 ? 1 : 0) +
-    (candidatesCompetencyFilter !== 'all' ? 1 : 0) +
+    (candidatesMinGpaFilter !== '' ? 1 : 0) +
+    (candidatesMaxGpaFilter !== '' ? 1 : 0) +
+    (candidatesCustomCompetency.trim() !== '' ? 1 : 0) +
     (candidatesStatusFilter !== 'all' ? 1 : 0) +
-    (candidatesMinMatchScore > 0 ? 1 : 0);
+    (candidatesMinMatchScore !== '' ? 1 : 0) +
+    (candidatesMaxMatchScore !== '' ? 1 : 0) +
+    (candidatesSortBy !== 'default' ? 1 : 0);
 
   const resetCandidateFilters = () => {
     setCandidatesSearchQuery('');
     setCandidatesOpeningFilter('all');
     setCandidatesDegreeBatchFilter('all');
-    setCandidatesMinGpaFilter(0);
-    setCandidatesCompetencyFilter('all');
+    setCandidatesMinGpaFilter('');
+    setCandidatesMaxGpaFilter('');
+    setCandidatesCustomCompetency('');
     setCandidatesStatusFilter('all');
-    setCandidatesMinMatchScore(0);
+    setCandidatesMinMatchScore('');
+    setCandidatesMaxMatchScore('');
+    setCandidatesSortBy('default');
     setCandidatesCurrentPage(1);
   };
 
@@ -418,49 +451,8 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
               </div>
             </button>
 
-            {/* Desktop Navigation */}
+            {/* Desktop Navigation removed as per user request */}
             <nav className="hidden xl:flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() => setActiveTab('dashboard')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
-                  activeTab === 'dashboard'
-                    ? 'bg-blue-50 text-primary border border-blue-100'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                }`}
-              >
-                <Building2 className="w-4 h-4 text-primary" />
-                <span>Dashboard</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab('jobs')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
-                  activeTab === 'jobs'
-                    ? 'bg-blue-50 text-primary border border-blue-100'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                }`}
-              >
-                <PlusCircle className="w-4 h-4 text-slate-500" />
-                <span>Placement Drives</span>
-              </button>
-              <button
-                type="button"
-                onClick={onNavigateApplications}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
-                  activeTab === 'candidates'
-                    ? 'bg-blue-50 text-primary border border-blue-100'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                }`}
-              >
-                <Users className="w-4 h-4 text-slate-500" />
-                <span>Applications &amp; Matching</span>
-              </button>
-              <span className="text-slate-300 px-1 font-mono text-xs">|</span>
-              <span className="px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-semibold inline-flex items-center gap-1">
-                <span className={`w-1.5 h-1.5 rounded-full ${isLoading ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500 animate-pulse'}`}></span>
-                {isLoading ? 'Syncing DB...' : 'DB Synced'}
-              </span>
             </nav>
           </div>
 
@@ -532,7 +524,7 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
               <button
                 type="button"
                 onClick={() => {
-                  setActiveTab('dashboard');
+                  
                   setMobileMenuOpen(false);
                 }}
                 className="text-left text-sm font-medium text-slate-700 hover:text-primary py-1.5"
@@ -542,7 +534,7 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
               <button
                 type="button"
                 onClick={() => {
-                  setActiveTab('jobs');
+                  
                   setMobileMenuOpen(false);
                 }}
                 className="text-left text-sm font-medium text-slate-700 hover:text-primary py-1.5"
@@ -552,7 +544,7 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
               <button
                 type="button"
                 onClick={() => {
-                  setActiveTab('candidates');
+                  
                   setMobileMenuOpen(false);
                 }}
                 className="text-left text-sm font-medium text-slate-700 hover:text-primary py-1.5"
@@ -583,31 +575,7 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
          ------------------------------------------------------------- */}
       <main className="w-full pt-16 flex-1">
         <div className="flex flex-col w-full pb-16">
-          {/* Live Academic Session Banner */}
-          <section className="w-full bg-blue-50/60 border-b border-blue-100 py-2.5 px-4 sm:px-6 lg:px-8">
-            <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
-              <div className="flex items-center gap-2">
-                <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span className="font-semibold uppercase tracking-wider text-emerald-800 text-[11px]">
-                  Active Campus Drive Session: Fall 2025 / Spring 2026
-                </span>
-                <span className="text-slate-300 font-mono hidden sm:inline">|</span>
-                <span className="text-slate-600 hidden md:inline">
-                  Institutional placement portals currently open across 34 partnered universities.
-                </span>
-              </div>
-              <div className="flex items-center gap-4 text-[11px]">
-                <span className="flex items-center gap-1 font-medium text-slate-700">
-                  <ShieldCheck className="w-3.5 h-3.5 text-primary" />
-                  FERPA &amp; Registrar Compliant
-                </span>
-                <span className="hidden sm:flex items-center gap-1 font-medium text-indigo-700">
-                  <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-                  Live AI Screening Active
-                </span>
-              </div>
-            </div>
-          </section>
+
 
           {/* Welcome Hero & Primary Fast Action Hub */}
           <section className="w-full pt-8 pb-6 px-4 sm:px-6 lg:px-8">
@@ -660,7 +628,7 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                         if (onNavigatePostJob) {
                           onNavigatePostJob();
                         } else {
-                          setActiveTab('jobs');
+                          
                         }
                       }}
                       className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-white text-primary font-semibold text-xs sm:text-sm hover:bg-slate-50 transition-all shadow-sm cursor-pointer"
@@ -696,7 +664,7 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                   <div className="pt-6 flex items-center justify-between">
                     <button
                       type="button"
-                      onClick={() => setActiveTab('candidates')}
+                      onClick={() => {}}
                       className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-white font-semibold text-xs sm:text-sm hover:bg-blue-700 transition-all shadow-sm cursor-pointer"
                     >
                       <span>Review Shortlisted Pool</span>
@@ -1075,7 +1043,7 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                           onClick={() => {
                             setCandidatesOpeningFilter(job.jobTitle);
                             setIsCandidatesFilterOpen(true);
-                            setActiveTab('candidates');
+                            
                             const element = document.getElementById('candidates-section');
                             element?.scrollIntoView({ behavior: 'smooth' });
                           }}
@@ -1225,7 +1193,7 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
               )}
 
               {/* Quick Search Bar */}
-              <div className="relative w-full">
+              <div className="relative w-full mb-4">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   type="text"
@@ -1250,6 +1218,37 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                   </button>
                 )}
               </div>
+
+              {/* Context Header for the current job */}
+              {candidatesOpeningFilter !== 'all' && (
+                <div className="mb-4 p-4 bg-blue-50 border border-blue-100 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                      <Briefcase className="w-4 h-4 text-primary" />
+                      Showing Candidates for: <span className="text-primary">{candidatesOpeningFilter}</span>
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-1">
+                      {(() => {
+                        const relatedJob = dashboardData?.activeJobs.find(j => j.jobTitle === candidatesOpeningFilter);
+                        return relatedJob 
+                          ? `Posted on ${relatedJob.createdAt ? new Date(relatedJob.createdAt).toLocaleDateString() : 'N/A'}` 
+                          : 'Job details available.';
+                      })()}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const relatedJob = dashboardData?.activeJobs.find(j => j.jobTitle === candidatesOpeningFilter);
+                      if (relatedJob) setSelectedJobDetails(relatedJob);
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-blue-200 text-blue-700 hover:bg-blue-100 text-xs font-semibold transition-colors shadow-xs"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    <span>View Job Details</span>
+                  </button>
+                </div>
+              )}
 
               {/* Advanced Filter Cohort Drawer / Panel */}
               {isCandidatesFilterOpen && (
@@ -1278,12 +1277,13 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                         1. Matched Opening
                       </label>
                       <select
+                        disabled
                         value={candidatesOpeningFilter}
                         onChange={(e) => {
                           setCandidatesOpeningFilter(e.target.value);
                           setCandidatesCurrentPage(1);
                         }}
-                        className="pl-3 pr-8 py-2 rounded-lg bg-white border border-slate-200 text-xs font-medium text-slate-800 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none cursor-pointer"
+                        className="pl-3 pr-8 py-2 rounded-lg bg-slate-50 border border-slate-200 text-xs font-medium text-slate-500 cursor-not-allowed opacity-70"
                       >
                         <option value="all">All Placement Drives</option>
                         {availableOpenings.map((op) => (
@@ -1316,47 +1316,45 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                       </select>
                     </div>
 
-                    {/* 3. Verified GPA */}
+                    {/* 3. Verified GPA Range */}
                     <div className="flex flex-col gap-1">
                       <label className="text-[11px] font-semibold text-slate-600">
-                        3. Verified GPA Threshold
+                        3. Verified GPA Range
                       </label>
-                      <select
-                        value={candidatesMinGpaFilter}
-                        onChange={(e) => {
-                          setCandidatesMinGpaFilter(Number(e.target.value));
-                          setCandidatesCurrentPage(1);
-                        }}
-                        className="pl-3 pr-8 py-2 rounded-lg bg-white border border-slate-200 text-xs font-medium text-slate-800 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none cursor-pointer"
-                      >
-                        <option value="0">All GPA Ranges</option>
-                        <option value="3.5">Min GPA ≥ 3.50</option>
-                        <option value="3.7">Min GPA ≥ 3.70</option>
-                        <option value="3.8">Min GPA ≥ 3.80</option>
-                        <option value="3.9">Min GPA ≥ 3.90</option>
-                      </select>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          step="0.01"
+                          placeholder="Min"
+                          value={candidatesMinGpaFilter}
+                          onChange={(e) => { setCandidatesMinGpaFilter(e.target.value); setCandidatesCurrentPage(1); }}
+                          className="w-1/2 px-3 py-2 rounded-lg bg-white border border-slate-200 text-xs font-medium text-slate-800 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
+                        />
+                        <span className="text-slate-400 text-xs">-</span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          placeholder="Max"
+                          value={candidatesMaxGpaFilter}
+                          onChange={(e) => { setCandidatesMaxGpaFilter(e.target.value); setCandidatesCurrentPage(1); }}
+                          className="w-1/2 px-3 py-2 rounded-lg bg-white border border-slate-200 text-xs font-medium text-slate-800 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
+                        />
+                      </div>
                     </div>
 
                     {/* 4. Core Competencies */}
                     <div className="flex flex-col gap-1">
-                      <label className="text-[11px] font-semibold text-slate-600">
-                        4. Core Competencies
+                      <label className="text-[11px] font-semibold text-slate-600 flex justify-between">
+                        <span>4. Core Competencies</span>
+                        <span className="text-[9px] text-slate-400 font-normal">(Comma separated)</span>
                       </label>
-                      <select
-                        value={candidatesCompetencyFilter}
-                        onChange={(e) => {
-                          setCandidatesCompetencyFilter(e.target.value);
-                          setCandidatesCurrentPage(1);
-                        }}
-                        className="pl-3 pr-8 py-2 rounded-lg bg-white border border-slate-200 text-xs font-medium text-slate-800 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none cursor-pointer"
-                      >
-                        <option value="all">All Competencies</option>
-                        {availableCompetencies.map((comp) => (
-                          <option key={comp} value={comp}>
-                            {comp}
-                          </option>
-                        ))}
-                      </select>
+                      <input
+                        type="text"
+                        placeholder="e.g. Python, SQL"
+                        value={candidatesCustomCompetency}
+                        onChange={(e) => { setCandidatesCustomCompetency(e.target.value); setCandidatesCurrentPage(1); }}
+                        className="w-full px-3 py-2 rounded-lg bg-white border border-slate-200 text-xs font-medium text-slate-800 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
+                      />
                     </div>
 
                     {/* 5. Status */}
@@ -1380,23 +1378,48 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                       </select>
                     </div>
 
-                    {/* 6. Match Score */}
+                    {/* 6. Match Score Range */}
                     <div className="flex flex-col gap-1">
                       <label className="text-[11px] font-semibold text-slate-600">
-                        6. AI Match Score
+                        6. AI Match Score Range
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          placeholder="Min %"
+                          value={candidatesMinMatchScore}
+                          onChange={(e) => { setCandidatesMinMatchScore(e.target.value); setCandidatesCurrentPage(1); }}
+                          className="w-1/2 px-3 py-2 rounded-lg bg-white border border-slate-200 text-xs font-medium text-slate-800 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
+                        />
+                        <span className="text-slate-400 text-xs">-</span>
+                        <input
+                          type="number"
+                          placeholder="Max %"
+                          value={candidatesMaxMatchScore}
+                          onChange={(e) => { setCandidatesMaxMatchScore(e.target.value); setCandidatesCurrentPage(1); }}
+                          className="w-1/2 px-3 py-2 rounded-lg bg-white border border-slate-200 text-xs font-medium text-slate-800 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    {/* 7. Sort By */}
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[11px] font-semibold text-slate-600">
+                        7. Sort Results
                       </label>
                       <select
-                        value={candidatesMinMatchScore}
+                        value={candidatesSortBy}
                         onChange={(e) => {
-                          setCandidatesMinMatchScore(Number(e.target.value));
+                          setCandidatesSortBy(e.target.value as any);
                           setCandidatesCurrentPage(1);
                         }}
                         className="pl-3 pr-8 py-2 rounded-lg bg-white border border-slate-200 text-xs font-medium text-slate-800 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none cursor-pointer"
                       >
-                        <option value="0">All Match Scores</option>
-                        <option value="90">≥ 90% AI Match</option>
-                        <option value="95">≥ 95% AI Match</option>
-                        <option value="98">≥ 98% AI Match</option>
+                        <option value="default">Default Sort</option>
+                        <option value="gpa-desc">GPA: High to Low</option>
+                        <option value="gpa-asc">GPA: Low to High</option>
+                        <option value="score-desc">Match Score: High to Low</option>
+                        <option value="score-asc">Match Score: Low to High</option>
                       </select>
                     </div>
                   </div>
@@ -1420,7 +1443,7 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                           </div>
                         </th>
                         <th className="py-3 px-4">Core Competencies</th>
-                        <th className="py-3 px-4">Status</th>
+                        <th className="py-3 px-4 text-center">Resume / CV</th>
                         <th className="py-3 px-4 text-right">Action</th>
                       </tr>
                     </thead>
@@ -1496,21 +1519,17 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                                 </div>
                               </td>
 
-                              {/* Status */}
-                              <td className="py-3.5 px-4">
-                                <span
-                                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${
-                                    isInvited
-                                      ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                                      : c.statusColor === 'emerald'
-                                      ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                                      : c.statusColor === 'purple'
-                                      ? 'bg-purple-50 text-purple-800 border-purple-200'
-                                      : 'bg-blue-50 text-blue-800 border-blue-200'
-                                  }`}
+                              {/* CV / Resume */}
+                              <td className="py-3.5 px-4 text-center">
+                                <a
+                                  href={c.cvPdfUrl || '#'}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 text-[11px] font-semibold transition-colors shadow-xs"
                                 >
-                                  {isInvited ? 'Interview Invited' : c.status}
-                                </span>
+                                  <Eye className="w-3.5 h-3.5 text-primary" />
+                                  <span>Review CV</span>
+                                </a>
                               </td>
 
                               {/* Action */}
@@ -1638,44 +1657,6 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
           </section>
 
 
-          {/* -------------------------------------------------------------
-              5. Institutional Support & Placement Desk Contact Card
-             ------------------------------------------------------------- */}
-          <section className="w-full pt-2 pb-6 px-4 sm:px-6 lg:px-8">
-            <div className="max-w-7xl mx-auto">
-              <div className="bg-slate-100/90 border border-slate-200 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-4">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                    <MessageSquare className="w-6 h-6 text-primary" />
-                  </div>
-                  <div className="flex flex-col">
-                    <h3 className="font-display text-base font-bold text-slate-900">
-                      Campus Placement Officer Dedicated Desk
-                    </h3>
-                    <p className="text-xs sm:text-sm text-slate-600">
-                      Need to coordinate an on-campus presentation day, custom testing slots, or multi-campus tie-ups? Our university relations desk is available 24/7.
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 shrink-0">
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white border border-slate-200 text-slate-800 text-xs font-semibold hover:bg-slate-50 transition-colors shadow-xs cursor-pointer"
-                  >
-                    <Calendar className="w-4 h-4 text-slate-600" />
-                    <span>Request Campus Day</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary hover:bg-blue-700 text-white text-xs font-semibold transition-all shadow-xs cursor-pointer"
-                  >
-                    <MessageSquare className="w-4 h-4" />
-                    <span>Message Placement Desk</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </section>
         </div>
       </main>
 
@@ -1896,7 +1877,7 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                 onClick={() => {
                   setCandidatesOpeningFilter(selectedJobDetails.jobTitle);
                   setIsCandidatesFilterOpen(true);
-                  setActiveTab('candidates');
+                  
                   setSelectedJobDetails(null);
                   const element = document.getElementById('candidates-section');
                   element?.scrollIntoView({ behavior: 'smooth' });
