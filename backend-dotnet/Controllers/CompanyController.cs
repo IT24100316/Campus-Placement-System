@@ -31,4 +31,19 @@ public class CompanyController : ControllerBase
 
         return Ok(dashboard);
     }
+
+    /// <summary>
+    /// Delete a job drive by ID
+    /// </summary>
+    [HttpDelete("jobs/{jobId}")]
+    public async Task<IActionResult> DeleteJob(Guid jobId)
+    {
+        var success = await _companyService.DeleteJobAsync(jobId);
+        if (!success)
+        {
+            return NotFound(new { message = "Job not found." });
+        }
+
+        return Ok(new { message = "Job deleted successfully." });
+    }
 }

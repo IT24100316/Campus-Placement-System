@@ -313,4 +313,14 @@ public class CompanyService : ICompanyService
             ShortlistedCandidates = candidates
         };
     }
+
+    public async Task<bool> DeleteJobAsync(Guid jobId)
+    {
+        var job = await _context.Jobs.FindAsync(jobId);
+        if (job == null) return false;
+
+        _context.Jobs.Remove(job);
+        await _context.SaveChangesAsync();
+        return true;
+    }
 }
