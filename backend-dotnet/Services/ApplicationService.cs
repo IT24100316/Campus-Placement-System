@@ -105,67 +105,6 @@ public class ApplicationService : IApplicationService
         ));
     }
 
-    /// <summary>
-    /// UpdateApplicationStatusAsync
-    /// Updates the status of a specific application. Parses the provided string into the ApplicationStatus enum,
-    /// saves the changes to the database, and returns the updated application.
-    /// </summary>
-    public async Task<Application> UpdateApplicationStatusAsync(Guid appId, UpdateStatusRequestDto request)
-    {
-        var application = await _context.Applications.FindAsync(appId);
-        
-        if (application == null)
-        {
-            throw new KeyNotFoundException("Application not found");
-        }
-
-        if (!Enum.TryParse<ApplicationStatus>(request.NewStatus, true, out var nextStatus))
-            throw new InvalidOperationException("Unknown application status.");
-        if (nextStatus == ApplicationStatus.Admin_Approved && application.Status != ApplicationStatus.Agent_Evaluated)
-            throw new InvalidOperationException("Only Agent_Evaluated applications can be approved by an administrator.");
-        application.Status = nextStatus;
-        
-        await _context.SaveChangesAsync();
-        
-        return application;
-    }
-
-    /// <summary>
-    /// ScheduleInterviewAsync
-    /// Schedules an interview for a specific application by updating its InterviewDate and InterviewTime properties.
-    /// Acts as a trigger point for invoking external AI agent scheduling logic.
-    /// </summary>
-    public async Task<Application> ScheduleInterviewAsync(Guid appId, ScheduleInterviewRequestDto request)
-    {
-        var application = await _context.Applications
-            .Include(a => a.Student).ThenInclude(u => u.StudentProfile)
-            .Include(a => a.Job)
-            .FirstOrDefaultAsync(a => a.AppId == appId);
-        
-        if (application == null)
-        {
-            throw new KeyNotFoundException("Application not found");
-        }
-
-        if (application.Status != ApplicationStatus.Admin_Approved)
-            throw new InvalidOperationException("Administrator approval is required before scheduling an interview.");
-
-        application.InterviewDate = request.InterviewDate;
-        application.InterviewTime = request.InterviewTime;
-        application.Status = ApplicationStatus.Company_Scheduled;
-        
-        await _context.SaveChangesAsync();
-        
-        var interviewAt = request.InterviewDate.Date.Add(request.InterviewTime);
-        await _emailService.SendInterviewScheduledAsync(
-            application.Student.Email,
-            application.Student.StudentProfile?.FullName ?? application.Student.Email,
-            application.Job.JobTitle,
-            interviewAt);
-        
-        return application;
-    }
-
 
 
     /// <summary>

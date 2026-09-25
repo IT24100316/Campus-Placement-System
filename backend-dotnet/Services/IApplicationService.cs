@@ -10,8 +10,7 @@ public interface IApplicationService
 {
     Task<IEnumerable<ApplicationResponseDto>> GetApplicationsByJobIdAsync(Guid jobId, int page, string status);
     Task<IEnumerable<ApplicationResponseDto>> SearchApplicationsAsync(string query);
-    Task<Application> UpdateApplicationStatusAsync(Guid appId, UpdateStatusRequestDto request);
-    Task<Application> ScheduleInterviewAsync(Guid appId, ScheduleInterviewRequestDto request);
+
     Task<string> GetCvDownloadUrlAsync(Guid appId);
     Task<Application> ApplyAsync(ApplyForJobDto request, CancellationToken cancellationToken = default);
     Task<object> EvaluateAsync(Guid appId, EvaluateApplicationDto request, CancellationToken cancellationToken = default);
