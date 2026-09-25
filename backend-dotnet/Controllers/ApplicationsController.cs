@@ -44,6 +44,21 @@ public class ApplicationsController : ControllerBase
     public async Task<IActionResult> StudentApplications(Guid studentId, CancellationToken cancellationToken) =>
         Ok(await _applicationService.GetStudentApplicationsAsync(studentId, cancellationToken));
 
+    /// <summary>Lists applications for the authenticated student.</summary>
+    [HttpGet("me")]
+    [Authorize(Roles = "Student")]
+    public async Task<IActionResult> MyApplications(CancellationToken cancellationToken)
+    {
+        var claimValue = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (User.Identity?.IsAuthenticated != true ||
+            !Guid.TryParse(claimValue, out var studentId) || studentId == Guid.Empty)
+        {
+            return Unauthorized(new { message = "An authenticated student identity is required." });
+        }
+
+        return Ok(await _applicationService.GetStudentApplicationsAsync(studentId, cancellationToken));
+    }
+
     private async Task<IActionResult> AdminDecision(Guid appId, bool approved, CancellationToken cancellationToken)
     {
         try

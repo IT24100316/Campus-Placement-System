@@ -1,6 +1,8 @@
+using System.IdentityModel.Tokens.Jwt;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -30,7 +32,8 @@ public class StudentEndpointAuthorizationTests
         (HttpMethod.Get, "/api/Students/profile"),
         (HttpMethod.Put, "/api/Students/profile"),
         (HttpMethod.Post, "/api/Students/upload-cv"),
-        (HttpMethod.Post, "/api/Applications/apply")
+        (HttpMethod.Post, "/api/Applications/apply"),
+        (HttpMethod.Get, "/api/Applications/me")
     ];
 
     [Theory]
@@ -38,6 +41,7 @@ public class StudentEndpointAuthorizationTests
     [InlineData(1)]
     [InlineData(2)]
     [InlineData(3)]
+    [InlineData(4)]
     public async Task MissingOrInvalidToken_IsRejectedByAuthorizationPipeline(int actionIndex)
     {
         using var server = CreateServer();
@@ -60,6 +64,7 @@ public class StudentEndpointAuthorizationTests
     [InlineData(1)]
     [InlineData(2)]
     [InlineData(3)]
+    [InlineData(4)]
     public async Task NonStudentToken_IsForbiddenByAuthorizationPipeline(int actionIndex)
     {
         using var server = CreateServer();
@@ -83,6 +88,7 @@ public class StudentEndpointAuthorizationTests
     [InlineData(1, HttpStatusCode.OK)]
     [InlineData(2, HttpStatusCode.OK)]
     [InlineData(3, HttpStatusCode.Created)]
+    [InlineData(4, HttpStatusCode.OK)]
     public async Task StudentToken_ReachesEachAction(int actionIndex, HttpStatusCode expectedStatus)
     {
         using var server = CreateServer();
@@ -96,6 +102,82 @@ public class StudentEndpointAuthorizationTests
         Assert.True(
             response.StatusCode == expectedStatus,
             $"Expected {expectedStatus}, got {response.StatusCode}: {await response.Content.ReadAsStringAsync()}");
+    }
+
+    [Fact]
+    public async Task MyApplications_ReturnsOnlyTheAuthenticatedStudentsApplications()
+    {
+        using var server = CreateServer();
+        var student = await SeedStudentAsync(server);
+        var otherStudent = new User
+        {
+            Id = Guid.NewGuid(),
+            Email = "other-student@example.edu",
+            Role = UserRole.Student,
+            Status = AccountStatus.Approved
+        };
+        var ownApplicationId = Guid.NewGuid();
+        var otherApplicationId = Guid.NewGuid();
+        using (var scope = server.Services.CreateScope())
+        {
+            var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            context.Users.Add(otherStudent);
+            context.Applications.AddRange(
+                new Application
+                {
+                    AppId = ownApplicationId,
+                    StudentId = student.Id,
+                    JobId = SeededJobId,
+                    SummaryReport = "{}"
+                },
+                new Application
+                {
+                    AppId = otherApplicationId,
+                    StudentId = otherStudent.Id,
+                    JobId = SeededJobId,
+                    SummaryReport = "{}"
+                });
+            await context.SaveChangesAsync();
+        }
+
+        using var client = server.CreateClient();
+        using var ownRequest = new HttpRequestMessage(
+            HttpMethod.Get, $"/api/Applications/me?studentId={otherStudent.Id}");
+        ownRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", TokenFor(student));
+        using var ownResponse = await client.SendAsync(ownRequest);
+        Assert.Equal(HttpStatusCode.OK, ownResponse.StatusCode);
+        using var ownJson = JsonDocument.Parse(await ownResponse.Content.ReadAsStringAsync());
+        var ownRow = Assert.Single(ownJson.RootElement.EnumerateArray());
+        Assert.Equal(ownApplicationId, ownRow.GetProperty("applicationId").GetGuid());
+        Assert.NotEqual(otherApplicationId, ownRow.GetProperty("applicationId").GetGuid());
+
+        using var otherRequest = new HttpRequestMessage(HttpMethod.Get, "/api/Applications/me");
+        otherRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", TokenFor(otherStudent));
+        using var otherResponse = await client.SendAsync(otherRequest);
+        Assert.Equal(HttpStatusCode.OK, otherResponse.StatusCode);
+        using var otherJson = JsonDocument.Parse(await otherResponse.Content.ReadAsStringAsync());
+        var otherRow = Assert.Single(otherJson.RootElement.EnumerateArray());
+        Assert.Equal(otherApplicationId, otherRow.GetProperty("applicationId").GetGuid());
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("not-a-guid")]
+    [InlineData("00000000-0000-0000-0000-000000000000")]
+    public async Task MyApplications_InvalidOrMissingIdentityClaim_ReturnsUnauthorized(string? claimValue)
+    {
+        using var server = CreateServer();
+        using var client = server.CreateClient();
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/api/Applications/me");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", StudentTokenWithClaim(claimValue));
+
+        using var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal(
+            "An authenticated student identity is required.",
+            json.RootElement.GetProperty("message").GetString());
     }
 
     [Fact]
@@ -208,6 +290,26 @@ public class StudentEndpointAuthorizationTests
         .Build();
 
     private static string TokenFor(User user) => new JwtService(TestConfiguration()).GenerateToken(user);
+
+    private static string StudentTokenWithClaim(string? claimValue)
+    {
+        var claims = new List<Claim> { new(ClaimTypes.Role, "Student") };
+        if (claimValue != null)
+        {
+            claims.Add(new Claim(ClaimTypes.NameIdentifier, claimValue));
+        }
+
+        var configuration = TestConfiguration();
+        var token = new JwtSecurityToken(
+            issuer: configuration["Jwt:Issuer"],
+            audience: configuration["Jwt:Audience"],
+            claims: claims,
+            expires: DateTime.UtcNow.AddMinutes(60),
+            signingCredentials: new SigningCredentials(
+                new SymmetricSecurityKey(Encoding.UTF8.GetBytes(SigningKey)),
+                SecurityAlgorithms.HmacSha256));
+        return new JwtSecurityTokenHandler().WriteToken(token);
+    }
 
     private static HttpRequestMessage CreateRequest((HttpMethod Method, string Path) action)
     {
