@@ -89,6 +89,14 @@ builder.Services.AddSwaggerGen(options =>
         Version = "v1",
         Description = "Account verification, document storage, AI validation approval gates, and interview scheduling."
     });
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        Description = "Enter the JWT returned by the login endpoint."
+    });
+    options.OperationFilter<AuthorizeOperationFilter>();
     var xmlPath = Path.Combine(AppContext.BaseDirectory, "backend-dotnet.xml");
     if (File.Exists(xmlPath)) options.IncludeXmlComments(xmlPath);
 });
