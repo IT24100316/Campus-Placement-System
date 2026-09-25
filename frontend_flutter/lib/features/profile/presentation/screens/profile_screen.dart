@@ -9,14 +9,24 @@ import 'package:http/http.dart' as http;
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/api_endpoints.dart';
 import '../../../../core/services/api_service.dart';
+import '../../../../core/services/cv_upload_service.dart';
+import '../../../auth/presentation/screens/landing_screen.dart';
 import '../../data/student_profile_models.dart';
 import '../../data/student_profile_service.dart';
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key, this.profileService, this.referenceClient});
+  const ProfileScreen({
+    super.key,
+    this.profileService,
+    this.referenceClient,
+    this.cvUploadService,
+    this.pickCvFile,
+  });
 
   final StudentProfileService? profileService;
   final http.Client? referenceClient;
+  final CvUploadService? cvUploadService;
+  final Future<PlatformFile?> Function()? pickCvFile;
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -56,6 +66,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? _profileMessage;
   bool _profileMessageIsError = false;
   bool _profileLoadFailed = false;
+  bool _sessionExpired = false;
 
   List<dynamic> _domains = [];
   List<dynamic> _jobTitles = [];
@@ -75,6 +86,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isSelectingCv = false;
 
   late final StudentProfileService _profileService;
+  late final CvUploadService _cvUploadService;
   late final http.Client _referenceClient;
 
   static const List<String> degreePrograms = [
@@ -90,6 +102,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void initState() {
     super.initState();
     _profileService = widget.profileService ?? StudentProfileService();
+    _cvUploadService = widget.cvUploadService ?? CvUploadService();
     _referenceClient = widget.referenceClient ?? http.Client();
     _initializeProfile();
   }
@@ -173,6 +186,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     } on StudentProfileException catch (error) {
       if (mounted) {
+        if (error.type == StudentProfileErrorType.unauthorized) {
+          _expireSession();
+        }
         setState(() {
           _profileMessage = error.message;
           _profileMessageIsError = true;
@@ -295,10 +311,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
 
     try {
-      final file = await FilePicker.pickFile(
-        type: FileType.custom,
-        allowedExtensions: const ['pdf'],
-      );
+      final file =
+          await (widget.pickCvFile?.call() ??
+              FilePicker.pickFile(
+                type: FileType.custom,
+                allowedExtensions: const ['pdf'],
+              ));
 
       if (file == null) {
         return;
@@ -383,6 +401,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return '${(bytes / bytesPerMegabyte).toStringAsFixed(1)} MB';
   }
 
+  void _expireSession() {
+    StudentSession.clear();
+    _sessionExpired = true;
+  }
+
+  void _goToLogin() {
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const LandingScreen()),
+      (route) => false,
+    );
+  }
+
   Future<void> _saveProfile() async {
     if (_isLoadingProfile || _isSavingProfile) {
       return;
@@ -462,9 +493,50 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       setState(() {
         _campusIdPhotoUrl = result.campusIdPhotoUrl;
-        _uploadedCvStorageKey = result.cvPdfUrl.isEmpty
-            ? null
-            : result.cvPdfUrl;
+        if (result.cvPdfUrl.isNotEmpty) _uploadedCvStorageKey = result.cvPdfUrl;
+      });
+
+      final selectedCv = _selectedCvFile;
+      if (selectedCv != null) {
+        try {
+          final bytes = await selectedCv.readAsBytes();
+          final uploaded = await _cvUploadService.uploadPdf(
+            fileBytes: bytes,
+            fileName: selectedCv.name,
+            authToken: StudentSession.token ?? '',
+          );
+          if (!mounted) return;
+          setState(() {
+            _uploadedCvStorageKey = uploaded.storageKey;
+            _selectedCvFile = null;
+            _selectedCvFileSize = null;
+            _cvUploadError = null;
+          });
+        } on CvUploadException catch (error) {
+          if (!mounted) return;
+          if (error.statusCode == 401) _expireSession();
+          setState(() {
+            _profileMessage =
+                'Profile saved, but the CV still needs to be uploaded. ${error.message}';
+            _profileMessageIsError = true;
+            _cvUploadError = error.message;
+            _saveButtonText = 'Retry CV Upload';
+            _saveButtonIcon = Icons.upload_file;
+          });
+          return;
+        } catch (_) {
+          if (!mounted) return;
+          setState(() {
+            _profileMessage = 'Profile saved, but the CV still needs to be uploaded. Please retry.';
+            _profileMessageIsError = true;
+            _saveButtonText = 'Retry CV Upload';
+            _saveButtonIcon = Icons.upload_file;
+          });
+          return;
+        }
+      }
+
+      setState(() {
         _profileMessage = 'Student profile saved successfully.';
         _profileMessageIsError = false;
         _saveButtonText = 'Profile Saved';
@@ -472,6 +544,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       });
     } on StudentProfileException catch (error) {
       if (mounted) {
+        if (error.type == StudentProfileErrorType.unauthorized) {
+          _expireSession();
+        }
         setState(() {
           _profileMessage = error.message;
           _profileMessageIsError = true;
@@ -703,6 +778,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           child: const Text('Retry loading'),
                         ),
                       ),
+                    if (_sessionExpired)
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton(
+                          onPressed: _goToLogin,
+                          child: const Text('Sign in again'),
+                        ),
+                      ),
                     const SizedBox(height: 16),
                   ],
 
@@ -868,7 +951,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 border: Border(top: BorderSide(color: Colors.grey.shade200)),
               ),
               child: ElevatedButton.icon(
-                onPressed: _isLoadingProfile || _isSavingProfile
+                onPressed:
+                    _isLoadingProfile || _isSavingProfile || _sessionExpired
                     ? null
                     : _saveProfile,
                 icon: _isSavingProfile
@@ -1244,24 +1328,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     const SizedBox(width: 6),
                     Icon(
-                      _uploadedCvStorageKey == null
-                          ? Icons.pending_outlined
-                          : Icons.check_circle_outline,
-                      color: _uploadedCvStorageKey == null
-                          ? Colors.orange
-                          : Colors.teal,
+                      Icons.pending_outlined,
+                      color: Colors.orange,
                       size: 12,
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      _uploadedCvStorageKey == null
-                          ? 'Ready to upload'
-                          : 'Uploaded',
+                      'Ready to upload',
                       style: TextStyle(
                         fontSize: 11,
-                        color: _uploadedCvStorageKey == null
-                            ? Colors.orange
-                            : Colors.teal,
+                        color: Colors.orange,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -1270,7 +1346,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 if (_uploadedCvStorageKey != null) ...[
                   const SizedBox(height: 2),
                   Text(
-                    'Storage ID: $_uploadedCvStorageKey',
+                    'Existing CV storage ID: $_uploadedCvStorageKey',
                     style: const TextStyle(
                       fontSize: 11,
                       color: AppColors.textSecondaryLight,

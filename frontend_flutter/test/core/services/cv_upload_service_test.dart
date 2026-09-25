@@ -44,6 +44,7 @@ void main() {
       () => service.uploadPdf(
         fileName: 'resume.pdf',
         fileBytes: Uint8List.fromList('%PDF-test'.codeUnits),
+        authToken: 'student-token',
       ),
       throwsA(
         isA<CvUploadException>().having(
@@ -53,6 +54,21 @@ void main() {
         ),
       ),
     );
+  });
+
+  test('rejects a missing token before sending an upload request', () async {
+    final client = _RecordingClient(statusCode: 200, responseBody: '{}');
+    final service = CvUploadService(client: client);
+
+    await expectLater(
+      service.uploadPdf(
+        fileName: 'resume.pdf',
+        fileBytes: Uint8List.fromList('%PDF-test'.codeUnits),
+        authToken: ' ',
+      ),
+      throwsA(isA<CvUploadException>()),
+    );
+    expect(client.requestUrl, isNull);
   });
 }
 
@@ -72,7 +88,9 @@ class _RecordingClient extends http.BaseClient {
     requestUrl = request.url;
     final requestStream = request.finalize();
     contentType = request.headers['content-type'];
-    requestBody = utf8.decode(await requestStream.expand((chunk) => chunk).toList());
+    requestBody = utf8.decode(
+      await requestStream.expand((chunk) => chunk).toList(),
+    );
 
     return http.StreamedResponse(
       Stream<List<int>>.value(utf8.encode(responseBody)),

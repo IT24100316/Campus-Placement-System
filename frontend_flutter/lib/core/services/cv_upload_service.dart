@@ -9,8 +9,8 @@ import '../constants/api_endpoints.dart';
 
 class CvUploadService {
   CvUploadService({http.Client? client, Uri? uploadEndpoint})
-      : _client = client ?? http.Client(),
-        _uploadEndpoint = uploadEndpoint ?? Uri.parse(ApiEndpoints.uploadCv);
+    : _client = client ?? http.Client(),
+      _uploadEndpoint = uploadEndpoint ?? Uri.parse(ApiEndpoints.uploadCv);
 
   final http.Client _client;
   final Uri _uploadEndpoint;
@@ -18,10 +18,16 @@ class CvUploadService {
   Future<CvUploadResult> uploadPdf({
     required Uint8List fileBytes,
     required String fileName,
-    String? authToken,
+    required String authToken,
   }) async {
+    final token = authToken.trim();
+    if (token.isEmpty) {
+      throw const CvUploadException('Sign in before uploading your CV.');
+    }
     if (fileBytes.isEmpty) {
-      throw const CvUploadException('Select a non-empty PDF CV before uploading.');
+      throw const CvUploadException(
+        'Select a non-empty PDF CV before uploading.',
+      );
     }
 
     if (!fileName.toLowerCase().endsWith('.pdf')) {
@@ -38,9 +44,7 @@ class CvUploadService {
         ),
       );
 
-    if (authToken != null && authToken.trim().isNotEmpty) {
-      request.headers['Authorization'] = 'Bearer ${authToken.trim()}';
-    }
+    request.headers['Authorization'] = 'Bearer $token';
 
     try {
       final streamedResponse = await _client
@@ -49,20 +53,30 @@ class CvUploadService {
       final responseBody = await streamedResponse.stream.bytesToString();
       final responseData = _tryDecodeJson(responseBody);
 
-      if (streamedResponse.statusCode >= 200 && streamedResponse.statusCode < 300) {
+      if (streamedResponse.statusCode >= 200 &&
+          streamedResponse.statusCode < 300) {
         final storageKey = responseData?['cvStorageKey'] as String?;
         if (storageKey == null || storageKey.isEmpty) {
-          throw const CvUploadException('The server did not return a CV storage identifier.');
+          throw const CvUploadException(
+            'The server did not return a CV storage identifier.',
+          );
         }
 
         return CvUploadResult(storageKey: storageKey);
       }
 
-      throw CvUploadException(_messageForResponse(streamedResponse.statusCode, responseData));
+      throw CvUploadException(
+        _messageForResponse(streamedResponse.statusCode, responseData),
+        statusCode: streamedResponse.statusCode,
+      );
     } on TimeoutException {
-      throw const CvUploadException('The upload timed out. Please check your connection and try again.');
+      throw const CvUploadException(
+        'The upload timed out. Please check your connection and try again.',
+      );
     } on http.ClientException {
-      throw const CvUploadException('Unable to reach the server. Please check your connection and try again.');
+      throw const CvUploadException(
+        'Unable to reach the server. Please check your connection and try again.',
+      );
     }
   }
 
@@ -79,7 +93,10 @@ class CvUploadService {
     }
   }
 
-  String _messageForResponse(int statusCode, Map<String, dynamic>? responseData) {
+  String _messageForResponse(
+    int statusCode,
+    Map<String, dynamic>? responseData,
+  ) {
     final serverMessage = responseData?['message'] as String?;
     if (serverMessage != null && serverMessage.isNotEmpty) {
       return serverMessage;
@@ -87,7 +104,8 @@ class CvUploadService {
 
     return switch (statusCode) {
       400 => 'The selected CV was rejected. Please choose a valid PDF under the size limit.',
-      401 => 'Your session has expired. Please sign in again before uploading a CV.',
+      401 =>
+        'Your session has expired. Please sign in again before uploading a CV.',
       403 => 'Your account is not allowed to upload a CV.',
       404 => 'Save your student profile before uploading a CV.',
       409 => 'Your profile changed while uploading. Please try again.',
@@ -103,9 +121,10 @@ class CvUploadResult {
 }
 
 class CvUploadException implements Exception {
-  const CvUploadException(this.message);
+  const CvUploadException(this.message, {this.statusCode});
 
   final String message;
+  final int? statusCode;
 
   @override
   String toString() => message;
