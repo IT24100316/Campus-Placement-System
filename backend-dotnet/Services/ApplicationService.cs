@@ -149,50 +149,27 @@ public class ApplicationService : IApplicationService
         return application;
     }
 
-    public async Task<object> EvaluateAsync(Guid appId, EvaluateApplicationDto request, CancellationToken cancellationToken = default)
+    public async Task HandleEvaluationWebhookAsync(WebhookEvaluationResultDto payload, CancellationToken cancellationToken = default)
     {
         var application = await _context.Applications
-            .Include(a => a.Student).ThenInclude(u => u.StudentProfile)
-            .FirstOrDefaultAsync(a => a.AppId == appId, cancellationToken)
+            .FirstOrDefaultAsync(a => a.AppId == payload.ApplicationId, cancellationToken)
             ?? throw new KeyNotFoundException("Application not found.");
-        if (application.Status != ApplicationStatus.Pending)
-            throw new InvalidOperationException($"Only Pending applications can be evaluated; current status is {application.Status}.");
-        var cvKey = application.Student.StudentProfile?.CvPdfUrl;
-        if (string.IsNullOrWhiteSpace(cvKey)) throw new InvalidOperationException("The student must upload a CV PDF before validation.");
 
-        string? cvPdfBase64 = null;
-        if (cvKey.StartsWith("local://") || cvKey.StartsWith("supabase://"))
+        if (application.Status != ApplicationStatus.Processing)
+            throw new InvalidOperationException($"Cannot apply webhook result. Expected Processing status, but got {application.Status}.");
+
+        if (payload.IsSuccess)
         {
-            var storedCv = await _documentStorage.OpenReadAsync(cvKey, cancellationToken)
-                ?? throw new InvalidOperationException("The stored CV could not be read.");
-            using var memory = new MemoryStream();
-            await storedCv.Content.CopyToAsync(memory, cancellationToken);
-            cvPdfBase64 = Convert.ToBase64String(memory.ToArray());
+            application.SummaryReport = payload.ResultJson ?? "{}";
+            application.Status = ApplicationStatus.Agent_Evaluated;
+        }
+        else
+        {
+            application.SummaryReport = payload.ResultJson ?? "{\"error\": \"Unknown evaluation error\"}";
+            application.Status = ApplicationStatus.Evaluation_Failed;
         }
 
-        var body = JsonSerializer.Serialize(new
-        {
-            application_id = application.AppId,
-            summary = request.Summary,
-            cv_pdf_url = cvPdfBase64 is null ? cvKey : null,
-            cv_pdf_base64 = cvPdfBase64
-        });
-        var aiBaseUrl = (_configuration["AiService:BaseUrl"] ?? "http://127.0.0.1:8000").TrimEnd('/');
-        var response = await _httpClientFactory.CreateClient().PostAsync(
-            $"{aiBaseUrl}/validate", new StringContent(body, Encoding.UTF8, "application/json"), cancellationToken);
-        if (!response.IsSuccessStatusCode)
-            throw new HttpRequestException($"Validation Agent failed: {await response.Content.ReadAsStringAsync(cancellationToken)}");
-
-        application.SummaryReport = await response.Content.ReadAsStringAsync(cancellationToken);
-        application.Status = ApplicationStatus.Agent_Evaluated;
         await _context.SaveChangesAsync(cancellationToken);
-        return new
-        {
-            applicationId = application.AppId,
-            status = application.Status.ToString(),
-            requiresAdminApproval = true,
-            validation = JsonSerializer.Deserialize<JsonElement>(application.SummaryReport)
-        };
     }
 
     public async Task<IEnumerable<object>> GetPendingAdminApprovalAsync(CancellationToken cancellationToken = default)

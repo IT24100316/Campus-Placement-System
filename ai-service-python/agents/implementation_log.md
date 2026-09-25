@@ -7,3 +7,12 @@
 
 **Purpose:** 
 To set up the foundational configurations and data contracts needed before writing the core webhook service logic.
+
+## Step 2: Clean and Update the Core Services
+**Summary of Changes:**
+- In `IApplicationService.cs` and `ApplicationService.cs`, deleted the manual frontend-triggered `EvaluateAsync` method.
+- Added a new method `HandleEvaluationWebhookAsync` which takes the `WebhookEvaluationResultDto`.
+- This new method automatically finds the application, strictly enforces that its status is `Processing`, and updates the status to either `Agent_Evaluated` (on success) or `Evaluation_Failed` (on error) while saving the JSON payload into the `SummaryReport` column.
+
+**Purpose:** 
+To replace the old, manual synchronous logic with the new asynchronous webhook data-saving flow, enforcing state machine correctness.
