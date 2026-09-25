@@ -114,14 +114,26 @@ const mockCandidates: Candidate[] = [
 
 interface ApplicationsPageProps {
   onNavigateDashboard?: () => void;
+  userRole?: string;
+  userEmail?: string;
+  onLogout?: () => void;
 }
 
-export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({ onNavigateDashboard }) => {
+export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
+  onNavigateDashboard,
+  userRole,
+  userEmail,
+  onLogout,
+}) => {
+  const savedUserStr = typeof window !== 'undefined' ? localStorage.getItem('campusai_auth_user') : null;
+  const savedUser = savedUserStr ? JSON.parse(savedUserStr) : null;
+  const effectiveRole = userRole || savedUser?.role || '';
+  const effectiveEmail = userEmail || savedUser?.email || 'staff@acmerecruiting.com';
+  const isStaff = effectiveRole.toLowerCase().includes('staff');
+
   const [activeTab, setActiveTab] = useState<'pending' | 'approved' | 'disapproved'>('pending');
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>('1'); // Expand first candidate by default
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [candidateToSchedule, setCandidateToSchedule] = useState<Candidate | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
@@ -154,17 +166,6 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({ onNavigateDa
     setExpandedId(prev => (prev === id ? null : id));
   };
 
-  const openScheduleModal = (candidate: Candidate) => {
-    setCandidateToSchedule(candidate);
-    setIsModalOpen(true);
-  };
-
-  const handleConfirmSchedule = (e: React.FormEvent) => {
-    e.preventDefault();
-    alert(`Interview successfully scheduled for ${candidateToSchedule?.name}!`);
-    setIsModalOpen(false);
-  };
-
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 font-sans">
       {/* Authenticated Navigation Bar (Matched to HR-LandingPage) */}
@@ -174,8 +175,8 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({ onNavigateDa
           <div className="flex items-center gap-6 lg:gap-8">
             <button
               type="button"
-              onClick={onNavigateDashboard}
-              className="flex items-center gap-2.5 group focus:outline-none cursor-pointer"
+              onClick={isStaff ? undefined : onNavigateDashboard}
+              className={`flex items-center gap-2.5 group focus:outline-none ${isStaff ? 'cursor-default' : 'cursor-pointer'}`}
             >
               <div className="w-8 h-8 rounded-lg bg-blue-700 flex items-center justify-center text-white shadow-sm transition-transform group-hover:scale-105">
                 <svg
@@ -197,69 +198,90 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({ onNavigateDa
                   CampusAI
                 </span>
                 <span className="text-[10px] text-blue-700 uppercase tracking-widest font-semibold mt-0.5">
-                  Employer Portal
+                  {isStaff ? 'Staff Portal' : 'Employer Portal'}
                 </span>
               </div>
             </button>
 
-            {/* Desktop Navigation */}
-            <nav className="hidden xl:flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={onNavigateDashboard}
-                className="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-              >
-                <Building2 className="w-4 h-4 text-slate-500" />
-                <span>Dashboard</span>
-              </button>
-              <button
-                type="button"
-                onClick={onNavigateDashboard}
-                className="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-              >
-                <PlusCircle className="w-4 h-4 text-slate-500" />
-                <span>Placement Drives</span>
-              </button>
-              <button
-                type="button"
-                className="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer bg-blue-50 text-blue-700 border border-blue-100"
-              >
-                <Users className="w-4 h-4 text-blue-700" />
-                <span>Applications &amp; Matching</span>
-              </button>
-              <span className="text-slate-300 px-1 font-mono text-xs">|</span>
-              <span className="px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-semibold inline-flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                DB Synced
-              </span>
-            </nav>
+            {/* Desktop Navigation - Hidden for Staff Members */}
+            {!isStaff && (
+              <nav className="hidden xl:flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={onNavigateDashboard}
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                >
+                  <Building2 className="w-4 h-4 text-slate-500" />
+                  <span>Dashboard</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={onNavigateDashboard}
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                >
+                  <PlusCircle className="w-4 h-4 text-slate-500" />
+                  <span>Placement Drives</span>
+                </button>
+                <button
+                  type="button"
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer bg-blue-50 text-blue-700 border border-blue-100"
+                >
+                  <Users className="w-4 h-4 text-blue-700" />
+                  <span>Applications &amp; Matching</span>
+                </button>
+                <span className="text-slate-300 px-1 font-mono text-xs">|</span>
+                <span className="px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-semibold inline-flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                  DB Synced
+                </span>
+              </nav>
+            )}
           </div>
 
-          {/* Recruiter & Company Profile Identity + Admin-Styled Logout */}
+          {/* Recruiter / Staff Identity + Logout */}
           <div className="flex items-center gap-3">
-            {/* Registered Company Identity Pill */}
-            <div className="hidden sm:flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200/80 shadow-xs">
-              <div className="w-7 h-7 rounded bg-blue-700 text-white flex items-center justify-center text-xs font-bold font-mono">
-                AR
-              </div>
-              <div className="flex flex-col text-left leading-tight">
-                <div className="flex items-center gap-1">
-                  <span className="text-xs font-bold text-slate-900 max-w-[170px] truncate" title="Acme Recruiting">
-                    Acme Recruiting
-                  </span>
-                  <CheckCircle2 className="w-3.5 h-3.5 text-blue-700 shrink-0" />
+            {/* Identity Pill */}
+            {isStaff ? (
+              <div className="hidden sm:flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200/80 shadow-xs">
+                <div className="w-7 h-7 rounded bg-indigo-700 text-white flex items-center justify-center text-xs font-bold font-mono">
+                  ST
                 </div>
-                <span className="text-[10px] text-slate-500 truncate max-w-[170px]">
-                  hr@acmerecruiting.com
-                </span>
+                <div className="flex flex-col text-left leading-tight">
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs font-bold text-slate-900 max-w-[170px] truncate" title="Staff Member">
+                      Staff Member
+                    </span>
+                    <CheckCircle2 className="w-3.5 h-3.5 text-indigo-700 shrink-0" />
+                  </div>
+                  <span className="text-[10px] text-slate-500 truncate max-w-[170px]" title={effectiveEmail}>
+                    {effectiveEmail}
+                  </span>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="hidden sm:flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200/80 shadow-xs">
+                <div className="w-7 h-7 rounded bg-blue-700 text-white flex items-center justify-center text-xs font-bold font-mono">
+                  AR
+                </div>
+                <div className="flex flex-col text-left leading-tight">
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs font-bold text-slate-900 max-w-[170px] truncate" title="Acme Recruiting">
+                      Acme Recruiting
+                    </span>
+                    <CheckCircle2 className="w-3.5 h-3.5 text-blue-700 shrink-0" />
+                  </div>
+                  <span className="text-[10px] text-slate-500 truncate max-w-[170px]">
+                    hr@acmerecruiting.com
+                  </span>
+                </div>
+              </div>
+            )}
 
             {/* Notification Bell */}
             <button
               type="button"
               className="relative w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
-              title="Placement Notifications"
+              title="Notifications"
             >
               <Bell className="w-4 h-4" />
               <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-blue-700 ring-2 ring-white"></span>
@@ -269,11 +291,16 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({ onNavigateDa
             <button
               type="button"
               onClick={() => {
-                localStorage.removeItem('campusai_auth_user');
-                window.location.reload();
+                if (onLogout) {
+                  onLogout();
+                } else {
+                  localStorage.removeItem('campusai_auth_user');
+                  localStorage.removeItem('token');
+                  window.location.reload();
+                }
               }}
               className="inline-flex items-center gap-1.5 text-xs font-semibold text-rose-600 hover:text-white hover:bg-rose-600 border border-rose-200 hover:border-rose-600 px-3.5 py-2 rounded-lg transition-all shadow-xs focus:ring-2 focus:ring-rose-200 focus:outline-none cursor-pointer"
-              title="Sign out of Employer Session"
+              title="Sign out of session"
             >
               <LogOut className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Logout</span>
@@ -479,11 +506,10 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({ onNavigateDa
                             </button>
                             <button 
                               type="button" 
-                              onClick={() => openScheduleModal(c)}
-                              className="flex-[2] inline-flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-semibold text-white bg-blue-700 rounded-lg hover:bg-blue-800 transition-colors shadow-sm text-center"
+                              className="flex-[2] inline-flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors shadow-sm text-center"
                             >
-                              <span className="material-symbols-outlined text-[16px]">calendar_month</span>
-                              Schedule Interview
+                              <span className="material-symbols-outlined text-[16px]">check_circle</span>
+                              Approve Candidate
                             </button>
                           </div>
                         </div>
@@ -521,80 +547,6 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({ onNavigateDa
       </main>
       
       <Footer />
-
-      {/* Schedule Interview Modal */}
-      {isModalOpen && candidateToSchedule && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 transition-all">
-          <div className="bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-lg overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50/70">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center border border-blue-100">
-                  <span className="material-symbols-outlined text-[18px]">calendar_month</span>
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900">Schedule Interview - {candidateToSchedule.name}</h3>
-                  <p className="text-[11px] text-slate-500">Role: {candidateToSchedule.role}</p>
-                </div>
-              </div>
-              <button 
-                type="button" 
-                onClick={() => setIsModalOpen(false)}
-                className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors"
-              >
-                <span className="material-symbols-outlined text-[18px]">close</span>
-              </button>
-            </div>
-            
-            <form className="p-6 space-y-4" onSubmit={handleConfirmSchedule}>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Interview Date</label>
-                  <div className="relative flex items-center">
-                    <span className="material-symbols-outlined absolute left-3 text-slate-400 text-[18px]">event</span>
-                    <input required type="date" defaultValue="2026-03-24" className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-blue-600/20 outline-none transition-all" />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Interview Time</label>
-                  <div className="relative flex items-center">
-                    <span className="material-symbols-outlined absolute left-3 text-slate-400 text-[18px]">schedule</span>
-                    <input required type="time" defaultValue="14:00" className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-blue-600/20 outline-none transition-all" />
-                  </div>
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Interview Type / Round</label>
-                <select className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-medium focus:ring-2 focus:ring-blue-600/20 outline-none cursor-pointer">
-                  <option value="tech1">Technical Round 1 (FPGA & Systems Architecture)</option>
-                  <option value="screen">Hiring Manager Screen</option>
-                  <option value="pair">Live Embedded Systems Coding</option>
-                  <option value="final">Executive / Final Round</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Interviewer / Host</label>
-                <div className="relative flex items-center">
-                  <span className="material-symbols-outlined absolute left-3 text-slate-400 text-[18px]">person</span>
-                  <input type="text" placeholder="e.g. Dr. Arthur Hayes" defaultValue="Dr. Arthur Hayes (Lead Hardware Architect)" className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-blue-600/20 outline-none transition-all" />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Meeting Notes & Instructions</label>
-                <textarea rows={2} placeholder="Add meeting agenda, video call link details..." defaultValue="Technical discussion on Xilinx Artix-7 RISC-V pipelined core synthesis and FreeRTOS drivers." className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-blue-600/20 outline-none transition-all"></textarea>
-              </div>
-              <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-200">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-900 border border-slate-200 bg-white rounded-lg hover:bg-slate-50 transition-colors">
-                  Cancel
-                </button>
-                <button type="submit" className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-blue-700 rounded-lg hover:bg-blue-800 shadow-sm transition-colors">
-                  <span className="material-symbols-outlined text-[16px]">send</span>
-                  Confirm Schedule
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
