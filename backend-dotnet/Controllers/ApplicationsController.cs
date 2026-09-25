@@ -71,47 +71,6 @@ public class ApplicationsController : ControllerBase
     }
 
     /// <summary>
-    /// Submits an internship application for the authenticated student.
-    /// </summary>
-    [HttpPost("apply")]
-    [Authorize(Roles = "Student")]
-    public async Task<IActionResult> Apply(
-        [FromBody] StudentApplicationSubmissionRequestDto request,
-        CancellationToken cancellationToken)
-    {
-        var claimValue = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (User.Identity?.IsAuthenticated != true ||
-            !Guid.TryParse(claimValue, out var studentId) || studentId == Guid.Empty)
-        {
-            return Unauthorized(new { message = "An authenticated student identity is required." });
-        }
-
-        if (request.JobId is not { } jobId || jobId == Guid.Empty)
-        {
-            return BadRequest(new { message = "A valid job ID is required." });
-        }
-
-        try
-        {
-            var response = await _applicationService.SubmitStudentApplicationAsync(
-                studentId, jobId, cancellationToken);
-            return StatusCode(StatusCodes.Status201Created, response);
-        }
-        catch (StudentApplicationSubmissionException exception)
-        {
-            var error = new { message = exception.Message };
-            return exception.Error switch
-            {
-                StudentApplicationSubmissionError.Unauthorized => Unauthorized(error),
-                StudentApplicationSubmissionError.Forbidden => StatusCode(StatusCodes.Status403Forbidden, error),
-                StudentApplicationSubmissionError.JobNotFound => NotFound(error),
-                StudentApplicationSubmissionError.Duplicate or StudentApplicationSubmissionError.ExpiredJob => Conflict(error),
-                _ => BadRequest(error)
-            };
-        }
-    }
-
-    /// <summary>
     /// Retrieves a paginated list of applications for a specific job, optionally filtered by status.
     /// </summary>
     [HttpGet("job/{jobId}")]

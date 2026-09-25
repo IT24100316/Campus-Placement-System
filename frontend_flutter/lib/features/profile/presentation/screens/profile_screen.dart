@@ -61,12 +61,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   bool _isLoadingProfile = true;
   bool _isSavingProfile = false;
-  String _saveButtonText = 'Save Profile';
+  String _saveButtonText = 'Complete Internship Registration';
   IconData _saveButtonIcon = Icons.save_outlined;
   String? _profileMessage;
   bool _profileMessageIsError = false;
   bool _profileLoadFailed = false;
   bool _sessionExpired = false;
+  bool _registrationComplete = false;
 
   List<dynamic> _domains = [];
   List<dynamic> _jobTitles = [];
@@ -174,13 +175,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _fullNameController.text = StudentSession.fullName ?? '';
           _profileMessage = 'Create your student profile to get started.';
           _profileMessageIsError = false;
+          _registrationComplete = false;
         });
         return;
       }
       await _populateProfile(profile);
       if (mounted) {
         setState(() {
-          _profileMessage = 'Your saved profile is ready to edit.';
+          _profileMessage = _registrationComplete
+              ? 'Internship registration completed successfully'
+              : 'Your saved profile is ready to edit.';
           _profileMessageIsError = false;
         });
       }
@@ -241,6 +245,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _uploadedCvStorageKey = profile.cvPdfUrl.isEmpty
           ? null
           : profile.cvPdfUrl;
+      _registrationComplete =
+          _uploadedCvStorageKey != null &&
+          profile.fullName.trim().isNotEmpty &&
+          profile.phone.trim().isNotEmpty &&
+          profile.universityName.trim().isNotEmpty &&
+          profile.degreeProgram.trim().isNotEmpty &&
+          profile.academicStatus.trim().isNotEmpty &&
+          profile.currentYearOfStudy >= 1 &&
+          profile.expectedGraduationDate != null &&
+          profile.desiredJobTitle.trim().isNotEmpty &&
+          profile.primaryDomain.trim().isNotEmpty &&
+          profile.careerObjectivesSummary.trim().isNotEmpty &&
+          profile.skills.isNotEmpty &&
+          profile.toolsAndTechnologies.isNotEmpty &&
+          profile.internshipType.isNotEmpty &&
+          profile.lectureScheduleType.trim().isNotEmpty &&
+          profile.preferredLocations.isNotEmpty;
 
       final matchingDomain = _domains.where(
         (domain) =>
@@ -414,6 +435,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  Future<Uint8List> _validatedPdfBytes(PlatformFile file) async {
+    if (!file.name.toLowerCase().endsWith('.pdf')) {
+      throw const CvUploadException('Only PDF files can be selected.');
+    }
+    final size = file.lengthSync() ?? await file.length();
+    if (size == null || size <= 0) {
+      throw const CvUploadException(
+        'The selected PDF could not be read. Please try again.',
+      );
+    }
+    if (size > _maxCvFileSizeBytes) {
+      throw const CvUploadException('The CV must not exceed 10 MB.');
+    }
+    final bytes = await file.readAsBytes();
+    if (bytes.isEmpty ||
+        bytes.length > _maxCvFileSizeBytes ||
+        !_hasPdfSignature(bytes)) {
+      throw const CvUploadException(
+        'The selected file does not contain valid PDF content.',
+      );
+    }
+    return bytes;
+  }
+
   Future<void> _saveProfile() async {
     if (_isLoadingProfile || _isSavingProfile) {
       return;
@@ -441,14 +486,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return;
     }
 
+    if (StudentSession.token?.trim().isNotEmpty != true) {
+      setState(() {
+        _expireSession();
+        _profileMessage = 'Your session has expired. Please sign in again.';
+        _profileMessageIsError = true;
+      });
+      return;
+    }
+
+    if (_selectedCvFile == null && _uploadedCvStorageKey == null) {
+      setState(() {
+        _cvSelectionError = 'Select a valid PDF CV to complete registration.';
+        _profileMessage =
+            'A PDF CV is required to complete internship registration.';
+        _profileMessageIsError = true;
+      });
+      return;
+    }
+
+    if (_cvSelectionError != null) {
+      return;
+    }
+
     setState(() {
       _isSavingProfile = true;
       _profileMessage = null;
       _profileLoadFailed = false;
-      _saveButtonText = 'Saving...';
+      _saveButtonText = 'Completing registration...';
     });
 
     try {
+      final selectedCv = _selectedCvFile;
+      final cvBytes = selectedCv == null
+          ? null
+          : await _validatedPdfBytes(selectedCv);
       final graduation = DateTime.parse(
         _expectedGraduationController.text.trim(),
       );
@@ -496,12 +568,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         if (result.cvPdfUrl.isNotEmpty) _uploadedCvStorageKey = result.cvPdfUrl;
       });
 
-      final selectedCv = _selectedCvFile;
-      if (selectedCv != null) {
+      if (selectedCv != null && cvBytes != null) {
         try {
-          final bytes = await selectedCv.readAsBytes();
           final uploaded = await _cvUploadService.uploadPdf(
-            fileBytes: bytes,
+            fileBytes: cvBytes,
             fileName: selectedCv.name,
             authToken: StudentSession.token ?? '',
           );
@@ -520,8 +590,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 'Profile saved, but the CV still needs to be uploaded. ${error.message}';
             _profileMessageIsError = true;
             _cvUploadError = error.message;
-            _saveButtonText = 'Retry CV Upload';
+            _saveButtonText = 'Complete Internship Registration';
             _saveButtonIcon = Icons.upload_file;
+            _registrationComplete = false;
           });
           return;
         } catch (_) {
@@ -529,17 +600,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
           setState(() {
             _profileMessage = 'Profile saved, but the CV still needs to be uploaded. Please retry.';
             _profileMessageIsError = true;
-            _saveButtonText = 'Retry CV Upload';
+            _saveButtonText = 'Complete Internship Registration';
             _saveButtonIcon = Icons.upload_file;
+            _registrationComplete = false;
           });
           return;
         }
       }
 
       setState(() {
-        _profileMessage = 'Student profile saved successfully.';
+        _registrationComplete = true;
+        _profileMessage = 'Internship registration completed successfully';
         _profileMessageIsError = false;
-        _saveButtonText = 'Profile Saved';
+        _saveButtonText = 'Complete Internship Registration';
         _saveButtonIcon = Icons.check_circle;
       });
     } on StudentProfileException catch (error) {
@@ -550,8 +623,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
         setState(() {
           _profileMessage = error.message;
           _profileMessageIsError = true;
-          _saveButtonText = 'Save Profile';
+          _saveButtonText = 'Complete Internship Registration';
           _saveButtonIcon = Icons.save_outlined;
+        });
+      }
+    } on CvUploadException catch (error) {
+      if (mounted) {
+        setState(() {
+          _cvSelectionError = error.message;
+          _profileMessage = error.message;
+          _profileMessageIsError = true;
+          _saveButtonText = 'Complete Internship Registration';
         });
       }
     } catch (_) {
@@ -559,7 +641,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         setState(() {
           _profileMessage = 'Unable to save your profile. Please check the form and try again.';
           _profileMessageIsError = true;
-          _saveButtonText = 'Save Profile';
+          _saveButtonText = 'Complete Internship Registration';
           _saveButtonIcon = Icons.save_outlined;
         });
       }
@@ -709,7 +791,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'AUTONOMOUS MATCH READY',
+                              'STUDENT INTERNSHIP',
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.bold,
@@ -719,7 +801,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ),
                             SizedBox(height: 2),
                             Text(
-                              'My Resume',
+                              'Internship Registration',
                               style: TextStyle(
                                 fontSize: 24,
                                 fontWeight: FontWeight.w800,
@@ -728,7 +810,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ),
                             SizedBox(height: 4),
                             Text(
-                              'Build and synchronize your placement profile for AI match drives',
+                              'Complete your profile and upload a PDF CV to register',
                               style: TextStyle(
                                 fontSize: 14,
                                 color: AppColors.textSecondaryLight,
@@ -801,6 +883,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const SizedBox(height: 12),
                   _buildDocumentUploadDropzone(),
                   const SizedBox(height: 12),
+                  if (_uploadedCvStorageKey != null) ...[
+                    const Row(
+                      children: [
+                        Icon(Icons.check_circle, color: Colors.teal, size: 18),
+                        SizedBox(width: 8),
+                        Text(
+                          'CV uploaded',
+                          style: TextStyle(
+                            color: Colors.teal,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                  ],
                   _buildUploadedFileItem(),
                   const SizedBox(height: 24),
 

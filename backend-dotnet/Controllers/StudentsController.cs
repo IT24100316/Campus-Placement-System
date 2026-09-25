@@ -125,6 +125,11 @@ public class StudentsController : ControllerBase
             return NotFound(new { message = "Save the student profile before uploading a CV." });
         }
 
+        if (!IsCompleteForInternshipRegistration(profile))
+        {
+            return BadRequest(new { message = "Complete the required internship profile fields before uploading a CV." });
+        }
+
         var validation = await _cvFileValidationService.ValidateAsync(file, cancellationToken);
         if (!validation.IsValid)
         {
@@ -261,6 +266,26 @@ public class StudentsController : ControllerBase
         profile.InternshipType = CleanItems(request.InternshipType);
         profile.LectureScheduleType = request.LectureScheduleType.Trim();
         profile.PreferredLocations = CleanItems(request.PreferredLocations);
+    }
+
+    private static bool IsCompleteForInternshipRegistration(StudentProfile profile)
+    {
+        return !string.IsNullOrWhiteSpace(profile.FullName)
+            && !string.IsNullOrWhiteSpace(profile.Phone)
+            && !string.IsNullOrWhiteSpace(profile.UniversityName)
+            && !string.IsNullOrWhiteSpace(profile.AcademicStatus)
+            && !string.IsNullOrWhiteSpace(profile.DegreeProgram)
+            && profile.CurrentYearOfStudy is >= 1 and <= 8
+            && profile.GPA is >= 0 and <= 4
+            && profile.ExpectedGraduationDate?.Date >= DateTime.UtcNow.Date
+            && !string.IsNullOrWhiteSpace(profile.DesiredJobTitle)
+            && !string.IsNullOrWhiteSpace(profile.PrimaryDomain)
+            && !string.IsNullOrWhiteSpace(profile.CareerObjectivesSummary)
+            && profile.Skills.Any(skill => !string.IsNullOrWhiteSpace(skill))
+            && profile.ToolsAndTechnologies.Any(tool => !string.IsNullOrWhiteSpace(tool))
+            && profile.InternshipType.Any(type => !string.IsNullOrWhiteSpace(type))
+            && !string.IsNullOrWhiteSpace(profile.LectureScheduleType)
+            && profile.PreferredLocations.Any(location => !string.IsNullOrWhiteSpace(location));
     }
 
     private static string[] CleanItems(IEnumerable<string> items)

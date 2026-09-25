@@ -51,7 +51,7 @@ public class CvUploadTests
             Role = UserRole.Student,
             Status = AccountStatus.Approved
         });
-        context.StudentProfiles.Add(new StudentProfile { UserId = studentId });
+        context.StudentProfiles.Add(CompleteProfile(studentId));
         await context.SaveChangesAsync();
 
         var storageKey = $"{studentId:N}/generated-cv.pdf";
@@ -67,7 +67,46 @@ public class CvUploadTests
 
         Assert.IsType<OkObjectResult>(result);
         Assert.Equal(storageKey, (await context.StudentProfiles.SingleAsync()).CvPdfUrl);
+        Assert.Empty(await context.Applications.ToListAsync());
     }
+
+    [Fact]
+    public async Task UploadCv_RejectsIncompleteProfileWithoutStoringFile()
+    {
+        var studentId = Guid.NewGuid();
+        await using var context = CreateContext();
+        context.Users.Add(new User
+        {
+            Id = studentId, Email = "student@example.edu", PasswordHash = "test-only",
+            Role = UserRole.Student, Status = AccountStatus.Approved
+        });
+        context.StudentProfiles.Add(new StudentProfile { UserId = studentId, FullName = "Student" });
+        await context.SaveChangesAsync();
+        var storage = new StubStorageService("should-not-be-stored");
+        var controller = CreateController(context, studentId,
+            new StubValidationService(CvFileValidationResult.Valid()), storage);
+
+        var result = await controller.UploadCv(
+            CreateFile("resume.pdf", "application/pdf", "%PDF-test"u8.ToArray()), CancellationToken.None);
+
+        var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+        Assert.Contains("Complete the required internship profile", badRequest.Value!.ToString());
+        Assert.Equal(0, storage.StoreCount);
+        Assert.Empty((await context.StudentProfiles.SingleAsync()).CvPdfUrl);
+    }
+
+    private static StudentProfile CompleteProfile(Guid studentId) => new()
+    {
+        UserId = studentId, FullName = "Alex Student", Phone = "+94111222333",
+        UniversityName = "Example University", AcademicStatus = "Full-time Student",
+        DegreeProgram = "Software Engineering", CurrentYearOfStudy = 3,
+        GPA = 3.5m, ExpectedGraduationDate = DateTime.UtcNow.Date.AddYears(1),
+        DesiredJobTitle = "Software Intern", PrimaryDomain = "Software Engineering",
+        CareerObjectivesSummary = "Build useful software systems.",
+        Skills = new[] { "C#" }, ToolsAndTechnologies = new[] { "Git" },
+        InternshipType = new[] { "Hybrid" }, LectureScheduleType = "Weekday",
+        PreferredLocations = new[] { "Colombo" }
+    };
 
     private static CvFileValidationService CreateValidationService(long? maxFileSizeBytes = null)
     {
@@ -137,6 +176,7 @@ public class CvUploadTests
     private sealed class StubStorageService : ICvStorageService
     {
         private readonly string _storageKey;
+        public int StoreCount { get; private set; }
 
         public StubStorageService(string storageKey)
         {
@@ -145,6 +185,7 @@ public class CvUploadTests
 
         public Task<string> StoreAsync(Guid studentId, IFormFile file, CancellationToken cancellationToken = default)
         {
+            StoreCount++;
             return Task.FromResult(_storageKey);
         }
 

@@ -44,6 +44,29 @@ public class StudentProfileControllerTests
     }
 
     [Fact]
+    public async Task SaveProfile_PreservesPreviouslyUploadedCv()
+    {
+        var studentId = Guid.NewGuid();
+        await using var context = CreateContext();
+        context.Users.Add(new User
+        {
+            Id = studentId, Email = "student@example.edu", PasswordHash = "test-only",
+            Role = UserRole.Student, Status = AccountStatus.Approved
+        });
+        context.StudentProfiles.Add(new StudentProfile
+        {
+            UserId = studentId, FullName = "Earlier Name", CvPdfUrl = "student/existing-cv.pdf"
+        });
+        await context.SaveChangesAsync();
+
+        var result = await CreateController(context, studentId).SaveProfile(CreateValidRequest());
+
+        var response = Assert.IsType<StudentProfileResponse>(Assert.IsType<OkObjectResult>(result).Value);
+        Assert.Equal("student/existing-cv.pdf", response.CvPdfUrl);
+        Assert.Equal("student/existing-cv.pdf", (await context.StudentProfiles.SingleAsync()).CvPdfUrl);
+    }
+
+    [Fact]
     public void StudentProfileRequest_RejectsInvalidGpaAndPastGraduationDate()
     {
         var request = CreateValidRequest();

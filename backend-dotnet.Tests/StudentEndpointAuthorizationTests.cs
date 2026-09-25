@@ -32,7 +32,6 @@ public class StudentEndpointAuthorizationTests
         (HttpMethod.Get, "/api/Students/profile"),
         (HttpMethod.Put, "/api/Students/profile"),
         (HttpMethod.Post, "/api/Students/upload-cv"),
-        (HttpMethod.Post, "/api/Applications/apply"),
         (HttpMethod.Get, "/api/Applications/me")
     ];
 
@@ -41,7 +40,6 @@ public class StudentEndpointAuthorizationTests
     [InlineData(1)]
     [InlineData(2)]
     [InlineData(3)]
-    [InlineData(4)]
     public async Task MissingOrInvalidToken_IsRejectedByAuthorizationPipeline(int actionIndex)
     {
         using var server = CreateServer();
@@ -64,7 +62,6 @@ public class StudentEndpointAuthorizationTests
     [InlineData(1)]
     [InlineData(2)]
     [InlineData(3)]
-    [InlineData(4)]
     public async Task NonStudentToken_IsForbiddenByAuthorizationPipeline(int actionIndex)
     {
         using var server = CreateServer();
@@ -87,8 +84,7 @@ public class StudentEndpointAuthorizationTests
     [InlineData(0, HttpStatusCode.OK)]
     [InlineData(1, HttpStatusCode.OK)]
     [InlineData(2, HttpStatusCode.OK)]
-    [InlineData(3, HttpStatusCode.Created)]
-    [InlineData(4, HttpStatusCode.OK)]
+    [InlineData(3, HttpStatusCode.OK)]
     public async Task StudentToken_ReachesEachAction(int actionIndex, HttpStatusCode expectedStatus)
     {
         using var server = CreateServer();
@@ -102,6 +98,25 @@ public class StudentEndpointAuthorizationTests
         Assert.True(
             response.StatusCode == expectedStatus,
             $"Expected {expectedStatus}, got {response.StatusCode}: {await response.Content.ReadAsStringAsync()}");
+    }
+
+    [Fact]
+    public async Task StudentCannotSubmitAJobApplication()
+    {
+        using var server = CreateServer();
+        var student = await SeedStudentAsync(server);
+        using var client = server.CreateClient();
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/Applications/apply")
+        {
+            Content = JsonContent.Create(new { jobId = SeededJobId })
+        };
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", TokenFor(student));
+
+        using var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        using var scope = server.Services.CreateScope();
+        Assert.Empty(await scope.ServiceProvider.GetRequiredService<AppDbContext>().Applications.ToListAsync());
     }
 
     [Fact]
@@ -181,7 +196,7 @@ public class StudentEndpointAuthorizationTests
     }
 
     [Fact]
-    public async Task StudentClaim_DeterminesProfileAndApplicationOwner()
+    public async Task StudentClaim_DeterminesProfileAndCvOwner()
     {
         using var server = CreateServer();
         var student = await SeedStudentAsync(server);
@@ -216,18 +231,6 @@ public class StudentEndpointAuthorizationTests
 
         using var scope = server.Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var jobId = await context.Jobs.Select(job => job.JobId).SingleAsync();
-        using var applyRequest = new HttpRequestMessage(HttpMethod.Post, "/api/Applications/apply")
-        {
-            Content = JsonContent.Create(new { jobId, studentId = otherStudentId })
-        };
-        applyRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", TokenFor(student));
-        using var applyResponse = await client.SendAsync(applyRequest);
-
-        Assert.Equal(HttpStatusCode.Created, applyResponse.StatusCode);
-        var application = await context.Applications.SingleAsync();
-        Assert.Equal(student.Id, application.StudentId);
-        Assert.NotEqual(otherStudentId, application.StudentId);
         var savedProfile = await context.StudentProfiles.SingleAsync();
         Assert.Equal(student.Id, savedProfile.UserId);
         Assert.Equal("Claim Owner", savedProfile.FullName);
@@ -324,9 +327,7 @@ public class StudentEndpointAuthorizationTests
         }
         else if (action.Method != HttpMethod.Get)
         {
-            request.Content = action.Path.EndsWith("apply", StringComparison.Ordinal)
-                ? JsonContent.Create(new StudentApplicationSubmissionRequestDto { JobId = SeededJobId })
-                : JsonContent.Create(ValidProfileRequest());
+            request.Content = JsonContent.Create(ValidProfileRequest());
         }
         return request;
     }

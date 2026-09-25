@@ -6,7 +6,6 @@ using Microsoft.EntityFrameworkCore;
 using backend_dotnet.Data;
 using backend_dotnet.DTOs;
 using backend_dotnet.Models;
-using Npgsql;
 using System.Text;
 using System.Text.Json;
 
@@ -33,126 +32,6 @@ public class ApplicationService : IApplicationService
         _emailService = emailService;
         _documentStorage = documentStorage;
     }
-
-    public async Task<StudentApplicationSubmissionResponseDto> SubmitStudentApplicationAsync(
-        Guid studentId, Guid jobId, CancellationToken cancellationToken)
-    {
-        var user = await _context.Users
-            .AsNoTracking()
-            .SingleOrDefaultAsync(candidate => candidate.Id == studentId, cancellationToken);
-        if (user == null)
-        {
-            throw new StudentApplicationSubmissionException(
-                StudentApplicationSubmissionError.Unauthorized,
-                "The authenticated user no longer exists.");
-        }
-
-        if (user.Role != UserRole.Student)
-        {
-            throw new StudentApplicationSubmissionException(
-                StudentApplicationSubmissionError.Forbidden,
-                "Only student accounts can apply for internships.");
-        }
-
-        var job = await _context.Jobs
-            .AsNoTracking()
-            .SingleOrDefaultAsync(candidate => candidate.JobId == jobId, cancellationToken);
-        if (job == null)
-        {
-            throw new StudentApplicationSubmissionException(
-                StudentApplicationSubmissionError.JobNotFound,
-                "The internship job was not found.");
-        }
-
-        if (job.ApplicationDeadline <= DateTime.UtcNow)
-        {
-            throw new StudentApplicationSubmissionException(
-                StudentApplicationSubmissionError.ExpiredJob,
-                "The application deadline for this internship has passed.");
-        }
-
-        var profile = await _context.StudentProfiles
-            .AsNoTracking()
-            .SingleOrDefaultAsync(candidate => candidate.UserId == studentId, cancellationToken);
-        if (profile == null)
-        {
-            throw new StudentApplicationSubmissionException(
-                StudentApplicationSubmissionError.InvalidProfile,
-                "Save your student profile before applying for an internship.");
-        }
-
-        if (!IsCompleteForApplication(profile))
-        {
-            throw new StudentApplicationSubmissionException(
-                StudentApplicationSubmissionError.InvalidProfile,
-                "Complete your student profile before applying for an internship.");
-        }
-
-        if (string.IsNullOrWhiteSpace(profile.CvPdfUrl))
-        {
-            throw new StudentApplicationSubmissionException(
-                StudentApplicationSubmissionError.InvalidProfile,
-                "Upload your PDF CV before applying for an internship.");
-        }
-
-        if (await _context.Applications.AsNoTracking().AnyAsync(
-            candidate => candidate.StudentId == studentId && candidate.JobId == jobId,
-            cancellationToken))
-        {
-            throw new StudentApplicationSubmissionException(
-                StudentApplicationSubmissionError.Duplicate,
-                "You have already applied for this internship.");
-        }
-
-        var application = new Application
-        {
-            StudentId = studentId,
-            JobId = jobId,
-            Status = ApplicationStatus.Pending,
-            // Required schema values; AI scoring and summary are not processed yet.
-            MatchScore = 0,
-            SummaryReport = "{}"
-        };
-        _context.Applications.Add(application);
-
-        try
-        {
-            await _context.SaveChangesAsync(cancellationToken);
-        }
-        catch (DbUpdateException exception) when (
-            exception.InnerException is PostgresException postgresException &&
-            postgresException.SqlState == PostgresErrorCodes.UniqueViolation &&
-            postgresException.ConstraintName == "IX_Applications_StudentId_JobId")
-        {
-            throw new StudentApplicationSubmissionException(
-                StudentApplicationSubmissionError.Duplicate,
-                "You have already applied for this internship.");
-        }
-
-        return new StudentApplicationSubmissionResponseDto(
-            application.AppId, application.JobId, application.Status.ToString());
-    }
-
-    private static bool IsCompleteForApplication(StudentProfile profile)
-    {
-        return !string.IsNullOrWhiteSpace(profile.FullName)
-            && !string.IsNullOrWhiteSpace(profile.Phone)
-            && !string.IsNullOrWhiteSpace(profile.UniversityName)
-            && !string.IsNullOrWhiteSpace(profile.AcademicStatus)
-            && !string.IsNullOrWhiteSpace(profile.DegreeProgram)
-            && profile.CurrentYearOfStudy is >= 1 and <= 8
-            && profile.GPA is >= 0 and <= 4
-            && profile.ExpectedGraduationDate?.Date >= DateTime.UtcNow.Date
-            && !string.IsNullOrWhiteSpace(profile.DesiredJobTitle)
-            && !string.IsNullOrWhiteSpace(profile.PrimaryDomain)
-            && !string.IsNullOrWhiteSpace(profile.CareerObjectivesSummary)
-            && profile.Skills?.Any(skill => !string.IsNullOrWhiteSpace(skill)) == true
-            && profile.ToolsAndTechnologies?.Any(tool => !string.IsNullOrWhiteSpace(tool)) == true
-            && profile.InternshipType?.Any(type => !string.IsNullOrWhiteSpace(type)) == true
-            && !string.IsNullOrWhiteSpace(profile.LectureScheduleType)
-            && profile.PreferredLocations?.Any(location => !string.IsNullOrWhiteSpace(location)) == true;
-    }
-
 
     /// <summary>
     /// GetApplicationsByJobIdAsync
