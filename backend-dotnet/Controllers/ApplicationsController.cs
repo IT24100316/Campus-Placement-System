@@ -9,10 +9,12 @@ namespace backend_dotnet.Controllers;
 public class ApplicationsController : ControllerBase
 {
     private readonly IApplicationService _applicationService;
+    private readonly IConfiguration _configuration;
 
-    public ApplicationsController(IApplicationService applicationService)
+    public ApplicationsController(IApplicationService applicationService, IConfiguration configuration)
     {
         _applicationService = applicationService;
+        _configuration = configuration;
     }
 
     /// <summary>Creates a pending job application for an approved student.</summary>
@@ -28,14 +30,23 @@ public class ApplicationsController : ControllerBase
         catch (InvalidOperationException ex) { return Conflict(new { message = ex.Message }); }
     }
 
-    /// <summary>Runs Agent 4 CV validation and pauses the workflow for administrator review.</summary>
-    [HttpPost("{appId:guid}/evaluate")]
-    public async Task<IActionResult> Evaluate(Guid appId, [FromBody] EvaluateApplicationDto request, CancellationToken cancellationToken)
+    /// <summary>Webhook endpoint for Python Agent 3 to return evaluation results.</summary>
+    [HttpPost("webhook/evaluation-result")]
+    public async Task<IActionResult> EvaluationWebhook([FromBody] WebhookEvaluationResultDto payload, CancellationToken cancellationToken)
     {
-        try { return Ok(await _applicationService.EvaluateAsync(appId, request, cancellationToken)); }
+        var configuredSecret = _configuration["Webhook:Secret"];
+        if (!Request.Headers.TryGetValue("x-webhook-secret", out var providedSecret) || providedSecret != configuredSecret)
+        {
+            return Unauthorized(new { message = "Invalid or missing webhook secret." });
+        }
+
+        try 
+        { 
+            await _applicationService.HandleEvaluationWebhookAsync(payload, cancellationToken);
+            return Ok(new { message = "Webhook processed successfully." }); 
+        }
         catch (KeyNotFoundException ex) { return NotFound(new { message = ex.Message }); }
         catch (InvalidOperationException ex) { return Conflict(new { message = ex.Message }); }
-        catch (HttpRequestException ex) { return StatusCode(502, new { message = ex.Message }); }
     }
 
     /// <summary>Lists Agent 4 results paused for administrator approval.</summary>

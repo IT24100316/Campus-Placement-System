@@ -16,3 +16,12 @@ To set up the foundational configurations and data contracts needed before writi
 
 **Purpose:** 
 To replace the old, manual synchronous logic with the new asynchronous webhook data-saving flow, enforcing state machine correctness.
+
+## Step 3: Open the Webhook Door
+**Summary of Changes:**
+- In `ApplicationsController.cs`, we injected `IConfiguration` into the constructor to access the secrets.
+- We deleted the old, manual `POST {appId}/evaluate` endpoint.
+- We added the new `POST webhook/evaluation-result` endpoint. This endpoint verifies the `x-webhook-secret` header against the value stored in your configuration. If authorized, it passes the data down to the service layer.
+
+**Purpose:** 
+To give the Python AI Service a secure, HTTP-accessible door to send its data back to the .NET orchestrator without requiring human intervention.
