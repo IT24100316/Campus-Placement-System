@@ -60,6 +60,10 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
   // --- Update Job State ---
   const [editingJob, setEditingJob] = useState<any>(null);
   const [showUpdateConfirmation, setShowUpdateConfirmation] = useState(false);
+  
+  // --- Delete Job State ---
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+  const [jobToDelete, setJobToDelete] = useState<string | null>(null);
 
   const JOBS_PER_PAGE = 6;
 
@@ -110,20 +114,25 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
     };
   }, [userEmail]);
 
-  const handleDeleteJob = async (jobId: string) => {
-    if (!window.confirm('Are you sure you want to completely remove this job drive? This cannot be undone.')) {
-      return;
-    }
-    const success = await companyService.deleteJob(jobId);
+  const confirmDeleteJob = (jobId: string) => {
+    setJobToDelete(jobId);
+    setShowDeleteConfirmation(true);
+  };
+
+  const executeDeleteJob = async () => {
+    if (!jobToDelete) return;
+    const success = await companyService.deleteJob(jobToDelete);
     if (success && dashboardData) {
       setDashboardData({
         ...dashboardData,
-        activeJobs: dashboardData.activeJobs.filter((j) => j.jobId !== jobId),
+        activeJobs: dashboardData.activeJobs.filter((j) => j.jobId !== jobToDelete),
       });
       alert('Job deleted successfully from database.');
     } else {
       alert('Failed to delete job.');
     }
+    setShowDeleteConfirmation(false);
+    setJobToDelete(null);
   };
 
   const handleUpdateJobChange = (field: string, value: any) => {
@@ -1028,7 +1037,7 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                             </button>
                             <button
                               type="button"
-                              onClick={() => handleDeleteJob(job.jobId)}
+                              onClick={() => confirmDeleteJob(job.jobId)}
                               className="px-2.5 py-1.5 rounded-md bg-rose-50 text-rose-600 hover:bg-rose-100 hover:text-rose-700 font-semibold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
                               title="Delete Drive"
                             >
@@ -2021,6 +2030,65 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                 >
                   <CheckCircle2 className="w-4 h-4" />
                   Apply Updates
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* -------------------------------------------------------------
+          Delete Confirmation Modal
+         ------------------------------------------------------------- */}
+      {showDeleteConfirmation && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-rose-100 flex items-center justify-center flex-shrink-0">
+                  <Trash2 className="w-5 h-5 text-rose-600" />
+                </div>
+                <h3 className="text-lg font-bold text-slate-900">Confirm Job Deletion</h3>
+              </div>
+              
+              <div className="bg-rose-50/50 border border-rose-200/60 rounded-xl p-4 mb-6">
+                <div className="flex gap-3">
+                  <div className="mt-0.5">
+                    <Trash2 className="w-4 h-4 text-rose-500" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-rose-900 mb-1">
+                      CampusAI Pipeline Impact
+                    </h4>
+                    <p className="text-xs text-rose-800/80 leading-relaxed font-medium">
+                      Deleting this active job opportunity will permanently remove it and all associated matched candidate flows from the platform. This action cannot be undone.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <p className="text-sm font-semibold text-slate-700 mb-6 text-center">
+                Are you sure you want to permanently delete this drive?
+              </p>
+
+              <div className="flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowDeleteConfirmation(false);
+                    setJobToDelete(null);
+                  }}
+                  className="px-4 py-2 rounded-lg text-slate-700 text-sm font-bold hover:bg-slate-100 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={executeDeleteJob}
+                  className="px-4 py-2 rounded-lg bg-rose-500 text-white text-sm font-bold hover:bg-rose-600 transition-colors shadow-md cursor-pointer flex items-center gap-1.5"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Delete Drive
                 </button>
               </div>
             </div>
