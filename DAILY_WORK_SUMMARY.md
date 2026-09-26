@@ -80,11 +80,11 @@ Today's development sprint focused on streamlining and refining the **HR Dashboa
   - Add `InterviewStatus` enum (`NotScheduled`, `Invited`, etc.)
   - Update `Application` model with interview fields
   - Run EF Core migration
-- [ ] **Phase 2: SendGrid email service**
+- [x] **Phase 2: SendGrid email service**
   - Create `IEmailService`
   - Implement secure API key retrieval
   - Configure Polly for rate limits and timeouts
-- [ ] **Phase 3: `.ics` calendar generator**
+- [x] **Phase 3: `.ics` calendar generator**
   - Write logic to dynamically generate valid `.ics` calendar events
   - Attach `.ics` payload to the SendGrid email
 - [ ] **Phase 4: Interview scheduling API/controller**
