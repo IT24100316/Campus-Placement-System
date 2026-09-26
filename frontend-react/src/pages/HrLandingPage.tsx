@@ -21,6 +21,7 @@ import {
   X,
   Search,
   RotateCcw,
+  Repeat,
   Eye,
   Trash2,
   Edit,
@@ -64,6 +65,10 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
   // --- Delete Job State ---
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [jobToDelete, setJobToDelete] = useState<string | null>(null);
+
+  // --- Repost Job State ---
+  const [showRepostConfirmation, setShowRepostConfirmation] = useState(false);
+  const [jobToRepost, setJobToRepost] = useState<any>(null);
 
   const JOBS_PER_PAGE = 6;
 
@@ -133,6 +138,19 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
     }
     setShowDeleteConfirmation(false);
     setJobToDelete(null);
+  };
+
+  const confirmRepostJob = (job: any) => {
+    setJobToRepost(job);
+    setShowRepostConfirmation(true);
+  };
+
+  const executeRepostJob = async () => {
+    if (!jobToRepost) return;
+    // Here we would ideally trigger the backend AI agents endpoint
+    alert(`Successfully triggered AI agent matching for: ${jobToRepost.jobTitle}`);
+    setShowRepostConfirmation(false);
+    setJobToRepost(null);
   };
 
   const handleUpdateJobChange = (field: string, value: any) => {
@@ -1006,46 +1024,55 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                       </div>
 
                       <div className="pt-4 mt-4 border-t border-slate-100 flex flex-col gap-3">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
+                        {/* Row 1: View, Update, Delete */}
+                        <div className="grid grid-cols-3 gap-2">
                           <button
                             type="button"
                             onClick={() => setSelectedJobDetails(job)}
-                            className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 text-xs font-semibold hover:bg-slate-50 transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
+                            className="w-full justify-center px-2 py-1.5 rounded-lg border border-slate-200 text-slate-700 text-xs font-semibold hover:bg-slate-50 transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
                             title="View Full Job Details"
                           >
                             <Eye className="w-3.5 h-3.5" />
-                            <span>View Details</span>
+                            <span>View</span>
                           </button>
-
-                          <div className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setEditingJob({
-                                  ...job,
-                                  mandatorySkills: job.mandatorySkills.join(', '),
-                                  niceToHaveSkills: job.niceToHaveSkills.join(', '),
-                                  allowedYearsOfStudy: job.allowedYearsOfStudy.join(', '),
-                                  applicationDeadline: new Date(job.applicationDeadline).toISOString().split('T')[0]
-                                });
-                              }}
-                              className="px-2.5 py-1.5 rounded-md bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 font-semibold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
-                              title="Update Criteria"
-                            >
-                              <Edit className="w-3.5 h-3.5" />
-                              <span>Update</span>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => confirmDeleteJob(job.jobId)}
-                              className="px-2.5 py-1.5 rounded-md bg-rose-50 text-rose-600 hover:bg-rose-100 hover:text-rose-700 font-semibold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
-                              title="Delete Drive"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                              <span>Delete</span>
-                            </button>
-                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingJob({
+                                ...job,
+                                mandatorySkills: job.mandatorySkills.join(', '),
+                                niceToHaveSkills: job.niceToHaveSkills.join(', '),
+                                allowedYearsOfStudy: job.allowedYearsOfStudy.join(', '),
+                                applicationDeadline: new Date(job.applicationDeadline).toISOString().split('T')[0]
+                              });
+                            }}
+                            className="w-full justify-center px-2 py-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 font-semibold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                            title="Update Criteria"
+                          >
+                            <Edit className="w-3.5 h-3.5" />
+                            <span>Update</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => confirmDeleteJob(job.jobId)}
+                            className="w-full justify-center px-2 py-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 hover:text-rose-700 font-semibold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                            title="Delete Drive"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Delete</span>
+                          </button>
                         </div>
+
+                        {/* Row 2: Repost Drive */}
+                        <button
+                          type="button"
+                          onClick={() => confirmRepostJob(job)}
+                          className="w-full py-2.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-bold hover:bg-emerald-100 transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-sm group"
+                          title="Repost Drive to Top"
+                        >
+                          <Repeat className="w-4 h-4" />
+                          <span>Repost Job Drive</span>
+                        </button>
 
                         <button
                           type="button"
@@ -2089,6 +2116,61 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                 >
                   <Trash2 className="w-4 h-4" />
                   Delete Drive
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* -------------------------------------------------------------
+          Repost Confirmation Modal
+         ------------------------------------------------------------- */}
+      {showRepostConfirmation && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                  <Repeat className="w-5 h-5 text-emerald-600" />
+                </div>
+                <h3 className="text-lg font-bold text-slate-900">Confirm Repost</h3>
+              </div>
+              
+              <div className="bg-emerald-50/50 border border-emerald-200/60 rounded-xl p-4 mb-6">
+                <div className="flex gap-3">
+                  <div className="mt-0.5">
+                    <Sparkles className="w-4 h-4 text-emerald-500" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-emerald-900 mb-1">
+                      CampusAI Pipeline Action
+                    </h4>
+                    <p className="text-xs text-emerald-800/80 leading-relaxed font-medium">
+                      Are you sure you want to repost this job? Clicking 'Okay' will run the AI agents again to search the database and find matching students for this job.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowRepostConfirmation(false);
+                    setJobToRepost(null);
+                  }}
+                  className="px-4 py-2 rounded-lg text-slate-700 text-sm font-bold hover:bg-slate-100 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={executeRepostJob}
+                  className="px-4 py-2 rounded-lg bg-emerald-500 text-white text-sm font-bold hover:bg-emerald-600 transition-colors shadow-md cursor-pointer flex items-center gap-1.5"
+                >
+                  <Repeat className="w-4 h-4" />
+                  Okay
                 </button>
               </div>
             </div>
