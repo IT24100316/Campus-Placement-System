@@ -1,6 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Footer } from '../components/layout/Footer';
-import { Building2, PlusCircle, Users, CheckCircle2, Bell, LogOut } from 'lucide-react';
+import { Building2, PlusCircle, Users, CheckCircle2, Bell, LogOut, Loader2 } from 'lucide-react';
 
 interface Candidate {
   id: string;
@@ -12,105 +12,33 @@ interface Candidate {
   skills: string[];
   matchScore: number;
   status: 'pending' | 'approved' | 'disapproved';
-  aiScreeningPoints: string[];
+  aiScreeningPoints: { topic: string; content: string }[];
   careerObjectives: string;
   resumeFileName: string;
   resumeFileSize: string;
   avatarBgClass: string;
   avatarTextClass: string;
   role: string;
+  cvUrl?: string;
+  jobDescription?: string;
+  jobDuration?: number;
+  jobStipend?: boolean;
+  jobMinGPA?: number;
+  jobMandatorySkills?: string[];
+  jobNiceToHaveSkills?: string[];
+  jobPreferredDegrees?: string[];
+  jobAllowedYears?: number[];
+  phone?: string;
+  portfolioUrl?: string;
+  tools?: string[];
+  internshipType?: string[];
+  preferredLocations?: string[];
+  lectureSchedule?: string;
+  degreeProgram?: string;
+  academicStatus?: string;
 }
 
-const mockCandidates: Candidate[] = [
-  {
-    id: '1',
-    initials: 'ER',
-    name: 'Elena Rostova',
-    university: 'Carnegie Mellon University',
-    graduationYear: '2026',
-    gpa: 3.88,
-    skills: ['C++20', 'FreeRTOS', 'Verilog / FPGA', 'RISC-V'],
-    matchScore: 96,
-    status: 'pending',
-    aiScreeningPoints: [
-      'Top 1% alignment for Hardware Systems role with proven 32-bit RISC-V pipelined core synthesis on Xilinx Artix-7 FPGA.',
-      'Registrar-verified academic rigor with 3.88 GPA and top-tier grades in Operating Systems Design & Computer Architecture.',
-      'Demonstrated production firmware development capability with direct FreeRTOS peripheral driver integration.'
-    ],
-    careerObjectives: 'Aspiring hardware systems and embedded software engineer seeking to leverage hands-on FPGA digital design, RTOS architecture, and high-speed firmware development skills in next-generation silicon and robotics infrastructure. Dedicated to building reliable, real-time autonomous systems.',
-    resumeFileName: 'Elena_Rostova_Resume.pdf',
-    resumeFileSize: '248 KB',
-    avatarBgClass: 'bg-blue-50 border-blue-100',
-    avatarTextClass: 'text-blue-600',
-    role: 'Hardware Systems Intern',
-  },
-  {
-    id: '2',
-    initials: 'MV',
-    name: 'Marcus Vance',
-    university: 'Georgia Institute of Technology',
-    graduationYear: '2026',
-    gpa: 3.92,
-    skills: ['Rust Embedded', 'ARM Cortex-M4', 'C++', 'PCB Altium'],
-    matchScore: 91,
-    status: 'pending',
-    aiScreeningPoints: [
-      'Bare-metal specialist with dedicated STM32 microcontroller firmware experience.',
-      'Led Georgia Tech RoboJackets electrical hardware group.',
-      'Completed CS 2110 (Computer Organization) and CS 2200 (Systems & Networks).'
-    ],
-    careerObjectives: 'Embedded systems engineer with a focus on real-time control applications.',
-    resumeFileName: 'Marcus_Vance_Resume.pdf',
-    resumeFileSize: '180 KB',
-    avatarBgClass: 'bg-indigo-50 border-indigo-100',
-    avatarTextClass: 'text-indigo-600',
-    role: 'Embedded Systems Intern',
-  },
-  {
-    id: '3',
-    initials: 'SL',
-    name: 'Sarah Lin',
-    university: 'UC Berkeley',
-    graduationYear: '2025',
-    gpa: 3.84,
-    skills: ['Apache Spark', 'Python (PySpark)', 'Distributed SQL', 'Kafka'],
-    matchScore: 87,
-    status: 'pending',
-    aiScreeningPoints: [
-      'Maintained streaming telemetry pipeline at Databricks during Summer 2024.',
-      'Coursework in CS 186 (Databases) & CS 162 (Operating Systems).',
-      'Strong distributed systems foundation.'
-    ],
-    careerObjectives: 'Data platform engineer passionate about big data scale.',
-    resumeFileName: 'Sarah_Lin_Resume.pdf',
-    resumeFileSize: '312 KB',
-    avatarBgClass: 'bg-emerald-50 border-emerald-100',
-    avatarTextClass: 'text-emerald-600',
-    role: 'Data Platform Engineer',
-  },
-  {
-    id: '4',
-    initials: 'DK',
-    name: 'David Kalu',
-    university: 'Purdue University',
-    graduationYear: '2026',
-    gpa: 3.76,
-    skills: ['ROS2 Humble', 'LiDAR SLAM', 'C++17', 'Gazebo'],
-    matchScore: 82,
-    status: 'pending',
-    aiScreeningPoints: [
-      'Solid autonomous navigation experience.',
-      'Built visual-inertial odometry pipeline for Purdue Formula SAE Electric team.',
-      'Proficient in sensor fusion algorithms.'
-    ],
-    careerObjectives: 'Robotics software engineer aiming to build safe autonomous vehicles.',
-    resumeFileName: 'David_Kalu_CV.pdf',
-    resumeFileSize: '1.2 MB',
-    avatarBgClass: 'bg-amber-50 border-amber-100',
-    avatarTextClass: 'text-amber-600',
-    role: 'Autonomous Systems Intern',
-  }
-];
+// mockCandidates removed - fetching from real API
 
 interface ApplicationsPageProps {
   onNavigateDashboard?: () => void;
@@ -133,9 +61,114 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
 
   const [activeTab, setActiveTab] = useState<'pending' | 'approved' | 'disapproved'>('pending');
   const [searchQuery, setSearchQuery] = useState('');
-  const [expandedId, setExpandedId] = useState<string | null>('1'); // Expand first candidate by default
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
+
+  const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchCandidates = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('http://localhost:5168/api/Applications/pending-admin-approval');
+      if (!res.ok) throw new Error('Failed to fetch');
+      const data = await res.json();
+      
+      const mapped: Candidate[] = data.map((item: any) => {
+        let aiPoints: { topic: string; content: string }[] = [{ topic: 'Status', content: 'Awaiting detailed AI analysis...' }];
+        let careerObj = 'No AI summary available.';
+        
+        if (item.validationReport && item.validationReport !== '{}') {
+          try {
+            const parsed = JSON.parse(item.validationReport);
+            aiPoints = [];
+            if (parsed.technical_alignment) aiPoints.push({ topic: 'Technical Alignment', content: parsed.technical_alignment });
+            if (parsed.identified_gaps) aiPoints.push({ topic: 'Identified Gaps', content: parsed.identified_gaps });
+            if (parsed.project_relevance) aiPoints.push({ topic: 'Project Relevance', content: parsed.project_relevance });
+            if (parsed.cv_strategic_insights) aiPoints.push({ topic: 'Strategic Insights', content: parsed.cv_strategic_insights });
+            if (parsed.github_comprehensive_analysis) aiPoints.push({ topic: 'GitHub Analysis', content: parsed.github_comprehensive_analysis });
+            if (parsed.approval_recommendation) aiPoints.push({ topic: 'Recommendation', content: parsed.approval_recommendation });
+            
+          } catch (e) {
+            console.error('Failed to parse AI report', e);
+          }
+        }
+
+        const nameParts = item.studentName.split(' ');
+        const initials = nameParts.length > 1 ? `${nameParts[0][0]}${nameParts[1][0]}`.toUpperCase() : item.studentName.substring(0, 2).toUpperCase();
+        
+        let status: 'pending' | 'approved' | 'disapproved' = 'pending';
+        if (item.status === 'Approved') status = 'approved';
+        if (item.status === 'Rejected' || item.status === 'Disapproved') status = 'disapproved';
+
+        return {
+          id: item.applicationId || 'unknown',
+          initials,
+          name: item.studentName || 'Unknown Student',
+          university: item.university || 'Unknown University',
+          graduationYear: item.graduationYear || 'N/A',
+          gpa: typeof item.gpa === 'number' ? item.gpa : 0,
+          skills: Array.isArray(item.skills) ? item.skills : [],
+          matchScore: item.matchScore || 0,
+          status,
+          aiScreeningPoints: aiPoints,
+          careerObjectives: careerObj,
+          resumeFileName: 'Candidate_CV.pdf',
+          resumeFileSize: 'PDF',
+          avatarBgClass: 'bg-blue-50 border-blue-100',
+          avatarTextClass: 'text-blue-600',
+          role: item.jobTitle || 'Unknown Role',
+          jobDescription: item.jobDescription || 'No description provided.',
+          jobDuration: item.jobDuration || 6,
+          jobStipend: item.jobStipend || false,
+          jobMinGPA: item.jobMinGPA || 0,
+          jobMandatorySkills: item.mandatorySkills || [],
+          jobNiceToHaveSkills: item.niceToHaveSkills || [],
+          jobPreferredDegrees: item.preferredDegrees || [],
+          jobAllowedYears: item.allowedYears || [],
+          cvUrl: item.cvUrl || '#',
+          phone: item.phone || '',
+          portfolioUrl: item.portfolioUrl || '',
+          tools: Array.isArray(item.tools) ? item.tools : [],
+          internshipType: Array.isArray(item.internshipType) ? item.internshipType : [],
+          preferredLocations: Array.isArray(item.preferredLocations) ? item.preferredLocations : [],
+          lectureSchedule: item.lectureSchedule || '',
+          degreeProgram: item.degreeProgram || '',
+          academicStatus: item.academicStatus || ''
+        };
+      });
+      setCandidates(mapped);
+      if (mapped.length > 0) setExpandedId(mapped[0].id);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const [viewingJobFor, setViewingJobFor] = useState<Candidate | null>(null);
+  const [viewingStudentFor, setViewingStudentFor] = useState<Candidate | null>(null);
+
+  useEffect(() => {
+    fetchCandidates();
+  }, []);
+
+  const handleAction = async (id: string, action: 'approve' | 'reject') => {
+    try {
+      const endpoint = action === 'approve' ? 'admin-approve' : 'admin-reject';
+      const res = await fetch(`http://localhost:5168/api/Applications/${id}/${endpoint}`, {
+        method: 'POST'
+      });
+      if (res.ok) {
+        setCandidates(prev => prev.map(c => 
+          c.id === id ? { ...c, status: action === 'approve' ? 'approved' : 'disapproved' } : c
+        ));
+      }
+    } catch (err) {
+      console.error('Action failed', err);
+    }
+  };
 
   const handleTabChange = (tab: 'pending' | 'approved' | 'disapproved') => {
     setActiveTab(tab);
@@ -144,7 +177,7 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
   };
 
   const filteredCandidates = useMemo(() => {
-    return mockCandidates.filter(c => {
+    return candidates.filter(c => {
       const matchesTab = c.status === activeTab;
       const q = searchQuery.toLowerCase();
       const matchesSearch =
@@ -153,7 +186,7 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
         c.skills.some(s => s.toLowerCase().includes(q));
       return matchesTab && matchesSearch;
     });
-  }, [activeTab, searchQuery]);
+  }, [candidates, activeTab, searchQuery]);
 
   const paginatedCandidates = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
@@ -391,7 +424,12 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
 
         {/* Applicant List */}
         <div className="flex flex-col gap-3.5">
-          {paginatedCandidates.length === 0 ? (
+          {loading ? (
+            <div className="py-12 flex flex-col items-center justify-center text-slate-500 bg-white rounded-xl border border-slate-200">
+              <Loader2 className="w-8 h-8 animate-spin text-blue-600 mb-2" />
+              <span>Loading applications...</span>
+            </div>
+          ) : paginatedCandidates.length === 0 ? (
             <div className="py-12 text-center text-slate-500 bg-white rounded-xl border border-slate-200">
               No candidates found matching your criteria.
             </div>
@@ -410,10 +448,10 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-bold text-base text-slate-900">{c.name}</span>
                           <span className="text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full flex items-center gap-1">
-                            <span className="material-symbols-outlined text-[13px]">verified</span> Verified {c.university.split(' ')[0]}
+                            <span className="material-symbols-outlined text-[13px]">verified</span> Verified {(c.university || 'Unknown').split(' ')[0]}
                           </span>
                         </div>
-                        <p className="text-xs text-slate-500 mt-0.5">{c.university} • Class of {c.graduationYear} • GPA {c.gpa.toFixed(2)}</p>
+                        <p className="text-xs text-slate-500 mt-0.5">{c.university} • Class of {c.graduationYear} • GPA {(c.gpa || 0).toFixed(2)}</p>
                         <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                           {c.skills.map((skill, idx) => (
                             <span key={idx} className="px-2 py-0.5 text-xs bg-slate-100 text-slate-700 rounded-md font-medium">{skill}</span>
@@ -428,12 +466,19 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
                         <span className="text-xs font-semibold text-emerald-800">Match</span>
                       </div>
                       <div className="flex items-center gap-1.5">
-                        <button type="button" className="w-8 h-8 rounded-lg border border-slate-200 hover:bg-rose-50 hover:text-rose-600 text-slate-500 flex items-center justify-center transition-colors" title="Reject">
-                          <span className="material-symbols-outlined text-[16px]">close</span>
-                        </button>
-                        <button type="button" className="w-8 h-8 rounded-lg border border-slate-200 hover:bg-emerald-50 hover:text-emerald-700 text-slate-500 flex items-center justify-center transition-colors" title="Approve">
-                          <span className="material-symbols-outlined text-[16px]">check</span>
-                        </button>
+                        {c.status === 'pending' && (
+                          <>
+                            <button type="button" onClick={(e) => { e.stopPropagation(); handleAction(c.id, 'reject'); }} className="w-8 h-8 rounded-lg border border-slate-200 hover:bg-rose-50 hover:text-rose-600 text-slate-500 flex items-center justify-center transition-colors" title="Reject">
+                              <span className="material-symbols-outlined text-[16px]">close</span>
+                            </button>
+                            <button type="button" onClick={(e) => { e.stopPropagation(); handleAction(c.id, 'approve'); }} className="w-8 h-8 rounded-lg border border-slate-200 hover:bg-emerald-50 hover:text-emerald-700 text-slate-500 flex items-center justify-center transition-colors" title="Approve">
+                              <span className="material-symbols-outlined text-[16px]">check</span>
+                            </button>
+                          </>
+                        )}
+                        {c.status === 'approved' && <span className="text-xs font-bold text-emerald-600 mr-2">Approved</span>}
+                        {c.status === 'disapproved' && <span className="text-xs font-bold text-rose-600 mr-2">Rejected</span>}
+                        
                         <div className={`w-8 h-8 rounded-lg text-slate-500 flex items-center justify-center transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}>
                           <span className="material-symbols-outlined text-[18px]">expand_more</span>
                         </div>
@@ -454,64 +499,73 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
                               {c.aiScreeningPoints.map((point, idx) => (
                                 <li key={idx} className="flex items-start gap-2.5">
                                   <span className="material-symbols-outlined text-emerald-600 text-[18px] shrink-0 mt-0.5">check_circle</span>
-                                  <span>{point}</span>
+                                  <span>
+                                    <strong className="font-semibold text-slate-900">{point.topic}: </strong>
+                                    <span className="text-slate-600">{point.content}</span>
+                                  </span>
                                 </li>
                               ))}
                             </ul>
                           </div>
-                          <div className="pt-2 border-t border-slate-100">
-                            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">CAREER OBJECTIVES SUMMARY</h4>
-                            <p className="text-xs text-slate-500 leading-relaxed">{c.careerObjectives}</p>
-                          </div>
                         </div>
 
-                        {/* Right Column */}
-                        <div className="lg:col-span-5 flex flex-col justify-between gap-6 bg-slate-50 p-5 rounded-xl border border-slate-100">
-                          <div className="space-y-4">
-                            <div>
-                              <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Education</h4>
-                              <div className="text-sm font-semibold text-slate-900">{c.university}</div>
-                              <p className="text-xs font-medium text-slate-900 mt-1">GPA: <span className="text-blue-700 font-bold">{c.gpa.toFixed(2)} / 4.0</span> • Class of {c.graduationYear}</p>
-                            </div>
-                            
-                            <div>
-                              <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Verified Documents</h4>
-                              <div className="flex flex-col gap-2">
-                                <div className="flex items-center justify-between p-2.5 bg-white rounded-lg border border-slate-200 hover:border-blue-600/40 transition-colors">
-                                  <div className="flex items-center gap-2.5 min-w-0">
-                                    <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center shrink-0 border border-blue-100">
-                                      <span className="material-symbols-outlined text-[18px]">description</span>
-                                    </div>
-                                    <div className="flex flex-col min-w-0">
-                                      <span className="text-xs font-semibold text-slate-900 truncate">{c.resumeFileName}</span>
-                                      <span className="text-[11px] text-slate-500">PDF • {c.resumeFileSize} • Verified</span>
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center gap-1 shrink-0">
-                                    <button type="button" className="p-1.5 rounded-md hover:bg-slate-100 text-slate-500 hover:text-blue-700 transition-colors" title="View Document">
-                                      <span className="material-symbols-outlined text-[18px]">visibility</span>
-                                    </button>
-                                    <button type="button" className="p-1.5 rounded-md hover:bg-slate-100 text-slate-500 hover:text-blue-700 transition-colors" title="Download Document">
-                                      <span className="material-symbols-outlined text-[18px]">download</span>
-                                    </button>
-                                  </div>
-                                </div>
+                        {/* Right Column (Job & Profile Details) */}
+                        <div className="lg:col-span-5 flex flex-col gap-6 bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                          
+                          {/* Applied Role Summary (Click for details) */}
+                          <div>
+                            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Applied Role</h4>
+                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex items-center justify-between gap-4">
+                              <div className="min-w-0">
+                                <h3 className="text-sm font-bold text-slate-900 truncate">{c.role}</h3>
+                                <p className="text-xs font-medium text-slate-500 mt-1 truncate" title={c.jobDescription}>{c.jobDescription}</p>
                               </div>
+                              <button 
+                                onClick={() => setViewingJobFor(c)}
+                                className="shrink-0 px-3 py-1.5 bg-white border border-slate-200 text-xs font-semibold text-blue-600 rounded-lg shadow-sm hover:bg-slate-100 transition-colors flex items-center gap-1"
+                              >
+                                <span className="material-symbols-outlined text-[14px]">visibility</span>
+                                View Details
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Separator */}
+                          <div className="h-px w-full bg-slate-200"></div>
+                          
+                          {/* Candidate Profile Summary (Click for details) */}
+                          <div className="pt-2">
+                            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Candidate Profile</h4>
+                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex items-center justify-between gap-4">
+                              <div className="min-w-0">
+                                <h3 className="text-sm font-bold text-slate-900 truncate">{c.university}</h3>
+                                <p className="text-xs font-medium text-slate-500 mt-1 truncate">GPA: {(c.gpa || 0).toFixed(2)} / 4.0 • Class of {c.graduationYear}</p>
+                              </div>
+                              <button 
+                                onClick={() => setViewingStudentFor(c)}
+                                className="shrink-0 px-3 py-1.5 bg-white border border-slate-200 text-xs font-semibold text-blue-600 rounded-lg shadow-sm hover:bg-slate-100 transition-colors flex items-center gap-1"
+                              >
+                                <span className="material-symbols-outlined text-[14px]">person</span>
+                                View Profile
+                              </button>
                             </div>
                           </div>
                           
-                          <div className="flex items-center gap-2 pt-2 border-t border-slate-200">
-                            <button type="button" className="flex-1 py-2 px-3 text-xs font-semibold text-rose-600 bg-white border border-rose-200 rounded-lg hover:bg-rose-50 transition-colors text-center">
-                              Reject
-                            </button>
-                            <button 
-                              type="button" 
-                              className="flex-[2] inline-flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors shadow-sm text-center"
-                            >
-                              <span className="material-symbols-outlined text-[16px]">check_circle</span>
-                              Approve Candidate
-                            </button>
-                          </div>
+                          {c.status === 'pending' && (
+                            <div className="flex items-center gap-2 pt-4 border-t border-slate-200 mt-auto">
+                              <button type="button" onClick={() => handleAction(c.id, 'reject')} className="flex-1 py-2.5 px-3 text-xs font-bold text-rose-600 bg-white border border-rose-200 rounded-lg hover:bg-rose-50 transition-colors text-center shadow-sm">
+                                Reject
+                              </button>
+                              <button 
+                                type="button" 
+                                onClick={() => handleAction(c.id, 'approve')}
+                                className="flex-[2] inline-flex items-center justify-center gap-1.5 py-2.5 px-3 text-xs font-bold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors shadow-sm text-center"
+                              >
+                                <span className="material-symbols-outlined text-[16px]">check_circle</span>
+                                Approve Candidate
+                              </button>
+                            </div>
+                          )}
                         </div>
 
                       </div>
@@ -545,6 +599,349 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
           </div>
         </div>
       </main>
+
+      {/* Student Profile Modal */}
+      {viewingStudentFor && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+            
+            {/* Modal Header */}
+            <div className="flex items-start justify-between p-6 pb-4 border-b border-slate-100">
+              <div>
+                <h3 className="text-xl font-bold text-slate-900">{viewingStudentFor.name}</h3>
+                <div className="text-sm font-medium text-slate-500 mt-1 flex items-center gap-2">
+                  <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[16px]">school</span> {viewingStudentFor.university}</span>
+                </div>
+              </div>
+              <button 
+                onClick={() => setViewingStudentFor(null)}
+                className="text-slate-400 hover:text-slate-600 transition-colors p-1"
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto space-y-8">
+              
+              {/* Metric Cards */}
+              <div className="grid grid-cols-4 gap-4">
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex flex-col items-center justify-center text-center">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Cumulative GPA</span>
+                  <span className="text-lg font-bold text-slate-900">{(viewingStudentFor.gpa || 0).toFixed(2)} <span className="text-slate-400 text-sm font-medium">/ 4.0</span></span>
+                </div>
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex flex-col items-center justify-center text-center">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Status</span>
+                  <span className="text-base font-bold text-slate-900">{viewingStudentFor.academicStatus || 'Student'}</span>
+                </div>
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex flex-col items-center justify-center text-center">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Schedule</span>
+                  <span className="text-base font-bold text-slate-900">{viewingStudentFor.lectureSchedule || 'N/A'}</span>
+                </div>
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex flex-col items-center justify-center text-center">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Expected Grad</span>
+                  <span className="text-base font-bold text-slate-900">Class of {viewingStudentFor.graduationYear}</span>
+                </div>
+              </div>
+
+              {/* Grid Layout */}
+              <div className="grid grid-cols-2 gap-8">
+                
+                {/* Left Column */}
+                <div className="space-y-6">
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="material-symbols-outlined text-[18px] text-blue-600">person</span>
+                      <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Contact & Profile</h4>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-lg shadow-sm">
+                        <span className="text-xs font-semibold text-slate-500">Phone</span>
+                        <span className="text-sm font-medium text-slate-900">{viewingStudentFor.phone || 'N/A'}</span>
+                      </div>
+                      <div className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-lg shadow-sm">
+                        <span className="text-xs font-semibold text-slate-500">Degree</span>
+                        <span className="text-sm font-medium text-slate-900">{viewingStudentFor.degreeProgram || 'N/A'}</span>
+                      </div>
+                      {viewingStudentFor.portfolioUrl && (
+                        <div className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-lg shadow-sm">
+                          <span className="text-xs font-semibold text-slate-500">Portfolio</span>
+                          <a href={viewingStudentFor.portfolioUrl} target="_blank" rel="noreferrer" className="text-sm font-medium text-blue-600 hover:underline">View Portfolio</a>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="material-symbols-outlined text-[18px] text-blue-600">track_changes</span>
+                      <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Career Objectives</h4>
+                    </div>
+                    <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 text-sm text-slate-700 leading-relaxed shadow-inner">
+                      {viewingStudentFor.careerObjectives || 'No objectives specified.'}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="material-symbols-outlined text-[18px] text-blue-600">work</span>
+                      <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Work Preferences</h4>
+                    </div>
+                    <div className="space-y-3">
+                      {viewingStudentFor.internshipType && viewingStudentFor.internshipType.length > 0 && (
+                        <div>
+                          <span className="block text-xs font-semibold text-slate-500 mb-2">Internship Type</span>
+                          <div className="flex flex-wrap gap-2">
+                            {viewingStudentFor.internshipType.map((type, i) => (
+                              <span key={i} className="px-3 py-1 bg-white text-slate-700 text-xs font-bold rounded-md border border-slate-300 shadow-sm">
+                                {type}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {viewingStudentFor.preferredLocations && viewingStudentFor.preferredLocations.length > 0 && (
+                        <div className="mt-4">
+                          <span className="block text-xs font-semibold text-slate-500 mb-2">Locations</span>
+                          <div className="flex flex-wrap gap-2">
+                            {viewingStudentFor.preferredLocations.map((loc, i) => (
+                              <span key={i} className="px-3 py-1 bg-white text-slate-700 text-xs font-bold rounded-md border border-slate-300 shadow-sm">
+                                {loc}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Column */}
+                <div className="space-y-6">
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="material-symbols-outlined text-[18px] text-blue-600">code</span>
+                      <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Core Skills</h4>
+                    </div>
+                    {viewingStudentFor.skills && viewingStudentFor.skills.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {viewingStudentFor.skills.map((skill, i) => (
+                          <span key={i} className="px-3 py-1.5 bg-blue-50 text-blue-700 text-sm font-semibold rounded-lg border border-blue-200 shadow-sm">
+                            {skill}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-slate-500">No skills listed.</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="material-symbols-outlined text-[18px] text-blue-600">handyman</span>
+                      <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Tools & Infra</h4>
+                    </div>
+                    {viewingStudentFor.tools && viewingStudentFor.tools.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {viewingStudentFor.tools.map((tool, i) => (
+                          <span key={i} className="px-3 py-1.5 bg-white text-slate-600 text-sm font-semibold rounded-lg border border-slate-200 shadow-sm">
+                            {tool}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-slate-500">No tools listed.</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="material-symbols-outlined text-[18px] text-blue-600">verified</span>
+                      <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Verified Documents</h4>
+                    </div>
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200 hover:border-blue-600/40 transition-colors shadow-sm">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-10 h-10 rounded-lg bg-white text-blue-700 flex items-center justify-center shrink-0 border border-slate-200 shadow-sm">
+                            <span className="material-symbols-outlined text-[20px]">description</span>
+                          </div>
+                          <div className="flex flex-col min-w-0">
+                            <span className="text-sm font-bold text-slate-900 truncate">{viewingStudentFor.resumeFileName}</span>
+                            <span className="text-xs font-medium text-slate-500 mt-0.5">PDF • {viewingStudentFor.resumeFileSize} • System Verified</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button type="button" onClick={() => window.open(`https://docs.google.com/viewer?url=${encodeURIComponent(viewingStudentFor.cvUrl)}`, '_blank')} className="p-2 rounded-lg bg-white border border-slate-200 hover:border-blue-300 shadow-sm text-slate-600 hover:text-blue-700 transition-all flex items-center gap-1.5" title="View PDF">
+                            <span className="material-symbols-outlined text-[16px]">visibility</span>
+                            <span className="text-xs font-bold">View</span>
+                          </button>
+                          <button type="button" onClick={() => window.open(viewingStudentFor.cvUrl, '_blank')} className="p-2 rounded-lg bg-white border border-slate-200 hover:border-blue-300 shadow-sm text-slate-600 hover:text-blue-700 transition-all flex items-center gap-1.5" title="Download PDF">
+                            <span className="material-symbols-outlined text-[16px]">download</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+            </div>
+            
+            {/* Modal Footer */}
+            <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-3 rounded-b-2xl">
+              <button 
+                onClick={() => setViewingStudentFor(null)}
+                className="px-5 py-2 text-sm font-semibold text-slate-700 hover:text-slate-900 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+
+
+      {/* Job Details Modal */}
+      {viewingJobFor && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+            
+            {/* Modal Header */}
+            <div className="flex items-start justify-between p-6 pb-4 border-b border-slate-100">
+              <div>
+                <h3 className="text-xl font-bold text-slate-900">{viewingJobFor.role}</h3>
+                <div className="text-sm font-medium text-slate-500 mt-1 flex items-center gap-2">
+                  <span>Software Engineering</span>
+                  <span>•</span>
+                  <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[16px]">location_on</span> Remote</span>
+                </div>
+              </div>
+              <button 
+                onClick={() => setViewingJobFor(null)}
+                className="text-slate-400 hover:text-slate-600 transition-colors p-1"
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto space-y-8">
+              
+              {/* 3 Metric Cards */}
+              <div className="grid grid-cols-3 gap-4">
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex flex-col items-center justify-center text-center">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Duration</span>
+                  <span className="text-base font-semibold text-slate-900">{viewingJobFor.jobDuration} Months</span>
+                </div>
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex flex-col items-center justify-center text-center">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Compensation</span>
+                  <span className="text-base font-semibold text-slate-900">{viewingJobFor.jobStipend ? 'Stipend Offered' : 'Unpaid'}</span>
+                </div>
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex flex-col items-center justify-center text-center">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Matches Verified</span>
+                  <span className="text-sm font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 mt-1">100% Match</span>
+                </div>
+              </div>
+
+              {/* Role Summary Box */}
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="material-symbols-outlined text-[18px] text-blue-600">work</span>
+                  <h4 className="text-base font-bold text-slate-900">Role Summary</h4>
+                </div>
+                <div className="bg-slate-50 p-5 rounded-xl border border-slate-200">
+                  <p className="text-sm text-slate-700 leading-relaxed">{viewingJobFor.jobDescription}</p>
+                </div>
+              </div>
+
+              {/* Requirements & Competencies Grid */}
+              <div className="grid grid-cols-2 gap-8 pt-2">
+                {/* Left: Strict Gating */}
+                <div>
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="material-symbols-outlined text-[18px] text-blue-600">check_circle</span>
+                    <h4 className="text-base font-bold text-slate-900">Strict Gating Requirements</h4>
+                  </div>
+                  <div className="space-y-4">
+                    <div>
+                      <span className="block text-xs font-semibold text-slate-500 mb-1.5">Minimum Required GPA</span>
+                      <span className="inline-block px-2.5 py-1 bg-amber-50 text-amber-700 text-sm font-semibold rounded-md border border-amber-100 shadow-sm">
+                        {(viewingJobFor.jobMinGPA || 0).toFixed(1)} or higher
+                      </span>
+                    </div>
+                    {viewingJobFor.jobAllowedYears && viewingJobFor.jobAllowedYears.length > 0 && (
+                      <div>
+                        <span className="block text-xs font-semibold text-slate-500 mb-1.5">Allowed Years of Study</span>
+                        <span className="inline-block px-2.5 py-1 bg-purple-50 text-purple-700 text-sm font-semibold rounded-md border border-purple-100 shadow-sm">
+                          Year {viewingJobFor.jobAllowedYears.join(', ')}
+                        </span>
+                      </div>
+                    )}
+                    {viewingJobFor.jobPreferredDegrees && viewingJobFor.jobPreferredDegrees.length > 0 && (
+                      <div>
+                        <span className="block text-xs font-semibold text-slate-500 mb-1.5">Preferred Degree Programs</span>
+                        <div className="flex flex-wrap gap-2">
+                          {viewingJobFor.jobPreferredDegrees.map((deg, i) => (
+                            <span key={i} className="px-2.5 py-1 bg-slate-50 text-slate-600 text-xs font-semibold rounded-md border border-slate-200 shadow-sm">
+                              {deg}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Right: Competencies */}
+                <div>
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="material-symbols-outlined text-[18px] text-blue-600">auto_awesome</span>
+                    <h4 className="text-base font-bold text-slate-900">Required Competencies</h4>
+                  </div>
+                  <div className="space-y-4">
+                    {viewingJobFor.jobMandatorySkills && viewingJobFor.jobMandatorySkills.length > 0 && (
+                      <div>
+                        <span className="block text-xs font-semibold text-slate-500 mb-1.5">Mandatory Skills</span>
+                        <div className="flex flex-wrap gap-2">
+                          {viewingJobFor.jobMandatorySkills.map((skill, i) => (
+                            <span key={i} className="px-2.5 py-1 bg-blue-50 text-blue-700 text-xs font-semibold rounded-md border border-blue-200 shadow-sm">
+                              {skill}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {viewingJobFor.jobNiceToHaveSkills && viewingJobFor.jobNiceToHaveSkills.length > 0 && (
+                      <div>
+                        <span className="block text-xs font-semibold text-slate-500 mb-1.5">Nice-to-Have Skills</span>
+                        <div className="flex flex-wrap gap-2">
+                          {viewingJobFor.jobNiceToHaveSkills.map((skill, i) => (
+                            <span key={i} className="px-2.5 py-1 bg-white text-slate-500 text-xs font-semibold rounded-md border border-slate-200 shadow-sm">
+                              {skill}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+            </div>
+            
+            {/* Modal Footer */}
+            <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-3 rounded-b-2xl">
+              <button 
+                onClick={() => setViewingJobFor(null)}
+                className="px-5 py-2 text-sm font-semibold text-slate-700 hover:text-slate-900 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       
       <Footer />
     </div>
