@@ -22,5 +22,7 @@ public enum ApplicationStatus
     Agent_Evaluated,
     Admin_Approved,
     Company_Scheduled,
-    Student_Accepted
+    Student_Accepted,
+    Processing,
+    Evaluation_Failed
 }

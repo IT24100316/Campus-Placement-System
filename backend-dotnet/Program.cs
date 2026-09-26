@@ -35,6 +35,9 @@ builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<ICompanyService, CompanyService>();
 builder.Services.AddScoped<IJobService, JobService>();
 
+// 2.7 Register Background Services
+builder.Services.AddHostedService<EvaluationTriggerService>();
+
 // 3. CORS
 builder.Services.AddCors(options =>
 {

@@ -9,10 +9,12 @@ namespace backend_dotnet.Controllers;
 public class ApplicationsController : ControllerBase
 {
     private readonly IApplicationService _applicationService;
+    private readonly IConfiguration _configuration;
 
-    public ApplicationsController(IApplicationService applicationService)
+    public ApplicationsController(IApplicationService applicationService, IConfiguration configuration)
     {
         _applicationService = applicationService;
+        _configuration = configuration;
     }
 
     /// <summary>Creates a pending job application for an approved student.</summary>
@@ -28,14 +30,23 @@ public class ApplicationsController : ControllerBase
         catch (InvalidOperationException ex) { return Conflict(new { message = ex.Message }); }
     }
 
-    /// <summary>Runs Agent 4 CV validation and pauses the workflow for administrator review.</summary>
-    [HttpPost("{appId:guid}/evaluate")]
-    public async Task<IActionResult> Evaluate(Guid appId, [FromBody] EvaluateApplicationDto request, CancellationToken cancellationToken)
+    /// <summary>Webhook endpoint for Python Agent 3 to return evaluation results.</summary>
+    [HttpPost("webhook/evaluation-result")]
+    public async Task<IActionResult> EvaluationWebhook([FromBody] WebhookEvaluationResultDto payload, CancellationToken cancellationToken)
     {
-        try { return Ok(await _applicationService.EvaluateAsync(appId, request, cancellationToken)); }
+        var configuredSecret = _configuration["Webhook:Secret"];
+        if (!Request.Headers.TryGetValue("x-webhook-secret", out var providedSecret) || providedSecret != configuredSecret)
+        {
+            return Unauthorized(new { message = "Invalid or missing webhook secret." });
+        }
+
+        try 
+        { 
+            await _applicationService.HandleEvaluationWebhookAsync(payload, cancellationToken);
+            return Ok(new { message = "Webhook processed successfully." }); 
+        }
         catch (KeyNotFoundException ex) { return NotFound(new { message = ex.Message }); }
         catch (InvalidOperationException ex) { return Conflict(new { message = ex.Message }); }
-        catch (HttpRequestException ex) { return StatusCode(502, new { message = ex.Message }); }
     }
 
     /// <summary>Lists Agent 4 results paused for administrator approval.</summary>
@@ -86,47 +97,6 @@ public class ApplicationsController : ControllerBase
         return Ok(result);
     }
 
-    /// <summary>
-    /// Updates the status of a specific application.
-    /// </summary>
-    [HttpPut("{appId}/status")]
-    public async Task<IActionResult> UpdateApplicationStatus(Guid appId, [FromBody] UpdateStatusRequestDto request)
-    {
-        try
-        {
-            await _applicationService.UpdateApplicationStatusAsync(appId, request);
-            return Ok(new { message = "Status updated successfully" });
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new { message = ex.Message });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return Conflict(new { message = ex.Message });
-        }
-    }
-
-    /// <summary>
-    /// Schedules an interview for a specific application.
-    /// </summary>
-    [HttpPut("{appId}/interview")]
-    public async Task<IActionResult> ScheduleInterview(Guid appId, [FromBody] ScheduleInterviewRequestDto request)
-    {
-        try
-        {
-            await _applicationService.ScheduleInterviewAsync(appId, request);
-            return Ok(new { message = "Interview scheduled successfully" });
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new { message = ex.Message });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return Conflict(new { message = ex.Message });
-        }
-    }
 
     /// <summary>
     /// Retrieves the CV download URL for a specific application.

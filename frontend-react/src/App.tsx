@@ -250,108 +250,32 @@ function App() {
         }}
       />
 
-      {/* Floating Demo View Quick-Switcher (Hidden for Staff) */}
-      {!isStaff && (
-        <div className="fixed bottom-4 right-4 z-50 flex items-center gap-1.5 p-1.5 bg-slate-900/90 backdrop-blur-md rounded-full shadow-xl border border-slate-700/60 text-white text-xs">
+      {/* Floating Demo View Quick-Switcher */}
+      <div className="fixed bottom-4 right-4 z-50 flex items-center gap-1.5 p-1.5 bg-slate-900/90 backdrop-blur-md rounded-full shadow-xl border border-slate-700/60 text-white text-xs">
         <span className="flex items-center gap-1 pl-2 pr-1 text-[11px] font-semibold text-slate-400">
           <Sparkles className="w-3.5 h-3.5 text-amber-400" />
           Navigate:
         </span>
-        <button
-          type="button"
-          onClick={() => {
-            setCurrentView('landing');
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-          }}
-          className={`flex items-center gap-1 px-3 py-1.5 rounded-full transition-all cursor-pointer ${
-            currentView === 'landing'
-              ? 'bg-primary text-white font-semibold'
-              : 'text-slate-300 hover:text-white hover:bg-slate-800'
-          }`}
-        >
-          <Home className="w-3.5 h-3.5" />
-          <span>Home</span>
-        </button>
 
-        {isAdmin ? (
+        {isStaff ? (
           <>
-            <button
-              type="button"
-              onClick={() => {
-                setCurrentView('admin');
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
-              className={`flex items-center gap-1 px-3 py-1.5 rounded-full transition-all cursor-pointer ${
-                currentView === 'admin'
-                  ? 'bg-indigo-600 text-white font-semibold'
-                  : 'text-indigo-300 hover:text-white hover:bg-slate-800'
-              }`}
-            >
-              <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" />
-              <span>Admin Approvals</span>
-            </button>
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-full transition-all cursor-pointer text-rose-300 hover:text-white hover:bg-rose-900/60"
-              title="Sign out of Admin Session"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-              <span>Logout</span>
-            </button>
-          </>
-        ) : isHr ? (
-          <>
-            <button
-              type="button"
-              onClick={() => {
-                setCurrentView('hr');
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
-              className={`flex items-center gap-1 px-3 py-1.5 rounded-full transition-all cursor-pointer ${
-                currentView === 'hr'
-                  ? 'bg-primary text-white font-semibold'
-                  : 'text-blue-300 hover:text-white hover:bg-slate-800'
-              }`}
-            >
-              <Building2 className="w-3.5 h-3.5 text-blue-400" />
-              <span>Employer Portal</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setCurrentView('hr-post-job');
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
-              className={`flex items-center gap-1 px-3 py-1.5 rounded-full transition-all cursor-pointer ${
-                currentView === 'hr-post-job'
-                  ? 'bg-primary text-white font-semibold'
-                  : 'text-blue-300 hover:text-white hover:bg-slate-800'
-              }`}
-            >
-              <PlusCircle className="w-3.5 h-3.5 text-blue-400" />
-              <span>Post Job</span>
-            </button>
             <button
               type="button"
               onClick={() => {
                 setCurrentView('applications');
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
-              className={`flex items-center gap-1 px-3 py-1.5 rounded-full transition-all cursor-pointer ${
-                currentView === 'applications'
-                  ? 'bg-primary text-white font-semibold'
-                  : 'text-blue-300 hover:text-white hover:bg-slate-800'
-              }`}
+              className="flex items-center gap-1 px-3.5 py-1.5 rounded-full bg-primary text-white font-semibold transition-all cursor-pointer shadow-xs"
             >
-              <Sparkles className="w-3.5 h-3.5 text-blue-400" />
+              <Sparkles className="w-3.5 h-3.5 text-blue-200" />
               <span>Applications</span>
             </button>
+
             <button
               type="button"
               onClick={handleLogout}
               className="flex items-center gap-1 px-3 py-1.5 rounded-full transition-all cursor-pointer text-rose-300 hover:text-white hover:bg-rose-900/60"
-              title="Sign out of Employer Session"
+              title="Sign out of Staff Session"
             >
               <LogOut className="w-3.5 h-3.5" />
               <span>Logout</span>
@@ -362,38 +286,141 @@ function App() {
             <button
               type="button"
               onClick={() => {
-                setCurrentView('register');
+                setCurrentView('landing');
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
               className={`flex items-center gap-1 px-3 py-1.5 rounded-full transition-all cursor-pointer ${
-                currentView === 'register'
+                currentView === 'landing'
                   ? 'bg-primary text-white font-semibold'
                   : 'text-slate-300 hover:text-white hover:bg-slate-800'
               }`}
             >
-              <UserPlus className="w-3.5 h-3.5" />
-              <span>Register</span>
+              <Home className="w-3.5 h-3.5" />
+              <span>Home</span>
             </button>
 
-            <button
-              type="button"
-              onClick={() => {
-                setCurrentView('login');
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
-              className={`flex items-center gap-1 px-3 py-1.5 rounded-full transition-all cursor-pointer ${
-                currentView === 'login'
-                  ? 'bg-primary text-white font-semibold'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-800'
-              }`}
-            >
-              <LogIn className="w-3.5 h-3.5" />
-              <span>Login</span>
-            </button>
+            {isAdmin ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCurrentView('admin');
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className={`flex items-center gap-1 px-3 py-1.5 rounded-full transition-all cursor-pointer ${
+                    currentView === 'admin'
+                      ? 'bg-indigo-600 text-white font-semibold'
+                      : 'text-indigo-300 hover:text-white hover:bg-slate-800'
+                  }`}
+                >
+                  <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>Admin Approvals</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-full transition-all cursor-pointer text-rose-300 hover:text-white hover:bg-rose-900/60"
+                  title="Sign out of Admin Session"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>Logout</span>
+                </button>
+              </>
+            ) : isHr ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCurrentView('hr');
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className={`flex items-center gap-1 px-3 py-1.5 rounded-full transition-all cursor-pointer ${
+                    currentView === 'hr'
+                      ? 'bg-primary text-white font-semibold'
+                      : 'text-blue-300 hover:text-white hover:bg-slate-800'
+                  }`}
+                >
+                  <Building2 className="w-3.5 h-3.5 text-blue-400" />
+                  <span>Employer Portal</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCurrentView('hr-post-job');
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className={`flex items-center gap-1 px-3 py-1.5 rounded-full transition-all cursor-pointer ${
+                    currentView === 'hr-post-job'
+                      ? 'bg-primary text-white font-semibold'
+                      : 'text-blue-300 hover:text-white hover:bg-slate-800'
+                  }`}
+                >
+                  <PlusCircle className="w-3.5 h-3.5 text-blue-400" />
+                  <span>Post Job</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCurrentView('applications');
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className={`flex items-center gap-1 px-3 py-1.5 rounded-full transition-all cursor-pointer ${
+                    currentView === 'applications'
+                      ? 'bg-primary text-white font-semibold'
+                      : 'text-blue-300 hover:text-white hover:bg-slate-800'
+                  }`}
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-blue-400" />
+                  <span>Applications</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-full transition-all cursor-pointer text-rose-300 hover:text-white hover:bg-rose-900/60"
+                  title="Sign out of Employer Session"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>Logout</span>
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCurrentView('register');
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className={`flex items-center gap-1 px-3 py-1.5 rounded-full transition-all cursor-pointer ${
+                    currentView === 'register'
+                      ? 'bg-primary text-white font-semibold'
+                      : 'text-slate-300 hover:text-white hover:bg-slate-800'
+                  }`}
+                >
+                  <UserPlus className="w-3.5 h-3.5" />
+                  <span>Register</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCurrentView('login');
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className={`flex items-center gap-1 px-3 py-1.5 rounded-full transition-all cursor-pointer ${
+                    currentView === 'login'
+                      ? 'bg-primary text-white font-semibold'
+                      : 'text-slate-300 hover:text-white hover:bg-slate-800'
+                  }`}
+                >
+                  <LogIn className="w-3.5 h-3.5" />
+                  <span>Login</span>
+                </button>
+              </>
+            )}
           </>
         )}
       </div>
-      )}
     </div>
   );
 }
