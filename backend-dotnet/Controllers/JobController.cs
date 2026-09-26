@@ -73,4 +73,45 @@ public class JobsController : ControllerBase
 
         return StatusCode(201, result.Job);
     }
+
+    /// <summary>
+    /// Retrieve a paginated feed of jobs with filters (for mobile app)
+    /// </summary>
+    [HttpGet("feed")]
+    public async Task<ActionResult<PaginatedResult<JobFeedDto>>> GetJobFeed(
+        [FromQuery] string? search,
+        [FromQuery] string? skills,
+        [FromQuery] string? domain,
+        [FromQuery] string[]? workArrangements,
+        [FromQuery] bool? isPaidOnly,
+        [FromQuery] bool? isEligible,
+        [FromQuery] string? sortBy,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10)
+    {
+        // Extract student ID from token if we want to check eligibility
+        Guid? studentId = null;
+        if (isEligible == true)
+        {
+            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (Guid.TryParse(userIdClaim, out var parsedId))
+            {
+                studentId = parsedId;
+            }
+        }
+
+        var feed = await _jobService.GetJobFeedAsync(search, skills, domain, workArrangements, isPaidOnly, isEligible, studentId, sortBy, page, pageSize);
+        return Ok(feed);
+    }
+
+    /// <summary>
+    /// Retrieve comprehensive details for a specific job
+    /// </summary>
+    [HttpGet("{id}")]
+    public async Task<ActionResult<JobDetailsDto>> GetJobDetails(Guid id)
+    {
+        var job = await _jobService.GetJobDetailsAsync(id);
+        if (job == null) return NotFound(new { message = "Job not found." });
+        return Ok(job);
+    }
 }
