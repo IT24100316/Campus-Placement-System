@@ -104,67 +104,6 @@ public class ApplicationService : IApplicationService
         ));
     }
 
-    /// <summary>
-    /// UpdateApplicationStatusAsync
-    /// Updates the status of a specific application. Parses the provided string into the ApplicationStatus enum,
-    /// saves the changes to the database, and returns the updated application.
-    /// </summary>
-    public async Task<Application> UpdateApplicationStatusAsync(Guid appId, UpdateStatusRequestDto request)
-    {
-        var application = await _context.Applications.FindAsync(appId);
-        
-        if (application == null)
-        {
-            throw new KeyNotFoundException("Application not found");
-        }
-
-        if (!Enum.TryParse<ApplicationStatus>(request.NewStatus, true, out var nextStatus))
-            throw new InvalidOperationException("Unknown application status.");
-        if (nextStatus == ApplicationStatus.Admin_Approved && application.Status != ApplicationStatus.Agent_Evaluated)
-            throw new InvalidOperationException("Only Agent_Evaluated applications can be approved by an administrator.");
-        application.Status = nextStatus;
-        
-        await _context.SaveChangesAsync();
-        
-        return application;
-    }
-
-    /// <summary>
-    /// ScheduleInterviewAsync
-    /// Schedules an interview for a specific application by updating its InterviewDate and InterviewTime properties.
-    /// Acts as a trigger point for invoking external AI agent scheduling logic.
-    /// </summary>
-    public async Task<Application> ScheduleInterviewAsync(Guid appId, ScheduleInterviewRequestDto request)
-    {
-        var application = await _context.Applications
-            .Include(a => a.Student).ThenInclude(u => u.StudentProfile)
-            .Include(a => a.Job)
-            .FirstOrDefaultAsync(a => a.AppId == appId);
-        
-        if (application == null)
-        {
-            throw new KeyNotFoundException("Application not found");
-        }
-
-        if (application.Status != ApplicationStatus.Admin_Approved)
-            throw new InvalidOperationException("Administrator approval is required before scheduling an interview.");
-
-        application.InterviewDate = request.InterviewDate;
-        application.InterviewTime = request.InterviewTime;
-        application.Status = ApplicationStatus.Company_Scheduled;
-        
-        await _context.SaveChangesAsync();
-        
-        var interviewAt = request.InterviewDate.Date.Add(request.InterviewTime);
-        await _emailService.SendInterviewScheduledAsync(
-            application.Student.Email,
-            application.Student.StudentProfile?.FullName ?? application.Student.Email,
-            application.Job.JobTitle,
-            interviewAt);
-        
-        return application;
-    }
-
 
 
     /// <summary>
@@ -209,50 +148,27 @@ public class ApplicationService : IApplicationService
         return application;
     }
 
-    public async Task<object> EvaluateAsync(Guid appId, EvaluateApplicationDto request, CancellationToken cancellationToken = default)
+    public async Task HandleEvaluationWebhookAsync(WebhookEvaluationResultDto payload, CancellationToken cancellationToken = default)
     {
         var application = await _context.Applications
-            .Include(a => a.Student).ThenInclude(u => u.StudentProfile)
-            .FirstOrDefaultAsync(a => a.AppId == appId, cancellationToken)
+            .FirstOrDefaultAsync(a => a.AppId == payload.ApplicationId, cancellationToken)
             ?? throw new KeyNotFoundException("Application not found.");
-        if (application.Status != ApplicationStatus.Pending)
-            throw new InvalidOperationException($"Only Pending applications can be evaluated; current status is {application.Status}.");
-        var cvKey = application.Student.StudentProfile?.CvPdfUrl;
-        if (string.IsNullOrWhiteSpace(cvKey)) throw new InvalidOperationException("The student must upload a CV PDF before validation.");
 
-        string? cvPdfBase64 = null;
-        if (cvKey.StartsWith("local://") || cvKey.StartsWith("supabase://"))
+        if (application.Status != ApplicationStatus.Processing)
+            throw new InvalidOperationException($"Cannot apply webhook result. Expected Processing status, but got {application.Status}.");
+
+        if (payload.IsSuccess)
         {
-            var storedCv = await _documentStorage.OpenReadAsync(cvKey, cancellationToken)
-                ?? throw new InvalidOperationException("The stored CV could not be read.");
-            using var memory = new MemoryStream();
-            await storedCv.Content.CopyToAsync(memory, cancellationToken);
-            cvPdfBase64 = Convert.ToBase64String(memory.ToArray());
+            application.SummaryReport = payload.ResultJson ?? "{}";
+            application.Status = ApplicationStatus.Agent_Evaluated;
+        }
+        else
+        {
+            application.SummaryReport = payload.ResultJson ?? "{\"error\": \"Unknown evaluation error\"}";
+            application.Status = ApplicationStatus.Evaluation_Failed;
         }
 
-        var body = JsonSerializer.Serialize(new
-        {
-            application_id = application.AppId,
-            summary = request.Summary,
-            cv_pdf_url = cvPdfBase64 is null ? cvKey : null,
-            cv_pdf_base64 = cvPdfBase64
-        });
-        var aiBaseUrl = (_configuration["AiService:BaseUrl"] ?? "http://127.0.0.1:8000").TrimEnd('/');
-        var response = await _httpClientFactory.CreateClient().PostAsync(
-            $"{aiBaseUrl}/validate", new StringContent(body, Encoding.UTF8, "application/json"), cancellationToken);
-        if (!response.IsSuccessStatusCode)
-            throw new HttpRequestException($"Validation Agent failed: {await response.Content.ReadAsStringAsync(cancellationToken)}");
-
-        application.SummaryReport = await response.Content.ReadAsStringAsync(cancellationToken);
-        application.Status = ApplicationStatus.Agent_Evaluated;
         await _context.SaveChangesAsync(cancellationToken);
-        return new
-        {
-            applicationId = application.AppId,
-            status = application.Status.ToString(),
-            requiresAdminApproval = true,
-            validation = JsonSerializer.Deserialize<JsonElement>(application.SummaryReport)
-        };
     }
 
     public async Task<IEnumerable<object>> GetPendingAdminApprovalAsync(CancellationToken cancellationToken = default)

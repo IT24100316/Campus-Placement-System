@@ -56,6 +56,28 @@ This directory contains all the Entity Framework Core models used in the Campus 
 | Company | |
 | Admin | |
 
+## AccountStatus
+
+| Value | Description |
+|-------|-------------|
+| Pending | Account awaiting admin/institutional review |
+| Approved | Account active and verified |
+| Rejected | Account approval denied |
+| Suspended | Account access temporarily revoked |
+
+## ApplicationStatus
+
+| Value | Description |
+|-------|-------------|
+| Pending | Submitted by student, awaiting evaluation |
+| Rejected | Candidate application rejected |
+| Agent_Evaluated | Evaluated & scored by AI Match Engine |
+| Admin_Approved | Approved by Institutional Admin |
+| Company_Scheduled | Interview or next round scheduled by Company |
+| Student_Accepted | Offer or placement accepted by Student |
+| Processing | Evaluation triggered, awaiting AI Engine response |
+| Evaluation_Failed | AI Agent processing failed, requires retry |
+
 ## InternshipType
 
 | Value | Description |
@@ -130,6 +152,19 @@ This directory contains all the Entity Framework Core models used in the Campus 
 | PreferredLocations | string[] | |
 | CvPdfUrl | string | |
 | User | User | |
+
+## SkillEquivalence
+
+| Property | Type | Description |
+|----------|------|-------------|
+| SkillEquivalence | class | |
+| Id | Guid | Unique equivalence identifier |
+| TermA | string | First skill or technology term |
+| TermB | string | Second skill or technology term |
+| IsMatch | bool | Whether terms are semantically equivalent |
+| Reason | string? | AI engine justification for equivalence |
+| Source | string | Data source (e.g. "llm") |
+| CreatedAt | DateTime | Timestamp when cache record was created |
 
 ## TargetDomain
 

@@ -42,6 +42,9 @@ builder.Services.AddScoped<ICvFileValidationService, CvFileValidationService>();
 builder.Services.AddScoped<ICvStorageService, LocalCvStorageService>();
 builder.Services.AddScoped<IJobService, JobService>();
 
+// 2.7 Register Background Services
+builder.Services.AddHostedService<EvaluationTriggerService>();
+
 // 3. CORS
 builder.Services.AddCors(options =>
 {
