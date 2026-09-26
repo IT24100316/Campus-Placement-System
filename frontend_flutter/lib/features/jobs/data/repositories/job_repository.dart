@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/job_feed_model.dart';
+import '../models/job_details_model.dart';
 
 class JobRepository {
   // Using 10.0.2.2 for Android Emulator. Change to localhost or real IP for other platforms.
@@ -48,6 +49,21 @@ class JobRepository {
       }
     } catch (e) {
       throw Exception('Error fetching jobs: $e');
+    }
+  }
+
+  Future<JobDetailsModel> fetchJobDetails(String jobId) async {
+    final uri = Uri.parse('$baseUrl/$jobId');
+    try {
+      final response = await http.get(uri);
+      if (response.statusCode == 200) {
+        final decoded = json.decode(response.body);
+        return JobDetailsModel.fromJson(decoded);
+      } else {
+        throw Exception('Failed to load job details: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error fetching job details: $e');
     }
   }
 }

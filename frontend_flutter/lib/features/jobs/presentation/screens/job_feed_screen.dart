@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../widgets/job_card.dart';
 import '../data/models/job_feed_model.dart';
 import '../data/repositories/job_repository.dart';
+import 'job_details_screen.dart';
 
 class JobFeedScreen extends StatefulWidget {
   const JobFeedScreen({super.key});
@@ -133,14 +134,24 @@ class _JobFeedScreenState extends State<JobFeedScreen> {
                     );
                   }
                   final job = _jobs[index];
-                  return JobCard(
-                    jobTitle: job.jobTitle,
-                    companyName: job.companyName,
-                    matchScore: job.matchScore,
-                    location: '${job.locationCity} • ${job.internshipType.isNotEmpty ? job.internshipType.first : 'OnSite'}',
-                    stipend: job.stipendOffered ? (job.stipendAmountOrDetails ?? 'Paid') : 'Unpaid',
-                    tags: job.tags,
-                    imageUrl: 'https://via.placeholder.com/150',
+                  return GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => JobDetailsScreen(jobId: job.jobId),
+                        ),
+                      );
+                    },
+                    child: JobCard(
+                      jobTitle: job.jobTitle,
+                      companyName: job.companyName,
+                      matchScore: job.matchScore,
+                      location: '${job.locationCity} • ${job.internshipType.isNotEmpty ? job.internshipType.first : 'OnSite'}',
+                      stipend: job.stipendOffered ? (job.stipendAmountOrDetails ?? 'Paid') : 'Unpaid',
+                      tags: job.tags,
+                      imageUrl: 'https://via.placeholder.com/150',
+                    ),
                   );
                 },
                 childCount: _jobs.length + (_hasMore ? 1 : 0),
