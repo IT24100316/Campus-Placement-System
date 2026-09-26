@@ -307,4 +307,135 @@ public class JobService : IJobService
             Job = responseDto
         };
     }
+
+    public async Task<PaginatedResult<JobFeedDto>> GetJobFeedAsync(string? search, string? skills, string? domain, string[]? workArrangements, bool? isPaidOnly, bool? isEligible, Guid? studentUserId, string? sortBy, int page, int pageSize)
+    {
+        IQueryable<Job> query = _context.Jobs
+            .Include(j => j.Company)
+            .AsNoTracking();
+
+        // 1. Search (Title, Company, Domain)
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var s = search.ToLower().Trim();
+            query = query.Where(j => j.JobTitle.ToLower().Contains(s) || j.Company.CompanyName.ToLower().Contains(s) || j.TargetDomain.ToLower().Contains(s));
+        }
+
+        // 2. Domain Filter
+        if (!string.IsNullOrWhiteSpace(domain) && domain != "All Roles")
+        {
+            var d = domain.ToLower().Trim();
+            query = query.Where(j => j.TargetDomain.ToLower() == d);
+        }
+
+        // 3. Work Arrangements Filter
+        if (workArrangements != null && workArrangements.Any())
+        {
+            var normalizedModes = workArrangements.Select(m => m.ToLower().Trim()).ToList();
+            query = query.Where(j => j.InternshipType.Any(it => normalizedModes.Contains(it.ToLower())));
+        }
+
+        // 4. Paid Only Filter
+        if (isPaidOnly.HasValue && isPaidOnly.Value)
+        {
+            query = query.Where(j => j.StipendOffered);
+        }
+
+        // 5. Skills Sub-Search
+        if (!string.IsNullOrWhiteSpace(skills))
+        {
+            var s = skills.ToLower().Trim();
+            query = query.Where(j => j.MandatorySkills.Any(ms => ms.ToLower().Contains(s)) || j.NiceToHaveSkills.Any(ns => ns.ToLower().Contains(s)));
+        }
+
+        // 6. Strict Eligibility Filter (Requires Student Context)
+        if (isEligible.HasValue && isEligible.Value && studentUserId.HasValue)
+        {
+            var student = await _context.StudentProfiles.FirstOrDefaultAsync(sp => sp.UserId == studentUserId.Value);
+            if (student != null)
+            {
+                query = query.Where(j => student.GPA >= j.MinimumGPA 
+                    && (j.AllowedYearsOfStudy.Length == 0 || j.AllowedYearsOfStudy.Contains(student.CurrentYearOfStudy))
+                    && (j.PreferredDegreePrograms.Length == 0 || j.PreferredDegreePrograms.Contains(student.DegreeProgram)));
+            }
+        }
+
+        // 7. Sorting
+        if (string.IsNullOrWhiteSpace(sortBy) || sortBy.ToLower() == "recent")
+        {
+            query = query.OrderByDescending(j => j.CreatedAt);
+        }
+        else if (sortBy.ToLower() == "deadline")
+        {
+            query = query.OrderBy(j => j.ApplicationDeadline);
+        }
+        else if (sortBy.ToLower() == "gpa")
+        {
+            query = query.OrderBy(j => j.MinimumGPA); // Assuming lowest requirement first is better for students, or maybe highest? We'll do ascending.
+        }
+
+        var totalCount = await query.CountAsync();
+
+        var jobs = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(j => new JobFeedDto
+            {
+                JobId = j.JobId,
+                JobTitle = j.JobTitle,
+                CompanyName = j.Company.CompanyName,
+                TargetDomain = j.TargetDomain,
+                LocationCity = j.LocationCity,
+                InternshipType = j.InternshipType,
+                StipendOffered = j.StipendOffered,
+                StipendAmountOrDetails = j.StipendAmountOrDetails,
+                DurationMonths = j.DurationMonths,
+                ApplicationDeadline = j.ApplicationDeadline,
+                CreatedAt = j.CreatedAt,
+                Tags = j.MandatorySkills.Concat(j.NiceToHaveSkills).Take(3).ToArray(),
+                MatchScore = 85 // Mocked for now
+            })
+            .ToListAsync();
+
+        return new PaginatedResult<JobFeedDto>
+        {
+            Items = jobs,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
+    }
+
+    public async Task<JobDetailsDto?> GetJobDetailsAsync(Guid jobId)
+    {
+        var j = await _context.Jobs
+            .Include(j => j.Company)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(j => j.JobId == jobId);
+
+        if (j == null) return null;
+
+        return new JobDetailsDto
+        {
+            JobId = j.JobId,
+            JobTitle = j.JobTitle,
+            CompanyName = j.Company.CompanyName,
+            TargetDomain = j.TargetDomain,
+            LocationCity = j.LocationCity,
+            InternshipType = j.InternshipType,
+            StipendOffered = j.StipendOffered,
+            StipendAmountOrDetails = j.StipendAmountOrDetails,
+            DurationMonths = j.DurationMonths,
+            ApplicationDeadline = j.ApplicationDeadline,
+            CreatedAt = j.CreatedAt,
+            Tags = j.MandatorySkills.Concat(j.NiceToHaveSkills).ToArray(),
+            MatchScore = 85,
+            JobDescriptionSummary = j.JobDescriptionSummary,
+            MinimumGPA = j.MinimumGPA,
+            AllowedYearsOfStudy = j.AllowedYearsOfStudy,
+            MandatorySkills = j.MandatorySkills,
+            NiceToHaveSkills = j.NiceToHaveSkills,
+            PreferredDegreePrograms = j.PreferredDegreePrograms
+        };
+    }
 }
