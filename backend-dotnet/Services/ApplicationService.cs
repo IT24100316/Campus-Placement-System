@@ -223,6 +223,17 @@ public class ApplicationService : IApplicationService
         return application;
     }
 
+    public async Task<Application> StudentDecisionAsync(Guid appId, Guid studentId, bool accepted, CancellationToken cancellationToken = default)
+    {
+        var application = await _context.Applications.FirstOrDefaultAsync(a => a.AppId == appId && a.StudentId == studentId, cancellationToken)
+            ?? throw new KeyNotFoundException("Application not found or access denied.");
+        if (application.Status != ApplicationStatus.Admin_Approved && application.Status != ApplicationStatus.Company_Scheduled)
+            throw new InvalidOperationException("Application is not in a valid state for a student decision.");
+        application.Status = accepted ? ApplicationStatus.Student_Accepted : ApplicationStatus.Rejected;
+        await _context.SaveChangesAsync(cancellationToken);
+        return application;
+    }
+
     public async Task<IEnumerable<object>> GetStudentApplicationsAsync(Guid studentId, CancellationToken cancellationToken = default)
     {
         var values = await _context.Applications
