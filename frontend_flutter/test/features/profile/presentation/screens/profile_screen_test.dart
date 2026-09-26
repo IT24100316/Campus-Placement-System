@@ -134,6 +134,58 @@ void main() {
     );
   });
 
+  testWidgets(
+    'Document Upload follows all profile sections and stays scrollable',
+    (tester) async {
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final service = StudentProfileService(
+        profileEndpoint: endpoint,
+        client: MockClient(
+          (request) async => http.Response(jsonEncode(profile), 200),
+        ),
+      );
+
+      for (final size in [const Size(390, 844), const Size(1200, 900)]) {
+        await tester.binding.setSurfaceSize(size);
+        await tester.pumpWidget(
+          MaterialApp(
+            home: ProfileScreen(
+              profileService: service,
+              referenceClient: references(),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final titles = [
+          'Personal Information',
+          'Academic Information',
+          'Career Goals & Preferences',
+          'Technical Profile',
+          'Document Upload',
+        ];
+        final positions = titles.map((title) {
+          final section = find.text(title);
+          expect(section, findsOneWidget);
+          return tester.getTopLeft(section).dy;
+        }).toList();
+        expect(positions, orderedEquals([...positions]..sort()));
+        expect(
+          find.ancestor(
+            of: find.text('Document Upload'),
+            matching: find.byType(SingleChildScrollView),
+          ),
+          findsOneWidget,
+        );
+
+        await tester.ensureVisible(find.text('Select PDF'));
+        await tester.pumpAndSettle();
+        expect(find.text('Select PDF'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      }
+    },
+  );
+
   for (final uploadStatus in [200, 500, 401]) {
     testWidgets('saves profile before CV upload and handles $uploadStatus', (
       tester,

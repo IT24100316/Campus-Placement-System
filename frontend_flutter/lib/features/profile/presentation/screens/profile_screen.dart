@@ -694,26 +694,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: const Icon(Icons.layers, color: Colors.white, size: 20),
             ),
             const SizedBox(width: 8),
-            const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'CampusAI Portal',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimaryLight,
+            const Flexible(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'CampusAI Portal',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimaryLight,
+                    ),
                   ),
-                ),
-                Text(
-                  'Autonomous Placement',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: AppColors.textSecondaryLight,
-                    fontWeight: FontWeight.normal,
+                  Text(
+                    'Autonomous Placement',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textSecondaryLight,
+                      fontWeight: FontWeight.normal,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ],
         ),
@@ -874,34 +876,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   _buildCompletenessMeter(),
                   const SizedBox(height: 24),
 
-                  // Document Upload Section
-                  _buildSectionHeader(
-                    'upload_file',
-                    'Document Upload',
-                    badgeText: 'Primary Source',
-                  ),
-                  const SizedBox(height: 12),
-                  _buildDocumentUploadDropzone(),
-                  const SizedBox(height: 12),
-                  if (_uploadedCvStorageKey != null) ...[
-                    const Row(
-                      children: [
-                        Icon(Icons.check_circle, color: Colors.teal, size: 18),
-                        SizedBox(width: 8),
-                        Text(
-                          'CV uploaded',
-                          style: TextStyle(
-                            color: Colors.teal,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-                  _buildUploadedFileItem(),
-                  const SizedBox(height: 24),
-
                   _buildCardSection(
                     icon: Icons.person_outline,
                     title: 'Personal Information',
@@ -1029,6 +1003,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     ],
                   ),
+                  const SizedBox(height: 24),
+
+                  // Document Upload Section
+                  _buildSectionHeader(
+                    'upload_file',
+                    'Document Upload',
+                    badgeText: 'Primary Source',
+                  ),
+                  const SizedBox(height: 12),
+                  _buildDocumentUploadDropzone(),
+                  const SizedBox(height: 12),
+                  if (_uploadedCvStorageKey != null) ...[
+                    const Row(
+                      children: [
+                        Icon(Icons.check_circle, color: Colors.teal, size: 18),
+                        SizedBox(width: 8),
+                        Text(
+                          'CV uploaded',
+                          style: TextStyle(
+                            color: Colors.teal,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  _buildUploadedFileItem(),
                 ],
               ),
             ),
@@ -1108,15 +1110,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Row(
-                children: [
-                  Icon(Icons.verified, color: AppColors.primary, size: 18),
-                  SizedBox(width: 6),
-                  Text(
-                    'Profile Completeness',
-                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-                  ),
-                ],
+              const Expanded(
+                child: Row(
+                  children: [
+                    Icon(Icons.verified, color: AppColors.primary, size: 18),
+                    SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        'Profile Completeness',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -1149,25 +1159,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Container(
-                    width: 6,
-                    height: 6,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.5),
-                      shape: BoxShape.circle,
+              Expanded(
+                child: Row(
+                  children: [
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.5),
+                        shape: BoxShape.circle,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 6),
-                  const Text(
-                    '13 of 15 parameters optimized',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textSecondaryLight,
+                    const SizedBox(width: 6),
+                    const Flexible(
+                      child: Text(
+                        '13 of 15 parameters optimized',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondaryLight,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
               const Text(
                 'View Gaps',
@@ -1192,19 +1207,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Row(
-          children: [
-            Icon(Icons.upload_file, color: AppColors.primary, size: 20),
-            const SizedBox(width: 8),
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimaryLight,
+        Expanded(
+          child: Row(
+            children: [
+              Icon(Icons.upload_file, color: AppColors.primary, size: 20),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimaryLight,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         if (badgeText != null)
           Container(
@@ -1281,8 +1301,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
           const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+          Wrap(
+            alignment: WrapAlignment.center,
+            runSpacing: 8,
             children: [
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -1404,7 +1425,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 2),
-                Row(
+                Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     Text(
                       _selectedCvFileSize == null
@@ -1501,27 +1523,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
+              Expanded(
+                child: Row(
+                  children: [
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(icon, color: AppColors.primary, size: 18),
                     ),
-                    child: Icon(icon, color: AppColors.primary, size: 18),
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimaryLight,
+                    const SizedBox(width: 12),
+                    Flexible(
+                      child: Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimaryLight,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
               if (headerBadgeIcon != null && headerBadgeText == null)
                 Icon(headerBadgeIcon, color: AppColors.primary, size: 20),
@@ -1745,11 +1772,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 11,
-                color: AppColors.textSecondaryLight,
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: AppColors.textSecondaryLight,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
             const Text(
@@ -2245,12 +2275,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimaryLight,
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimaryLight,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
             Text(
