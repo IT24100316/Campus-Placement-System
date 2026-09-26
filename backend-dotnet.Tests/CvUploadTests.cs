@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Xunit;
 
@@ -71,6 +72,35 @@ public class CvUploadTests
         Assert.IsType<OkObjectResult>(result);
         Assert.Equal(storageKey, (await context.StudentProfiles.SingleAsync()).CvPdfUrl);
         Assert.Empty(await context.Applications.ToListAsync());
+    }
+
+    [Fact]
+    public async Task UploadCv_PreviousDeleteFailureDoesNotUndoCompletedReplacement()
+    {
+        var studentId = Guid.NewGuid();
+        var oldKey = $"{studentId:N}/{Guid.NewGuid():N}.pdf";
+        var newKey = $"{studentId:N}/{Guid.NewGuid():N}.pdf";
+        await using var context = CreateContext();
+        context.Users.Add(new User
+        {
+            Id = studentId, Email = "student@example.edu", PasswordHash = "test-only",
+            Role = UserRole.Student, Status = AccountStatus.Approved
+        });
+        var profile = CompleteProfile(studentId);
+        profile.CvPdfUrl = oldKey;
+        context.StudentProfiles.Add(profile);
+        await context.SaveChangesAsync();
+        var storage = new StubStorageService(newKey) { DeleteException = new CvStorageException("cleanup failed") };
+        var controller = CreateController(context, studentId,
+            new StubValidationService(CvFileValidationResult.Valid()), storage);
+
+        var result = await controller.UploadCv(
+            CreateFile("resume.pdf", "application/pdf", "%PDF-test"u8.ToArray()), CancellationToken.None);
+
+        Assert.IsType<OkObjectResult>(result);
+        Assert.Equal(newKey, (await context.StudentProfiles.SingleAsync()).CvPdfUrl);
+        Assert.Equal(oldKey, Assert.Single(storage.DeletedKeys));
+        Assert.Equal(1, storage.StoreCount);
     }
 
     [Fact]
@@ -171,7 +201,8 @@ public class CvUploadTests
             new[] { new Claim(ClaimTypes.NameIdentifier, studentId.ToString()) },
             authenticationType: "TestAuthentication");
 
-        return new StudentsController(context, validationService, storageService)
+        return new StudentsController(context, validationService, storageService,
+            NullLogger<StudentsController>.Instance)
         {
             ControllerContext = new ControllerContext
             {
@@ -213,6 +244,8 @@ public class CvUploadTests
     {
         private readonly string _storageKey;
         public int StoreCount { get; private set; }
+        public Exception? DeleteException { get; init; }
+        public List<string> DeletedKeys { get; } = new();
 
         public StubStorageService(string storageKey)
         {
@@ -227,6 +260,8 @@ public class CvUploadTests
 
         public Task DeleteAsync(string storageKey, CancellationToken cancellationToken = default)
         {
+            DeletedKeys.Add(storageKey);
+            if (DeleteException != null) throw DeleteException;
             return Task.CompletedTask;
         }
     }

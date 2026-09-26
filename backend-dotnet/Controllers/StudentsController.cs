@@ -6,6 +6,7 @@ using backend_dotnet.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace backend_dotnet.Controllers;
 
@@ -16,15 +17,18 @@ public class StudentsController : ControllerBase
     private readonly AppDbContext _context;
     private readonly ICvFileValidationService _cvFileValidationService;
     private readonly ICvStorageService _cvStorageService;
+    private readonly ILogger<StudentsController> _logger;
 
     public StudentsController(
         AppDbContext context,
         ICvFileValidationService cvFileValidationService,
-        ICvStorageService cvStorageService)
+        ICvStorageService cvStorageService,
+        ILogger<StudentsController> logger)
     {
         _context = context;
         _cvFileValidationService = cvFileValidationService;
         _cvStorageService = cvStorageService;
+        _logger = logger;
     }
 
     [HttpGet("profile")]
@@ -172,7 +176,16 @@ public class StudentsController : ControllerBase
 
         if (!string.IsNullOrWhiteSpace(previousStorageKey))
         {
-            await _cvStorageService.DeleteAsync(previousStorageKey, CancellationToken.None);
+            try
+            {
+                await _cvStorageService.DeleteAsync(previousStorageKey, CancellationToken.None);
+            }
+            catch (Exception exception)
+            {
+                // The new key is already committed; old-object cleanup must not
+                // report the completed upload as a failure to the student.
+                _logger.LogWarning(exception, "Failed to clean up the previous student CV after replacement.");
+            }
         }
 
         return Ok(new

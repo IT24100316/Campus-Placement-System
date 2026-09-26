@@ -7,6 +7,7 @@ using backend_dotnet.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace backend_dotnet.Tests;
@@ -102,7 +103,7 @@ public class StudentProfileControllerTests
             new[] { new Claim(ClaimTypes.NameIdentifier, studentId.ToString()) },
             authenticationType: "TestAuthentication");
 
-        return new StudentsController(context, null!, null!)
+        return new StudentsController(context, null!, null!, NullLogger<StudentsController>.Instance)
         {
             ControllerContext = new ControllerContext
             {
