@@ -21,39 +21,6 @@ public class ApplicationsController : ControllerBase
         _configuration = configuration;
     }
 
-    /// <summary>
-    /// Runs Agent 4 CV validation and pauses the workflow for administrator review.
-    /// </summary>
-    [HttpPost("{appId:guid}/evaluate")]
-    public async Task<IActionResult> Evaluate(
-        Guid appId,
-        [FromBody] EvaluateApplicationDto request,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            var result = await _applicationService.EvaluateAsync(
-                appId,
-                request,
-                cancellationToken);
-
-            return Ok(result);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new { message = ex.Message });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return Conflict(new { message = ex.Message });
-        }
-        catch (HttpRequestException ex)
-        {
-            return StatusCode(
-                StatusCodes.Status502BadGateway,
-                new { message = ex.Message });
-        }
-    }
 
     /// <summary>
     /// Creates a pending job application for an approved student.
@@ -253,63 +220,6 @@ public class ApplicationsController : ControllerBase
         return Ok(applications);
     }
 
-    /// <summary>
-    /// Updates the status of an application.
-    /// </summary>
-    [HttpPut("{appId:guid}/status")]
-    public async Task<IActionResult> UpdateApplicationStatus(
-        Guid appId,
-        [FromBody] UpdateStatusRequestDto request)
-    {
-        try
-        {
-            await _applicationService.UpdateApplicationStatusAsync(
-                appId,
-                request);
-
-            return Ok(new
-            {
-                message = "Status updated successfully"
-            });
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new { message = ex.Message });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return Conflict(new { message = ex.Message });
-        }
-    }
-
-    /// <summary>
-    /// Schedules an interview for an application.
-    /// </summary>
-    [HttpPut("{appId:guid}/interview")]
-    public async Task<IActionResult> ScheduleInterview(
-        Guid appId,
-        [FromBody] ScheduleInterviewRequestDto request)
-    {
-        try
-        {
-            await _applicationService.ScheduleInterviewAsync(
-                appId,
-                request);
-
-            return Ok(new
-            {
-                message = "Interview scheduled successfully"
-            });
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new { message = ex.Message });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return Conflict(new { message = ex.Message });
-        }
-    }
 
     /// <summary>
     /// Retrieves the CV download URL for an application.
