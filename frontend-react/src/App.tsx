@@ -7,17 +7,13 @@ import { HrLandingPage } from './pages/HrLandingPage';
 import { ApplicationsPage } from './pages/ApplicationsPage';
 import { JobPostingForm } from './components/company/JobPostingForm';
 import { LoginModal } from './components/auth/LoginModal';
-import { Sparkles, UserPlus, Home, LogIn, ShieldCheck, LogOut, Building2, PlusCircle } from 'lucide-react';
+
 import type { RegistrationRecord } from './types/auth';
 import { authService } from './services/authService';
 
 export type AppView = 'landing' | 'register' | 'login' | 'admin' | 'hr' | 'hr-post-job' | 'applications';
 
 function App() {
-  const [currentView, setCurrentView] = useState<AppView>('landing');
-  const [isLoginOpen, setIsLoginOpen] = useState(false);
-  const [pendingRecordForView, setPendingRecordForView] = useState<RegistrationRecord | null>(null);
-  const [newlyCreatedJobId, setNewlyCreatedJobId] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<{ email: string; role: string; companyName?: string } | null>(() => {
     try {
       const saved = localStorage.getItem('campusai_auth_user');
@@ -26,6 +22,23 @@ function App() {
       return null;
     }
   });
+
+  const [currentView, setCurrentView] = useState<AppView>(() => {
+    try {
+      const saved = localStorage.getItem('campusai_auth_user');
+      if (saved) {
+        const u = JSON.parse(saved);
+        if (u?.role?.toLowerCase().includes('staff')) {
+          return 'applications';
+        }
+      }
+    } catch {}
+    return 'landing';
+  });
+
+  const [isLoginOpen, setIsLoginOpen] = useState(false);
+  const [pendingRecordForView, setPendingRecordForView] = useState<RegistrationRecord | null>(null);
+  const [newlyCreatedJobId, setNewlyCreatedJobId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!localStorage.getItem('token')) {
@@ -36,9 +49,12 @@ function App() {
 
     authService.getCurrentUser()
       .then((user) => {
-        const verifiedUser = { email: user.email, role: user.role };
+        const verifiedUser = { email: user.email, role: user.role, companyName: (user as any).companyName };
         setCurrentUser(verifiedUser);
         localStorage.setItem('campusai_auth_user', JSON.stringify(verifiedUser));
+        if (user.role && user.role.toLowerCase().includes('staff')) {
+          setCurrentView('applications');
+        }
       })
       .catch(() => {
         setCurrentUser(null);
@@ -63,15 +79,16 @@ function App() {
 
     if (normalizedRole === 'admin') {
       setCurrentView('admin');
+    } else if (normalizedRole.includes('staff')) {
+      // Staff members go directly to Applications & Matching UI
+      setCurrentView('applications');
     } else if (
       normalizedRole === 'company hr' ||
       normalizedRole === 'companyhr' ||
       normalizedRole === 'company' ||
-      normalizedRole === 'recruiter' ||
-      normalizedRole === 'staff' ||
-      normalizedRole === 'company staff'
+      normalizedRole === 'recruiter'
     ) {
-      // Outside company HR / Staff redirected directly to dedicated HR Landing Page
+      // Outside company HR redirected directly to dedicated HR Landing Page
       setCurrentView('hr');
     } else {
       setCurrentView('landing');
@@ -79,8 +96,9 @@ function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const isStaff = currentUser?.role?.toLowerCase().includes('staff') || false;
   const isAdmin = currentUser?.role?.toLowerCase() === 'admin' || currentView === 'admin';
-  const isHr = currentView === 'hr' || (currentUser?.role && currentUser.role.toLowerCase().includes('company'));
+  const isHr = !isStaff && (currentView === 'hr' || (currentUser?.role && currentUser.role.toLowerCase().includes('company')));
 
   return (
     <div className="relative min-h-screen">
@@ -176,10 +194,6 @@ function App() {
             setCurrentView('hr-post-job');
             window.scrollTo({ top: 0, behavior: 'smooth' });
           }}
-          onNavigateApplications={() => {
-            setCurrentView('applications');
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-          }}
         />
       )}
 
@@ -203,10 +217,13 @@ function App() {
 
       {currentView === 'applications' && (
         <ApplicationsPage 
-          onNavigateDashboard={() => {
+          onNavigateDashboard={isStaff ? undefined : () => {
             setCurrentView('hr');
             window.scrollTo({ top: 0, behavior: 'smooth' });
           }}
+          userRole={currentUser?.role}
+          userEmail={currentUser?.email}
+          onLogout={handleLogout}
         />
       )}
 
@@ -232,8 +249,9 @@ function App() {
         }}
       />
 
-      {/* Floating Demo View Quick-Switcher */}
-      <div className="fixed bottom-4 right-4 z-50 flex items-center gap-1.5 p-1.5 bg-slate-900/90 backdrop-blur-md rounded-full shadow-xl border border-slate-700/60 text-white text-xs">
+      {/* Floating Demo View Quick-Switcher (Hidden for Staff) */}
+      {!isStaff && (
+        <div className="fixed bottom-4 right-4 z-50 flex items-center gap-1.5 p-1.5 bg-slate-900/90 backdrop-blur-md rounded-full shadow-xl border border-slate-700/60 text-white text-xs">
         <span className="flex items-center gap-1 pl-2 pr-1 text-[11px] font-semibold text-slate-400">
           <Sparkles className="w-3.5 h-3.5 text-amber-400" />
           Navigate:
@@ -374,6 +392,7 @@ function App() {
           </>
         )}
       </div>
+      )}
     </div>
   );
 }
