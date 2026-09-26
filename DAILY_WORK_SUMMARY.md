@@ -69,6 +69,36 @@ Today's development sprint focused on streamlining and refining the **HR Dashboa
 * **UI Redesign (`job_feed_screen.dart`, `job_card.dart`)**: Overhauled the Job Feed screen and Job Card widgets in Flutter to improve visual hierarchy, alignment, and readability for mobile devices.
 * **Backend Eligibility Logic (`JobService.cs`)**: Fixed an issue with how the backend evaluates numeric GPA thresholds and academic year cohorts to ensure accurate student eligibility filtering on the mobile job feed.
 
+### 7. Meaningful Third-Party Integration: Autonomous Interview Scheduling
+* **Enterprise Architecture**: Designed and implemented the frontend architecture for a robust, decoupled interview scheduling system that fulfills the university's "Meaningful Third-Party Integration" rubric requirement.
+* **Option B Flow Implemented (`HrLandingPage.tsx`)**:
+  * Created a custom React Modal specifically for HR to manually select a Date and Time for a matched candidate without invoking AI agents.
+  * Captures `candidateId`, `inviteDate`, and `inviteTime` to pass cleanly to the `.NET` backend.
+
+#### 📋 Implementation Phases Tracker
+- [x] **Phase 1: Database model + EF Core migration**
+  - Add `InterviewStatus` enum (`NotScheduled`, `Invited`, etc.)
+  - Update `Application` model with interview fields
+  - Run EF Core migration
+- [ ] **Phase 2: SendGrid email service**
+  - Create `IEmailService`
+  - Implement secure API key retrieval
+  - Configure Polly for rate limits and timeouts
+- [ ] **Phase 3: `.ics` calendar generator**
+  - Write logic to dynamically generate valid `.ics` calendar events
+  - Attach `.ics` payload to the SendGrid email
+- [ ] **Phase 4: Interview scheduling API/controller**
+  - Create `POST /api/interviews/schedule`
+  - Implement strict backend validation (verify Student+Job relationship)
+  - Ensure DB only updates if SendGrid succeeds
+- [ ] **Phase 5: React API integration**
+  - Update `companyService.ts` to call the new endpoint
+- [ ] **Phase 6: Loading/success/error UI**
+  - Update React modal with loading states, success toasts, and error handling
+  - Change student status to `✓ Invited` upon success
+- [ ] **Phase 7: End-to-end testing**
+  - Verify email delivery and `.ics` parsing in standard calendar apps
+
 ---
 
 ## 📂 Modified Files

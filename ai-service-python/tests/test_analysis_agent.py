@@ -1,4 +1,3 @@
-import pytest
 from unittest.mock import patch, MagicMock
 from agents.analysis import analysis_node, normalize_skill, normalize_skill_list
 from tools.skill_equivalence_tool import canonicalize_pair

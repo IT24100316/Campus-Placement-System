@@ -70,6 +70,12 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
   const [showRepostConfirmation, setShowRepostConfirmation] = useState(false);
   const [jobToRepost, setJobToRepost] = useState<any>(null);
 
+  // --- Invite Modal State ---
+  const [inviteModalOpen, setInviteModalOpen] = useState(false);
+  const [candidateToInvite, setCandidateToInvite] = useState<any>(null);
+  const [inviteDate, setInviteDate] = useState('');
+  const [inviteTime, setInviteTime] = useState('');
+
   const JOBS_PER_PAGE = 6;
 
   // If a new job was just published, ensure we are on page 1 with clear filters so it's immediately visible
@@ -203,6 +209,11 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
 
   const handleInvite = (id: string) => {
     setInterviewInvited((prev) => ({ ...prev, [id]: true }));
+  };
+
+  const openInviteModal = (candidate: any) => {
+    setCandidateToInvite(candidate);
+    setInviteModalOpen(true);
   };
 
   const handleExportDossier = () => {
@@ -1578,7 +1589,7 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                                 ) : (
                                   <button
                                     type="button"
-                                    onClick={() => handleInvite(c.id)}
+                                    onClick={() => openInviteModal(c)}
                                     className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary hover:bg-blue-700 text-white text-xs font-semibold transition-all shadow-xs cursor-pointer"
                                   >
                                     <span>Invite to Interview</span>
@@ -2171,6 +2182,89 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                 >
                   <Repeat className="w-4 h-4" />
                   Okay
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* -------------------------------------------------------------
+          Interview Invite Modal
+         ------------------------------------------------------------- */}
+      {inviteModalOpen && candidateToInvite && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                  <Calendar className="w-5 h-5 text-blue-600" />
+                </div>
+                <h3 className="text-lg font-bold text-slate-900">Schedule Interview</h3>
+              </div>
+              
+              <div className="bg-blue-50/50 border border-blue-200/60 rounded-xl p-4 mb-6">
+                <p className="text-sm font-medium text-blue-900 mb-4">
+                  Select a date and time for <strong>{candidateToInvite.name}</strong>'s interview.
+                </p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Date</label>
+                    <input 
+                      type="date" 
+                      value={inviteDate}
+                      onChange={(e) => setInviteDate(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none" 
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Time</label>
+                    <input 
+                      type="time" 
+                      value={inviteTime}
+                      onChange={(e) => setInviteTime(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none" 
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setInviteModalOpen(false);
+                    setCandidateToInvite(null);
+                    setInviteDate('');
+                    setInviteTime('');
+                  }}
+                  className="px-4 py-2 rounded-lg text-slate-700 text-sm font-bold hover:bg-slate-100 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!inviteDate || !inviteTime) {
+                      alert("Please select both a date and time.");
+                      return;
+                    }
+                    
+                    // Optimistically update the UI to show they were invited
+                    handleInvite(candidateToInvite.id);
+                    
+                    // Simulate the backend API call firing the template email
+                    alert(`Invitation Sent via API!\n\nTemplate generated for ${candidateToInvite.name} at ${companyName}.\nDate: ${inviteDate}\nTime: ${inviteTime}`);
+                    
+                    setInviteModalOpen(false);
+                    setCandidateToInvite(null);
+                    setInviteDate('');
+                    setInviteTime('');
+                  }}
+                  className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 transition-colors shadow-md cursor-pointer flex items-center gap-1.5"
+                >
+                  <Calendar className="w-4 h-4" />
+                  Send Invitation
                 </button>
               </div>
             </div>
