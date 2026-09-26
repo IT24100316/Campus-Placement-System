@@ -85,6 +85,9 @@ public class JobsController : ControllerBase
         [FromQuery] string[]? workArrangements,
         [FromQuery] bool? isPaidOnly,
         [FromQuery] bool? isEligible,
+        [FromQuery] decimal? minGpa,
+        [FromQuery] decimal? maxGpa,
+        [FromQuery] int[]? allowedYears,
         [FromQuery] string? sortBy,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 10)
@@ -100,7 +103,7 @@ public class JobsController : ControllerBase
             }
         }
 
-        var feed = await _jobService.GetJobFeedAsync(search, skills, domain, workArrangements, isPaidOnly, isEligible, studentId, sortBy, page, pageSize);
+        var feed = await _jobService.GetJobFeedAsync(search, skills, domain, workArrangements, isPaidOnly, isEligible, studentId, minGpa, maxGpa, allowedYears, sortBy, page, pageSize);
         return Ok(feed);
     }
 
