@@ -771,11 +771,11 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
                           </div>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                          <button type="button" onClick={() => window.open(`https://docs.google.com/viewer?url=${encodeURIComponent(viewingStudentFor.cvUrl)}`, '_blank')} className="p-2 rounded-lg bg-white border border-slate-200 hover:border-blue-300 shadow-sm text-slate-600 hover:text-blue-700 transition-all flex items-center gap-1.5" title="View PDF">
+                          <button type="button" onClick={() => window.open(`https://docs.google.com/viewer?url=${encodeURIComponent(viewingStudentFor.cvUrl || '')}`, '_blank')} className="p-2 rounded-lg bg-white border border-slate-200 hover:border-blue-300 shadow-sm text-slate-600 hover:text-blue-700 transition-all flex items-center gap-1.5" title="View PDF">
                             <span className="material-symbols-outlined text-[16px]">visibility</span>
                             <span className="text-xs font-bold">View</span>
                           </button>
-                          <button type="button" onClick={() => window.open(viewingStudentFor.cvUrl, '_blank')} className="p-2 rounded-lg bg-white border border-slate-200 hover:border-blue-300 shadow-sm text-slate-600 hover:text-blue-700 transition-all flex items-center gap-1.5" title="Download PDF">
+                          <button type="button" onClick={() => window.open(viewingStudentFor.cvUrl || '', '_blank')} className="p-2 rounded-lg bg-white border border-slate-200 hover:border-blue-300 shadow-sm text-slate-600 hover:text-blue-700 transition-all flex items-center gap-1.5" title="Download PDF">
                             <span className="material-symbols-outlined text-[16px]">download</span>
                           </button>
                         </div>

@@ -8,6 +8,8 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
+using Polly;
+using Polly.Extensions.Http;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -24,9 +26,12 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 // 2. Controllers
 builder.Services.AddControllers();
-builder.Services.AddHttpClient();
 builder.Services.AddScoped<IDocumentStorageService, DocumentStorageService>();
-builder.Services.AddScoped<IEmailService, SendGridEmailService>();
+
+// Phase 2: Register SendGrid Email Service with Polly Exponential Backoff Retry Policy
+builder.Services.AddHttpClient<IEmailService, SendGridEmailService>()
+    .AddTransientHttpErrorPolicy(policyBuilder =>
+        policyBuilder.WaitAndRetryAsync(3, retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt))));
 
 // 2.1 CV storage configuration
 builder.Services.Configure<CvStorageOptions>(

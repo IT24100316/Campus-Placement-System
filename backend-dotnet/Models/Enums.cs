@@ -26,3 +26,12 @@ public enum ApplicationStatus
     Processing,
     Evaluation_Failed
 }
+
+public enum InterviewStatus
+{
+    NotScheduled,
+    Invited,
+    Completed,
+    Canceled,
+    FailedToSend
+}

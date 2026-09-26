@@ -85,8 +85,8 @@ public class ApplicationService : IApplicationService
             .Include(a => a.Student)
                 .ThenInclude(u => u.StudentProfile)
             .Where(a => 
-                (a.Student.StudentProfile.FullName != null && a.Student.StudentProfile.FullName.ToLower().Contains(lowerQuery)) ||
-                (a.Student.StudentProfile.Skills != null && a.Student.StudentProfile.Skills.Any(s => s.ToLower().Contains(lowerQuery)))
+                (a.Student.StudentProfile != null && a.Student.StudentProfile.FullName != null && a.Student.StudentProfile.FullName.ToLower().Contains(lowerQuery)) ||
+                (a.Student.StudentProfile != null && a.Student.StudentProfile.Skills != null && a.Student.StudentProfile.Skills.Any(s => s.ToLower().Contains(lowerQuery)))
             )
             .OrderByDescending(a => a.MatchScore)
             .ToListAsync();
@@ -255,5 +255,55 @@ public class ApplicationService : IApplicationService
                 decisionDeadline = a.DecisionDeadline
             }).ToListAsync(cancellationToken);
         return values.Cast<object>();
+    }
+
+    public async Task<bool> ScheduleInterviewAsync(ScheduleInterviewRequestDto request)
+    {
+        // 1. Strict Validation: Verify Application exists for this specific Student and Job relationship
+        var application = await _context.Applications
+            .Include(a => a.Student)
+                .ThenInclude(u => u.StudentProfile)
+            .Include(a => a.Job)
+                .ThenInclude(j => j.Company)
+            .FirstOrDefaultAsync(a => a.StudentId == request.StudentId && a.JobId == request.JobId);
+
+        if (application == null)
+        {
+            return false;
+        }
+
+        // 2. Extract Data Securely (Do not trust frontend for these fields)
+        var studentEmail = application.Student.Email;
+        var studentName = application.Student.StudentProfile?.FullName ?? "Student";
+        var companyName = application.Job.Company?.CompanyName ?? "Company";
+        var jobTitle = application.Job.JobTitle;
+
+        // 3. Set the confirmed interview dates in the entity (Not saved yet)
+        application.InterviewDate = request.InterviewDate;
+        application.InterviewTime = request.InterviewTime;
+        
+        // 4. Generate .ics and Dispatch Email via SendGrid Service (with Polly resilience built-in)
+        var emailSent = await _emailService.SendInterviewScheduledAsync(
+            studentEmail,
+            studentName,
+            companyName,
+            jobTitle,
+            request.InterviewDate,
+            request.InterviewTime,
+            request.MeetingLink
+        );
+
+        if (!emailSent)
+        {
+            return false;
+        }
+
+        // 5. Database Consistency: Only save state to DB if the third-party SendGrid request succeeded
+        application.InterviewStatus = InterviewStatus.Invited;
+        application.Status = ApplicationStatus.Company_Scheduled;
+
+        await _context.SaveChangesAsync();
+
+        return true;
     }
 }
