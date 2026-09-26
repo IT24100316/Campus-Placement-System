@@ -219,6 +219,9 @@ public class ApplicationService : IApplicationService
         if (application.Status != ApplicationStatus.Agent_Evaluated)
             throw new InvalidOperationException("Application is not waiting for administrator approval.");
         application.Status = approved ? ApplicationStatus.Admin_Approved : ApplicationStatus.Rejected;
+        if (approved) {
+            application.DecisionDeadline = DateTime.UtcNow.AddDays(3);
+        }
         await _context.SaveChangesAsync(cancellationToken);
         return application;
     }
@@ -242,12 +245,14 @@ public class ApplicationService : IApplicationService
             .Select(a => new
             {
                 applicationId = a.AppId,
+                jobId = a.JobId,
                 jobTitle = a.Job.JobTitle,
                 companyName = a.Job.Company.CompanyName,
                 status = a.Status.ToString(),
                 interviewDate = a.InterviewDate,
                 interviewTime = a.InterviewTime,
-                companyMessage = a.CompanyMessage
+                companyMessage = a.CompanyMessage,
+                decisionDeadline = a.DecisionDeadline
             }).ToListAsync(cancellationToken);
         return values.Cast<object>();
     }

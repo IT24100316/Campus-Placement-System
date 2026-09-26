@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/constants/app_colors.dart';
 import '../../../../core/services/api_service.dart';
+import '../../../../features/jobs/presentation/screens/job_details_screen.dart';
 
 class ApplicationsTrackingScreen extends StatefulWidget {
   const ApplicationsTrackingScreen({super.key});
@@ -16,74 +18,109 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
   final Color onSurfaceVariant = const Color(0xFF434655);
 
   int _selectedTab = 0; // 0: Action, 1: Pending, 2: History
-  late Future<List<Map<String, dynamic>>> _applicationsFuture;
+  List<Map<String, dynamic>> _applications = [];
+  bool _isLoading = true;
+  String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
-    _applicationsFuture = ApiService().getApplications();
+    _fetchData();
+  }
+
+  Future<void> _fetchData() async {
+    try {
+      final data = await ApiService().getApplications();
+      if (mounted) {
+        setState(() {
+          _applications = data;
+          _isLoading = false;
+          _errorMessage = null;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = e.toString();
+        });
+      }
+    }
   }
 
   Future<void> _refresh() async {
-    final request = ApiService().getApplications();
-    setState(() => _applicationsFuture = request);
-    await request;
+    // RefreshIndicator shows its own spinner, so we don't set _isLoading = true.
+    try {
+      final data = await ApiService().getApplications();
+      if (mounted) {
+        setState(() {
+          _applications = data;
+          _errorMessage = null;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _errorMessage = e.toString());
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: backgroundColor,
+        appBar: _buildAppBar(),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_errorMessage != null && _applications.isEmpty) {
+      return Scaffold(
+        backgroundColor: backgroundColor,
+        appBar: _buildAppBar(),
+        body: Center(
+          child: Text('Could not load applications.\n$_errorMessage', textAlign: TextAlign.center),
+        ),
+      );
+    }
+
+    // Categorize applications
+    final actionRequired = _applications.where((app) => app['status'] == 'Admin_Approved' || app['status'] == 'Company_Scheduled').toList();
+    final pending = _applications.where((app) => app['status'] == 'Pending' || app['status'] == 'Agent_Evaluated').toList();
+    final history = _applications.where((app) => app['status'] == 'Student_Accepted' || app['status'] == 'Rejected' || app['status'] == 'Archived').toList();
+
     return Scaffold(
       backgroundColor: backgroundColor,
       appBar: _buildAppBar(),
-      body: FutureBuilder<List<Map<String, dynamic>>>(
-        future: _applicationsFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError && !snapshot.hasData) {
-            return Center(
-              child: Text('Could not load applications.\n${snapshot.error}', textAlign: TextAlign.center),
-            );
-          }
-
-          final applications = snapshot.data ?? [];
-          
-          // Categorize applications
-          final actionRequired = applications.where((app) => app['status'] == 'Admin_Approved' || app['status'] == 'Company_Scheduled').toList();
-          final pending = applications.where((app) => app['status'] == 'Pending' || app['status'] == 'Agent_Evaluated').toList();
-          final history = applications.where((app) => app['status'] == 'Student_Accepted' || app['status'] == 'Rejected' || app['status'] == 'Archived').toList();
-
-          return RefreshIndicator(
-            onRefresh: _refresh,
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildHeader(applications.length),
-                  const SizedBox(height: 16),
-                  _buildTabs(actionRequired.length, pending.length, history.length),
-                  const SizedBox(height: 16),
-                  
-                  if (_selectedTab == 0) _buildActionRequiredView(actionRequired),
-                  if (_selectedTab == 1) _buildPendingView(pending),
-                  if (_selectedTab == 2) _buildHistoryView(history),
-                  
-                  // Add empty state padding if no items in current tab
-                  if (_selectedTab == 0 && actionRequired.isEmpty ||
-                      _selectedTab == 1 && pending.isEmpty ||
-                      _selectedTab == 2 && history.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 40),
-                      child: Center(child: Text("No applications in this category.", style: TextStyle(color: Colors.grey))),
-                    )
-                ],
-              ),
-            ),
-          );
-        }
+      body: RefreshIndicator(
+        onRefresh: _refresh,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildHeader(_applications.length),
+              const SizedBox(height: 16),
+              _buildTabs(actionRequired.length, pending.length, history.length),
+              const SizedBox(height: 16),
+              
+              if (_selectedTab == 0) _buildActionRequiredView(actionRequired),
+              if (_selectedTab == 1) _buildPendingView(pending),
+              if (_selectedTab == 2) _buildHistoryView(history),
+              
+              // Add empty state padding if no items in current tab
+              if (_selectedTab == 0 && actionRequired.isEmpty ||
+                  _selectedTab == 1 && pending.isEmpty ||
+                  _selectedTab == 2 && history.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 40),
+                  child: Center(child: Text("No applications in this category.", style: TextStyle(color: Colors.grey))),
+                )
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -295,8 +332,38 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
   Widget _buildActionCard(Map<String, dynamic> item) {
     String company = item['companyName']?.toString() ?? 'Unknown Company';
     String title = item['jobTitle']?.toString() ?? 'Role';
+    String? jobId = item['jobId']?.toString();
     
-    return Container(
+    String? deadlineStr = item['decisionDeadline']?.toString();
+    DateTime? deadline = deadlineStr != null ? DateTime.tryParse(deadlineStr)?.toLocal() : null;
+    
+    String deadlineText = '';
+    String closesText = '';
+    
+    if (deadline != null) {
+      final days = deadline.difference(DateTime.now()).inDays;
+      if (days > 0) {
+        deadlineText = 'Decision deadline: $days days remaining';
+      } else if (days == 0) {
+        deadlineText = 'Decision deadline: Today';
+      } else {
+        deadlineText = 'Deadline passed';
+      }
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      closesText = 'Closes ${months[deadline.month - 1]} ${deadline.day}';
+    } else {
+      deadlineText = 'Decision deadline: N/A';
+      closesText = '';
+    }
+    
+    return GestureDetector(
+      onTap: jobId != null ? () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => JobDetailsScreen(jobId: jobId)),
+        );
+      } : null,
+      child: Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 4)]),
       child: Column(
@@ -365,10 +432,10 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
                   children: [
                     const Icon(Icons.timer, color: Color(0xFF93000A), size: 16),
                     const SizedBox(width: 6),
-                    const Text('Decision deadline: 3 days remaining', style: TextStyle(color: Color(0xFF93000A), fontSize: 11, fontWeight: FontWeight.bold)),
+                    Text(deadlineText, style: const TextStyle(color: Color(0xFF93000A), fontSize: 11, fontWeight: FontWeight.bold)),
                   ],
                 ),
-                const Text('Closes Oct 28', style: TextStyle(color: Color(0xFF93000A), fontSize: 11, fontWeight: FontWeight.w500)),
+                Text(closesText, style: const TextStyle(color: Color(0xFF93000A), fontSize: 11, fontWeight: FontWeight.w500)),
               ],
             ),
           ),
@@ -527,8 +594,9 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
           )
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildPendingView(List<Map<String, dynamic>> items) {
     return Column(
@@ -536,20 +604,29 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
         String company = item['companyName']?.toString() ?? 'Unknown Company';
         String title = item['jobTitle']?.toString() ?? 'Role';
         String status = item['status']?.toString() ?? 'Pending';
+        String? jobId = item['jobId']?.toString();
         
         return Padding(
           padding: const EdgeInsets.only(bottom: 16),
-          child: _buildPendingCard(
-            icon: Icons.account_balance,
-            company: company,
-            date: 'Applied Recently',
-            title: title,
-            subtitle: 'Software Engineering',
-            badge: 'Pending: $status',
-            stage: 'Stage 2 of 5: Technical Resume Parse',
-            progress: 0.4,
-            checkpointTitle: 'Next checkpoint: AI Rank Verification',
-            checkpointValue: 'Est. Oct 26',
+          child: GestureDetector(
+            onTap: jobId != null ? () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => JobDetailsScreen(jobId: jobId)),
+              );
+            } : null,
+            child: _buildPendingCard(
+              icon: Icons.account_balance,
+              company: company,
+              date: 'Applied Recently',
+              title: title,
+              subtitle: 'Software Engineering',
+              badge: 'Pending: $status',
+              stage: 'Stage 2 of 5: Technical Resume Parse',
+              progress: 0.4,
+              checkpointTitle: 'Next checkpoint: AI Rank Verification',
+              checkpointValue: 'Est. Oct 26',
+            ),
           ),
         );
       }).toList(),
@@ -637,20 +714,29 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
         String company = item['companyName']?.toString() ?? 'Unknown Company';
         String title = item['jobTitle']?.toString() ?? 'Role';
         String status = item['status']?.toString() ?? 'Archived';
+        String? jobId = item['jobId']?.toString();
         
         bool isAccepted = status == 'Student_Accepted';
         
         return Padding(
           padding: const EdgeInsets.only(bottom: 16),
-          child: _buildHistoryCard(
-            icon: isAccepted ? Icons.psychology : Icons.security,
-            company: company,
-            title: title,
-            subtitle: 'Completed Cohort',
-            badgeColor: isAccepted ? const Color(0xFFDCFCE7) : const Color(0xFFFEE2E2),
-            badgeTextColor: isAccepted ? const Color(0xFF166534) : const Color(0xFF991B1B),
-            badgeIcon: isAccepted ? Icons.check : Icons.close,
-            badgeText: isAccepted ? 'Accepted' : 'Declined',
+          child: GestureDetector(
+            onTap: jobId != null ? () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => JobDetailsScreen(jobId: jobId)),
+              );
+            } : null,
+            child: _buildHistoryCard(
+              icon: isAccepted ? Icons.psychology : Icons.security,
+              company: company,
+              title: title,
+              subtitle: 'Completed Cohort',
+              badgeColor: isAccepted ? const Color(0xFFDCFCE7) : const Color(0xFFFEE2E2),
+              badgeTextColor: isAccepted ? const Color(0xFF166534) : const Color(0xFF991B1B),
+              badgeIcon: isAccepted ? Icons.check : Icons.close,
+              badgeText: isAccepted ? 'Accepted' : 'Declined',
+            ),
           ),
         );
       }).toList(),
