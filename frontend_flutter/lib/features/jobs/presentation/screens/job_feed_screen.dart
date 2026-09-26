@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../widgets/job_card.dart';
-import '../data/models/job_feed_model.dart';
-import '../data/repositories/job_repository.dart';
+import '../../data/models/job_feed_model.dart';
+import '../../data/repositories/job_repository.dart';
 import 'job_details_screen.dart';
 
 class JobFeedScreen extends StatefulWidget {

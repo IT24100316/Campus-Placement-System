@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../data/models/job_details_model.dart';
-import '../data/repositories/job_repository.dart';
+import '../../data/models/job_details_model.dart';
+import '../../data/repositories/job_repository.dart';
 import '../widgets/ai_match_score_badge.dart';
 
 class JobDetailsScreen extends StatefulWidget {
