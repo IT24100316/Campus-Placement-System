@@ -33,7 +33,6 @@ public class ApplicationService : IApplicationService
         _documentStorage = documentStorage;
     }
 
-
     /// <summary>
     /// GetApplicationsByJobIdAsync
     /// Fetches a paginated list of applications for a specific job, including the candidate's profile details.

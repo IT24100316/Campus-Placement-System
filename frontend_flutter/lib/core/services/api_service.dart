@@ -48,27 +48,15 @@ class ApiService {
             'universityName': universityName.trim(),
             'password': password,
           });
-    if (campusId.bytes != null) {
-      request.files.add(
-        http.MultipartFile.fromBytes(
-          'campusIdPhoto',
-          campusId.bytes!,
-          filename: campusId.name,
-          contentType: contentType,
-        ),
-      );
-    } else if (campusId.path != null) {
-      request.files.add(
-        await http.MultipartFile.fromPath(
-          'campusIdPhoto',
-          campusId.path!,
-          filename: campusId.name,
-          contentType: contentType,
-        ),
-      );
-    } else {
-      throw Exception('The selected campus ID could not be read.');
-    }
+    final campusIdBytes = await campusId.readAsBytes();
+    request.files.add(
+      http.MultipartFile.fromBytes(
+        'campusIdPhoto',
+        campusIdBytes,
+        filename: campusId.name,
+        contentType: contentType,
+      ),
+    );
     final streamed = await request.send();
     final response = await http.Response.fromStream(streamed);
     return _decode(response);

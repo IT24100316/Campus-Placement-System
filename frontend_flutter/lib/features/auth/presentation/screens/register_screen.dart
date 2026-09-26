@@ -33,10 +33,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _pickCampusId() async {
-    final result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['jpg', 'jpeg', 'png'], withData: true);
-    final file = result?.files.single;
+    final file = await FilePicker.pickFile(
+      type: FileType.custom,
+      allowedExtensions: ['jpg', 'jpeg', 'png'],
+    );
     if (file == null) return;
-    if (file.size > 5 * 1024 * 1024) {
+    final fileSize = await file.length();
+    if (fileSize == null) {
+      setState(() => _error = 'The selected campus ID could not be read.');
+      return;
+    }
+    if (fileSize > 5 * 1024 * 1024) {
       setState(() => _error = 'Campus ID must be smaller than 5 MB.');
       return;
     }
