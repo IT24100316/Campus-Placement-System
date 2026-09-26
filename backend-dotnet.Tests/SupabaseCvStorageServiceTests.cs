@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text;
 using backend_dotnet.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
@@ -9,7 +10,7 @@ namespace backend_dotnet.Tests;
 
 public class SupabaseCvStorageServiceTests
 {
-    private const string Secret = "test-service-role-secret";
+    private const string Secret = "sb_secret_test-only-value";
     private static readonly Guid StudentId = Guid.Parse("a6ec31e7-d2ef-4de5-9926-1268cee938f5");
 
     [Fact]
@@ -20,7 +21,7 @@ public class SupabaseCvStorageServiceTests
         {
             Assert.Equal(HttpMethod.Post, request.Method);
             requestedPath = request.RequestUri!.AbsolutePath;
-            Assert.Equal($"Bearer {Secret}", request.Headers.Authorization!.ToString());
+            Assert.Null(request.Headers.Authorization);
             Assert.Equal(Secret, Assert.Single(request.Headers.GetValues("apikey")));
             Assert.Equal("false", Assert.Single(request.Headers.GetValues("x-upsert")));
             Assert.Equal("application/pdf", request.Content!.Headers.ContentType!.MediaType);
@@ -44,7 +45,7 @@ public class SupabaseCvStorageServiceTests
         {
             Assert.Equal(HttpMethod.Delete, request.Method);
             Assert.Equal($"/storage/v1/object/student-cvs/{key}", request.RequestUri!.AbsolutePath);
-            Assert.Equal($"Bearer {Secret}", request.Headers.Authorization!.ToString());
+            Assert.Null(request.Headers.Authorization);
             Assert.Equal(Secret, Assert.Single(request.Headers.GetValues("apikey")));
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NoContent));
         });
@@ -63,6 +64,50 @@ public class SupabaseCvStorageServiceTests
         await CreateService(handler).DeleteAsync($"{StudentId:N}/{Guid.NewGuid():N}.pdf");
 
         Assert.Equal(1, handler.RequestCount);
+    }
+
+    [Fact]
+    public async Task LegacyServiceRoleJwt_UsesBothHeadersForUploadAndDelete()
+    {
+        var legacyKey = LegacyJwt("service_role");
+        var handler = new FakeHandler(request =>
+        {
+            Assert.Equal(legacyKey, Assert.Single(request.Headers.GetValues("apikey")));
+            Assert.Equal($"Bearer {legacyKey}", request.Headers.Authorization?.ToString());
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
+        });
+        var service = CreateService(handler, key: legacyKey);
+
+        var objectKey = await service.StoreAsync(StudentId, PdfFile());
+        await service.DeleteAsync(objectKey);
+
+        Assert.Equal(2, handler.RequestCount);
+    }
+
+    [Theory]
+    [InlineData("sb_publishable_test-only-value")]
+    [InlineData("anon")]
+    public async Task UnprivilegedKey_IsRejectedBeforeHttpRequest(string key)
+    {
+        var handler = new FakeHandler(_ => throw new Exception("HTTP must not be called"));
+
+        var exception = await Assert.ThrowsAsync<CvStorageException>(() =>
+            CreateService(handler, key: key).StoreAsync(StudentId, PdfFile()));
+
+        Assert.Equal(0, handler.RequestCount);
+        Assert.DoesNotContain(key, exception.ToString());
+    }
+
+    [Fact]
+    public async Task LegacyAnonJwt_IsRejectedBeforeHttpRequest()
+    {
+        var handler = new FakeHandler(_ => throw new Exception("HTTP must not be called"));
+        var key = LegacyJwt("anon");
+
+        await Assert.ThrowsAsync<CvStorageException>(() =>
+            CreateService(handler, key: key).StoreAsync(StudentId, PdfFile()));
+
+        Assert.Equal(0, handler.RequestCount);
     }
 
     [Theory]
@@ -114,12 +159,13 @@ public class SupabaseCvStorageServiceTests
 
     private static SupabaseCvStorageService CreateService(
         HttpMessageHandler handler,
-        string? missingSetting = null)
+        string? missingSetting = null,
+        string? key = null)
     {
         var settings = new Dictionary<string, string?>
         {
             ["Supabase:Url"] = "https://example.supabase.co",
-            ["Supabase:ServiceRoleKey"] = Secret,
+            ["Supabase:ServiceRoleKey"] = key ?? Secret,
             ["Supabase:CvBucket"] = "student-cvs"
         };
         if (missingSetting != null)
@@ -132,6 +178,13 @@ public class SupabaseCvStorageServiceTests
             new HttpClient(handler),
             configuration,
             NullLogger<SupabaseCvStorageService>.Instance);
+    }
+
+    private static string LegacyJwt(string role)
+    {
+        static string Encode(string value) => Convert.ToBase64String(Encoding.UTF8.GetBytes(value))
+            .TrimEnd('=').Replace('+', '-').Replace('/', '_');
+        return $"{Encode("{\"alg\":\"HS256\"}")}.{Encode($"{{\"role\":\"{role}\"}}")}.signature";
     }
 
     private static IFormFile PdfFile()

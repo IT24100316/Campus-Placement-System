@@ -57,6 +57,7 @@ public sealed class DocumentStorageService : IDocumentStorageService
 
         if (!string.IsNullOrWhiteSpace(supabaseUrl) && !string.IsNullOrWhiteSpace(serviceKey))
         {
+            ValidatePrivilegedKey(serviceKey);
             await UploadToSupabaseAsync(file, storageKey, supabaseUrl, serviceKey, bucket, cancellationToken);
             return new StoredDocument($"supabase://{bucket}/{storageKey}", Path.GetFileName(file.FileName), file.ContentType);
         }
@@ -85,15 +86,28 @@ public sealed class DocumentStorageService : IDocumentStorageService
             var supabaseUrl = _configuration["Supabase:Url"]?.TrimEnd('/');
             var serviceKey = _configuration["Supabase:ServiceRoleKey"];
             if (string.IsNullOrWhiteSpace(supabaseUrl) || string.IsNullOrWhiteSpace(serviceKey)) return null;
+            ValidatePrivilegedKey(serviceKey);
 
             var client = _httpClientFactory.CreateClient();
             using var request = new HttpRequestMessage(HttpMethod.Get,
                 $"{supabaseUrl}/storage/v1/object/{Uri.EscapeDataString(bucket)}/{EscapePath(objectPath)}");
             AddSupabaseHeaders(request, serviceKey);
-            var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-            if (!response.IsSuccessStatusCode) return null;
-            var bytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);
-            return (new MemoryStream(bytes), response.Content.Headers.ContentType?.MediaType ?? GetContentType(objectPath), Path.GetFileName(objectPath));
+            try
+            {
+                using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+                if (!response.IsSuccessStatusCode) return null;
+                var bytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);
+                return (new MemoryStream(bytes), response.Content.Headers.ContentType?.MediaType ?? GetContentType(objectPath), Path.GetFileName(objectPath));
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception exception) when (exception is HttpRequestException or OperationCanceledException)
+            {
+                _logger.LogError("Supabase document download request failed.");
+                return null;
+            }
         }
 
         if (!storageKey.StartsWith("local://", StringComparison.OrdinalIgnoreCase)) return null;
@@ -107,24 +121,36 @@ public sealed class DocumentStorageService : IDocumentStorageService
     private async Task UploadToSupabaseAsync(IFormFile file, string storageKey, string supabaseUrl, string serviceKey, string bucket, CancellationToken cancellationToken)
     {
         var client = _httpClientFactory.CreateClient();
-        await EnsureBucketExistsAsync(client, supabaseUrl, serviceKey, bucket, cancellationToken);
-
-        using var request = new HttpRequestMessage(HttpMethod.Post,
-            $"{supabaseUrl}/storage/v1/object/{Uri.EscapeDataString(bucket)}/{EscapePath(storageKey)}");
-        AddSupabaseHeaders(request, serviceKey);
-        request.Headers.TryAddWithoutValidation("x-upsert", "false");
-        await using var stream = file.OpenReadStream();
-        request.Content = new StreamContent(stream);
-        request.Content.Headers.ContentType = MediaTypeHeaderValue.Parse(file.ContentType);
-        var response = await client.SendAsync(request, cancellationToken);
-        if (!response.IsSuccessStatusCode)
+        try
         {
-            var body = await response.Content.ReadAsStringAsync(cancellationToken);
-            throw new InvalidOperationException($"Supabase upload failed ({(int)response.StatusCode}): {body}");
+            await EnsureBucketExistsAsync(client, supabaseUrl, serviceKey, bucket, cancellationToken);
+
+            using var request = new HttpRequestMessage(HttpMethod.Post,
+                $"{supabaseUrl}/storage/v1/object/{Uri.EscapeDataString(bucket)}/{EscapePath(storageKey)}");
+            AddSupabaseHeaders(request, serviceKey);
+            request.Headers.TryAddWithoutValidation("x-upsert", "false");
+            await using var stream = file.OpenReadStream();
+            request.Content = new StreamContent(stream);
+            request.Content.Headers.ContentType = MediaTypeHeaderValue.Parse(file.ContentType);
+            using var response = await client.SendAsync(request, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogError("Supabase document upload failed with HTTP {StatusCode}.", (int)response.StatusCode);
+                throw new InvalidOperationException("Unable to upload the document to Supabase storage.");
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception) when (exception is HttpRequestException or OperationCanceledException)
+        {
+            _logger.LogError("Supabase document upload request failed.");
+            throw new InvalidOperationException("Unable to upload the document to Supabase storage.");
         }
     }
 
-    private static async Task EnsureBucketExistsAsync(HttpClient client, string url, string key, string bucket, CancellationToken cancellationToken)
+    private async Task EnsureBucketExistsAsync(HttpClient client, string url, string key, string bucket, CancellationToken cancellationToken)
     {
         using var check = new HttpRequestMessage(HttpMethod.Get, $"{url}/storage/v1/bucket/{Uri.EscapeDataString(bucket)}");
         AddSupabaseHeaders(check, key);
@@ -137,15 +163,21 @@ public sealed class DocumentStorageService : IDocumentStorageService
         using var createResponse = await client.SendAsync(create, cancellationToken);
         if (!createResponse.IsSuccessStatusCode && createResponse.StatusCode != System.Net.HttpStatusCode.Conflict)
         {
-            var body = await createResponse.Content.ReadAsStringAsync(cancellationToken);
-            throw new InvalidOperationException($"Could not create Supabase bucket '{bucket}': {body}");
+            _logger.LogError("Supabase document bucket creation failed with HTTP {StatusCode}.", (int)createResponse.StatusCode);
+            throw new InvalidOperationException("Unable to prepare Supabase document storage.");
         }
     }
 
     private static void AddSupabaseHeaders(HttpRequestMessage request, string key)
     {
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", key);
-        request.Headers.TryAddWithoutValidation("apikey", key);
+        SupabaseStorageAuthentication.AddHeaders(request, key);
+    }
+
+    private void ValidatePrivilegedKey(string key)
+    {
+        if (SupabaseStorageAuthentication.IsPrivilegedKey(key)) return;
+        _logger.LogError("Supabase document storage requires a privileged secret key.");
+        throw new InvalidOperationException("Document storage is unavailable at this time.");
     }
 
     private static string EscapePath(string path) => string.Join('/', path.Split('/').Select(Uri.EscapeDataString));

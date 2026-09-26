@@ -1,5 +1,5 @@
-using System.Net.Http.Headers;
 using Microsoft.AspNetCore.Http;
+using System.Net.Http.Headers;
 
 namespace backend_dotnet.Services;
 
@@ -56,7 +56,7 @@ public sealed class SupabaseCvStorageService : ICvStorageService
 
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)
             || uri.Scheme != Uri.UriSchemeHttps
-            || string.IsNullOrWhiteSpace(key)
+            || !SupabaseStorageAuthentication.IsPrivilegedKey(key)
             || string.IsNullOrWhiteSpace(bucket)
             || bucket.Contains('/')
             || bucket.Contains('\\'))
@@ -65,7 +65,7 @@ public sealed class SupabaseCvStorageService : ICvStorageService
             throw new CvStorageException("CV storage is unavailable at this time.");
         }
 
-        return (url!, key, bucket);
+        return (url!, key!, bucket!);
     }
 
     private static bool IsValidObjectKey(string key)
@@ -85,8 +85,7 @@ public sealed class SupabaseCvStorageService : ICvStorageService
         var escapedKey = string.Join('/', objectKey.Split('/').Select(Uri.EscapeDataString));
         var uri = $"{settings.Url}/storage/v1/object/{Uri.EscapeDataString(settings.Bucket)}/{escapedKey}";
         var request = new HttpRequestMessage(method, uri);
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", settings.Key);
-        request.Headers.TryAddWithoutValidation("apikey", settings.Key);
+        SupabaseStorageAuthentication.AddHeaders(request, settings.Key);
         return request;
     }
 
@@ -114,13 +113,13 @@ public sealed class SupabaseCvStorageService : ICvStorageService
         {
             throw;
         }
-        catch (OperationCanceledException exception)
+        catch (OperationCanceledException)
         {
-            _logger.LogError(exception, "Supabase CV {Operation} request timed out.", operation);
+            _logger.LogError("Supabase CV {Operation} request timed out.", operation);
         }
-        catch (HttpRequestException exception)
+        catch (HttpRequestException)
         {
-            _logger.LogError(exception, "Supabase CV {Operation} request failed.", operation);
+            _logger.LogError("Supabase CV {Operation} request failed.", operation);
         }
 
         throw new CvStorageException($"Unable to {operation} the CV at this time.");
