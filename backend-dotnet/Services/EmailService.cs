@@ -85,10 +85,10 @@ public sealed class SendGridEmailService : IEmailService
             disposition = "attachment"
         };
 
-        return SendAsync(toEmail, studentName, subject, htmlContent, attachment, cancellationToken, isHtml: true);
+        return SendAsync(toEmail, studentName, subject, htmlContent, attachment, cancellationToken, isHtml: true, fromNameOverride: companyName);
     }
 
-    private async Task<bool> SendAsync(string recipient, string displayName, string subject, string body, object? attachment, CancellationToken cancellationToken, bool isHtml = false)
+    private async Task<bool> SendAsync(string recipient, string displayName, string subject, string body, object? attachment, CancellationToken cancellationToken, bool isHtml = false, string? fromNameOverride = null)
     {
         // Try new config first, fallback to old config
         var apiKey = _configuration["SendGridApi:ApiKey"] ?? _configuration["SendGrid:ApiKey"];
@@ -99,7 +99,8 @@ public sealed class SendGridEmailService : IEmailService
         }
 
         var fromEmail = _configuration["SendGridApi:SenderEmail"] ?? _configuration["SendGrid:FromEmail"] ?? "noreply@campusai.local";
-        var fromName = _configuration["SendGridApi:SenderName"] ?? _configuration["SendGrid:FromName"] ?? "CampusAI";
+        // If an override is provided (like the company name), use it. Otherwise fallback to config.
+        var fromName = fromNameOverride ?? _configuration["SendGridApi:SenderName"] ?? _configuration["SendGrid:FromName"] ?? "CampusAI";
         
         var contentArray = isHtml 
             ? new[] { new { type = "text/html", value = body } } 
