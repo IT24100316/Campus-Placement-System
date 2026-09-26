@@ -220,6 +220,20 @@ public class JobService : IJobService
             };
         }
 
+        // 6.5. Prevent Duplicate Active Jobs for the Same Title
+        var existingJob = await _context.Jobs
+            .FirstOrDefaultAsync(j => j.CompanyId == company.UserId && j.JobTitleId == jobTitleEntity.Id);
+
+        if (existingJob != null)
+        {
+            return new JobCreationResultDto
+            {
+                Success = false,
+                ErrorTitle = "Duplicate Job Drive",
+                ErrorMessage = $"Your company already has an active placement drive for '{jobTitleEntity.Title}'. Please update the existing drive or delete it before creating a new one."
+            };
+        }
+
         // 7. Instantiate and save Job
         var newJob = new Job
         {

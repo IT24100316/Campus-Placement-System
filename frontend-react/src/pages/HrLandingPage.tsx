@@ -13,7 +13,6 @@ import {
   Filter,
   Download,
   Calendar,
-  MessageSquare,
   Bell,
   SlidersHorizontal,
   PlusCircle,
@@ -22,6 +21,9 @@ import {
   X,
   Search,
   RotateCcw,
+  Eye,
+  Trash2,
+  Edit,
 } from 'lucide-react';
 import type { CompanyDashboardData } from '../types/company';
 import { companyService } from '../services/companyService';
@@ -33,7 +35,6 @@ interface HrLandingPageProps {
   onLogout?: () => void;
   onNavigateHome?: () => void;
   onNavigatePostJob?: () => void;
-  onNavigateApplications?: () => void;
 }
 
 export const HrLandingPage: React.FC<HrLandingPageProps> = ({
@@ -43,13 +44,10 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
   onLogout,
   onNavigateHome,
   onNavigatePostJob,
-  onNavigateApplications,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [dashboardData, setDashboardData] = useState<CompanyDashboardData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [interviewInvited, setInterviewInvited] = useState<Record<string, boolean>>({});
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'jobs' | 'candidates'>('dashboard');
 
   // --- Active Placement Drives Filtering & Pagination State ---
   const [jobSearchQuery, setJobSearchQuery] = useState('');
@@ -57,6 +55,16 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
   const [jobStatusFilter, setJobStatusFilter] = useState('all');
   const [jobSortBy, setJobSortBy] = useState<'default' | 'matches-desc' | 'gpa-desc' | 'deadline-asc'>('default');
   const [jobsCurrentPage, setJobsCurrentPage] = useState(1);
+  const [selectedJobDetails, setSelectedJobDetails] = useState<any>(null); // To store job details for view modal
+  
+  // --- Update Job State ---
+  const [editingJob, setEditingJob] = useState<any>(null);
+  const [showUpdateConfirmation, setShowUpdateConfirmation] = useState(false);
+  
+  // --- Delete Job State ---
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+  const [jobToDelete, setJobToDelete] = useState<string | null>(null);
+
   const JOBS_PER_PAGE = 6;
 
   // If a new job was just published, ensure we are on page 1 with clear filters so it's immediately visible
@@ -74,10 +82,13 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
   const [candidatesSearchQuery, setCandidatesSearchQuery] = useState('');
   const [candidatesOpeningFilter, setCandidatesOpeningFilter] = useState('all');
   const [candidatesDegreeBatchFilter, setCandidatesDegreeBatchFilter] = useState('all');
-  const [candidatesMinGpaFilter, setCandidatesMinGpaFilter] = useState<number>(0);
-  const [candidatesCompetencyFilter, setCandidatesCompetencyFilter] = useState('all');
+  const [candidatesMinGpaFilter, setCandidatesMinGpaFilter] = useState<string>('');
+  const [candidatesMaxGpaFilter, setCandidatesMaxGpaFilter] = useState<string>('');
+  const [candidatesCustomCompetency, setCandidatesCustomCompetency] = useState<string>('');
   const [candidatesStatusFilter, setCandidatesStatusFilter] = useState('all');
-  const [candidatesMinMatchScore, setCandidatesMinMatchScore] = useState<number>(0);
+  const [candidatesMinMatchScore, setCandidatesMinMatchScore] = useState<string>('');
+  const [candidatesMaxMatchScore, setCandidatesMaxMatchScore] = useState<string>('');
+  const [candidatesSortBy, setCandidatesSortBy] = useState<'default' | 'gpa-desc' | 'gpa-asc' | 'score-desc' | 'score-asc'>('default');
   const [candidatesPerPage, setCandidatesPerPage] = useState<number>(5);
   const [candidatesCurrentPage, setCandidatesCurrentPage] = useState(1);
   const [isCandidatesFilterOpen, setIsCandidatesFilterOpen] = useState(false);
@@ -85,17 +96,81 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
 
   useEffect(() => {
     let isMounted = true;
-    setIsLoading(true);
     companyService.getDashboardData(userEmail).then((data) => {
       if (isMounted) {
         setDashboardData(data);
-        setIsLoading(false);
+        if (data && data.activeJobs && data.activeJobs.length > 0) {
+          const activeJobsSorted = [...data.activeJobs].sort((a, b) => {
+            const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+            const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+            return dateB - dateA;
+          });
+          setCandidatesOpeningFilter(activeJobsSorted[0].jobTitle);
+        }
       }
     });
     return () => {
       isMounted = false;
     };
   }, [userEmail]);
+
+  const confirmDeleteJob = (jobId: string) => {
+    setJobToDelete(jobId);
+    setShowDeleteConfirmation(true);
+  };
+
+  const executeDeleteJob = async () => {
+    if (!jobToDelete) return;
+    const success = await companyService.deleteJob(jobToDelete);
+    if (success && dashboardData) {
+      setDashboardData({
+        ...dashboardData,
+        activeJobs: dashboardData.activeJobs.filter((j) => j.jobId !== jobToDelete),
+      });
+      alert('Job deleted successfully from database.');
+    } else {
+      alert('Failed to delete job.');
+    }
+    setShowDeleteConfirmation(false);
+    setJobToDelete(null);
+  };
+
+  const handleUpdateJobChange = (field: string, value: any) => {
+    if (editingJob) {
+      setEditingJob({ ...editingJob, [field]: value });
+    }
+  };
+
+  const submitUpdateJob = async () => {
+    if (!editingJob) return;
+    
+    // Convert comma separated strings to arrays if needed
+    const updatedJobPayload = {
+      ...editingJob,
+      mandatorySkills: typeof editingJob.mandatorySkills === 'string' 
+        ? editingJob.mandatorySkills.split(',').map((s: string) => s.trim()) 
+        : editingJob.mandatorySkills,
+      niceToHaveSkills: typeof editingJob.niceToHaveSkills === 'string'
+        ? editingJob.niceToHaveSkills.split(',').map((s: string) => s.trim())
+        : editingJob.niceToHaveSkills,
+      allowedYearsOfStudy: typeof editingJob.allowedYearsOfStudy === 'string'
+        ? editingJob.allowedYearsOfStudy.split(',').map((s: string) => parseInt(s.trim(), 10)).filter((n: number) => !isNaN(n))
+        : editingJob.allowedYearsOfStudy,
+    };
+
+    const success = await companyService.updateJob(editingJob.jobId, updatedJobPayload);
+    if (success && dashboardData) {
+      setDashboardData({
+        ...dashboardData,
+        activeJobs: dashboardData.activeJobs.map((j) => j.jobId === editingJob.jobId ? { ...j, ...updatedJobPayload } : j),
+      });
+      setShowUpdateConfirmation(false);
+      setEditingJob(null);
+      alert('Job updated successfully!');
+    } else {
+      alert('Failed to update job.');
+    }
+  };
 
   const companyName = dashboardData?.companyName || initialCompanyName || 'Virtusa Corporation';
   const orgCode = dashboardData?.orgCode || 'VIR-8821';
@@ -208,14 +283,9 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
     return Array.from(set);
   }, [candidates]);
 
-  const availableCompetencies = useMemo(() => {
-    const set = new Set<string>();
-    candidates.forEach((c) => c.competencies.forEach((comp) => set.add(comp)));
-    return Array.from(set).sort();
-  }, [candidates]);
 
   const filteredCandidates = useMemo(() => {
-    return candidates.filter((c) => {
+    const filtered = candidates.filter((c) => {
       const isInvited = interviewInvited[c.id];
       const effectiveStatus = isInvited ? 'Interview Invited' : c.status;
 
@@ -246,15 +316,22 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
         }
       }
 
-      if (candidatesMinGpaFilter > 0 && c.gpa < candidatesMinGpaFilter) {
+      const minGpa = parseFloat(candidatesMinGpaFilter);
+      if (!isNaN(minGpa) && c.gpa < minGpa) {
+        return false;
+      }
+      
+      const maxGpa = parseFloat(candidatesMaxGpaFilter);
+      if (!isNaN(maxGpa) && c.gpa > maxGpa) {
         return false;
       }
 
-      if (candidatesCompetencyFilter !== 'all') {
-        const skill = candidatesCompetencyFilter.toLowerCase();
-        if (!c.competencies.some((comp) => comp.toLowerCase() === skill)) {
-          return false;
-        }
+      if (candidatesCustomCompetency.trim() !== '') {
+        const requiredSkills = candidatesCustomCompetency.split(',').map(s => s.trim().toLowerCase()).filter(s => s !== '');
+        const hasAll = requiredSkills.every(reqSkill => 
+          c.competencies.some(comp => comp.toLowerCase().includes(reqSkill))
+        );
+        if (!hasAll) return false;
       }
 
       if (candidatesStatusFilter !== 'all') {
@@ -263,12 +340,30 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
         }
       }
 
-      if (candidatesMinMatchScore > 0 && c.matchScore < candidatesMinMatchScore) {
+      const minMatch = parseFloat(candidatesMinMatchScore);
+      if (!isNaN(minMatch) && c.matchScore < minMatch) {
+        return false;
+      }
+      
+      const maxMatch = parseFloat(candidatesMaxMatchScore);
+      if (!isNaN(maxMatch) && c.matchScore > maxMatch) {
         return false;
       }
 
       return true;
     });
+
+    if (candidatesSortBy === 'gpa-desc') {
+      filtered.sort((a, b) => Number(b.gpa) - Number(a.gpa));
+    } else if (candidatesSortBy === 'gpa-asc') {
+      filtered.sort((a, b) => Number(a.gpa) - Number(b.gpa));
+    } else if (candidatesSortBy === 'score-desc') {
+      filtered.sort((a, b) => b.matchScore - a.matchScore);
+    } else if (candidatesSortBy === 'score-asc') {
+      filtered.sort((a, b) => a.matchScore - b.matchScore);
+    }
+
+    return filtered;
   }, [
     candidates,
     interviewInvited,
@@ -276,9 +371,12 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
     candidatesOpeningFilter,
     candidatesDegreeBatchFilter,
     candidatesMinGpaFilter,
-    candidatesCompetencyFilter,
+    candidatesMaxGpaFilter,
+    candidatesCustomCompetency,
     candidatesStatusFilter,
     candidatesMinMatchScore,
+    candidatesMaxMatchScore,
+    candidatesSortBy,
   ]);
 
   const totalCandidatePages = Math.max(1, Math.ceil(filteredCandidates.length / candidatesPerPage));
@@ -293,19 +391,25 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
     (candidatesSearchQuery ? 1 : 0) +
     (candidatesOpeningFilter !== 'all' ? 1 : 0) +
     (candidatesDegreeBatchFilter !== 'all' ? 1 : 0) +
-    (candidatesMinGpaFilter > 0 ? 1 : 0) +
-    (candidatesCompetencyFilter !== 'all' ? 1 : 0) +
+    (candidatesMinGpaFilter !== '' ? 1 : 0) +
+    (candidatesMaxGpaFilter !== '' ? 1 : 0) +
+    (candidatesCustomCompetency.trim() !== '' ? 1 : 0) +
     (candidatesStatusFilter !== 'all' ? 1 : 0) +
-    (candidatesMinMatchScore > 0 ? 1 : 0);
+    (candidatesMinMatchScore !== '' ? 1 : 0) +
+    (candidatesMaxMatchScore !== '' ? 1 : 0) +
+    (candidatesSortBy !== 'default' ? 1 : 0);
 
   const resetCandidateFilters = () => {
     setCandidatesSearchQuery('');
     setCandidatesOpeningFilter('all');
     setCandidatesDegreeBatchFilter('all');
-    setCandidatesMinGpaFilter(0);
-    setCandidatesCompetencyFilter('all');
+    setCandidatesMinGpaFilter('');
+    setCandidatesMaxGpaFilter('');
+    setCandidatesCustomCompetency('');
     setCandidatesStatusFilter('all');
-    setCandidatesMinMatchScore(0);
+    setCandidatesMinMatchScore('');
+    setCandidatesMaxMatchScore('');
+    setCandidatesSortBy('default');
     setCandidatesCurrentPage(1);
   };
 
@@ -356,49 +460,8 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
               </div>
             </button>
 
-            {/* Desktop Navigation */}
+            {/* Desktop Navigation removed as per user request */}
             <nav className="hidden xl:flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() => setActiveTab('dashboard')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
-                  activeTab === 'dashboard'
-                    ? 'bg-blue-50 text-primary border border-blue-100'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                }`}
-              >
-                <Building2 className="w-4 h-4 text-primary" />
-                <span>Dashboard</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab('jobs')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
-                  activeTab === 'jobs'
-                    ? 'bg-blue-50 text-primary border border-blue-100'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                }`}
-              >
-                <PlusCircle className="w-4 h-4 text-slate-500" />
-                <span>Placement Drives</span>
-              </button>
-              <button
-                type="button"
-                onClick={onNavigateApplications}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
-                  activeTab === 'candidates'
-                    ? 'bg-blue-50 text-primary border border-blue-100'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                }`}
-              >
-                <Users className="w-4 h-4 text-slate-500" />
-                <span>Applications &amp; Matching</span>
-              </button>
-              <span className="text-slate-300 px-1 font-mono text-xs">|</span>
-              <span className="px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-semibold inline-flex items-center gap-1">
-                <span className={`w-1.5 h-1.5 rounded-full ${isLoading ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500 animate-pulse'}`}></span>
-                {isLoading ? 'Syncing DB...' : 'DB Synced'}
-              </span>
             </nav>
           </div>
 
@@ -470,7 +533,7 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
               <button
                 type="button"
                 onClick={() => {
-                  setActiveTab('dashboard');
+                  
                   setMobileMenuOpen(false);
                 }}
                 className="text-left text-sm font-medium text-slate-700 hover:text-primary py-1.5"
@@ -480,7 +543,7 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
               <button
                 type="button"
                 onClick={() => {
-                  setActiveTab('jobs');
+                  
                   setMobileMenuOpen(false);
                 }}
                 className="text-left text-sm font-medium text-slate-700 hover:text-primary py-1.5"
@@ -490,7 +553,7 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
               <button
                 type="button"
                 onClick={() => {
-                  setActiveTab('candidates');
+                  
                   setMobileMenuOpen(false);
                 }}
                 className="text-left text-sm font-medium text-slate-700 hover:text-primary py-1.5"
@@ -521,31 +584,7 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
          ------------------------------------------------------------- */}
       <main className="w-full pt-16 flex-1">
         <div className="flex flex-col w-full pb-16">
-          {/* Live Academic Session Banner */}
-          <section className="w-full bg-blue-50/60 border-b border-blue-100 py-2.5 px-4 sm:px-6 lg:px-8">
-            <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
-              <div className="flex items-center gap-2">
-                <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span className="font-semibold uppercase tracking-wider text-emerald-800 text-[11px]">
-                  Active Campus Drive Session: Fall 2025 / Spring 2026
-                </span>
-                <span className="text-slate-300 font-mono hidden sm:inline">|</span>
-                <span className="text-slate-600 hidden md:inline">
-                  Institutional placement portals currently open across 34 partnered universities.
-                </span>
-              </div>
-              <div className="flex items-center gap-4 text-[11px]">
-                <span className="flex items-center gap-1 font-medium text-slate-700">
-                  <ShieldCheck className="w-3.5 h-3.5 text-primary" />
-                  FERPA &amp; Registrar Compliant
-                </span>
-                <span className="hidden sm:flex items-center gap-1 font-medium text-indigo-700">
-                  <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-                  Live AI Screening Active
-                </span>
-              </div>
-            </div>
-          </section>
+
 
           {/* Welcome Hero & Primary Fast Action Hub */}
           <section className="w-full pt-8 pb-6 px-4 sm:px-6 lg:px-8">
@@ -598,7 +637,7 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                         if (onNavigatePostJob) {
                           onNavigatePostJob();
                         } else {
-                          setActiveTab('jobs');
+                          
                         }
                       }}
                       className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-white text-primary font-semibold text-xs sm:text-sm hover:bg-slate-50 transition-all shadow-sm cursor-pointer"
@@ -634,7 +673,7 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                   <div className="pt-6 flex items-center justify-between">
                     <button
                       type="button"
-                      onClick={() => setActiveTab('candidates')}
+                      onClick={() => {}}
                       className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-white font-semibold text-xs sm:text-sm hover:bg-blue-700 transition-all shadow-sm cursor-pointer"
                     >
                       <span>Review Shortlisted Pool</span>
@@ -890,64 +929,137 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                           <h3 className="font-display text-base font-bold text-slate-900 group-hover:text-primary transition-colors">
                             {job.jobTitle}
                           </h3>
-                          <p className="text-xs text-slate-500 mt-0.5">{job.targetDomain}</p>
-                          <p className="text-[11px] text-slate-400 mt-0.5 flex items-center gap-1">
-                            <span>📍</span>
-                            <span>{job.locationCity}</span>
+                          <p className="text-xs text-slate-500 mt-0.5 font-medium">{job.targetDomain}</p>
+                          <p className="text-[11px] text-slate-500 mt-1.5 line-clamp-2 leading-relaxed">
+                            {job.jobDescriptionSummary}
                           </p>
                         </div>
 
-                        <div className="flex flex-wrap gap-1.5 pt-1">
-                          <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[11px] font-medium">
-                            Min GPA: {job.minimumGPA}
-                          </span>
-                          {job.mandatorySkills.slice(0, 3).map((s) => (
-                            <span
-                              key={s}
-                              className="px-2 py-0.5 rounded bg-blue-50 text-blue-800 text-[11px] font-medium"
-                            >
-                              {s}
+                        {/* Full Structured Job Details */}
+                        <div className="grid grid-cols-2 gap-2 pt-2 mt-2 border-t border-slate-100">
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Location</span>
+                            <span className="text-xs text-slate-700 font-medium flex items-center gap-1">📍 {job.locationCity}</span>
+                          </div>
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Duration</span>
+                            <span className="text-xs text-slate-700 font-medium">⏱️ {job.durationMonths} Months</span>
+                          </div>
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Compensation</span>
+                            <span className="text-xs text-slate-700 font-medium">
+                              💰 {job.stipendOffered ? job.stipendAmountOrDetails || 'Paid' : 'Unpaid'}
                             </span>
-                          ))}
-                          {job.mandatorySkills.length > 3 && (
-                            <span className="px-1.5 py-0.5 rounded bg-slate-50 text-slate-500 text-[10px] font-medium">
-                              +{job.mandatorySkills.length - 3}
+                          </div>
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Deadline</span>
+                            <span className="text-xs text-slate-700 font-medium">
+                              📅 {new Date(job.applicationDeadline).toLocaleDateString()}
                             </span>
-                          )}
+                          </div>
                         </div>
 
-                        <div className="bg-slate-50 p-3 rounded-lg flex items-center justify-between mt-1 border border-slate-100">
+                        {/* Requirements & Skills */}
+                        <div className="pt-2 mt-2 border-t border-slate-100">
+                          <div className="flex flex-col gap-1.5">
+                            <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Key Requirements</span>
+                            <div className="flex flex-wrap gap-1.5">
+                              <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-100 text-[10px] font-semibold">
+                                Min GPA: {job.minimumGPA}
+                              </span>
+                              <span className="px-2 py-0.5 rounded bg-purple-50 text-purple-800 border border-purple-100 text-[10px] font-semibold">
+                                Year: {job.allowedYearsOfStudy.join(', ')}
+                              </span>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5 mt-1">
+                              {job.mandatorySkills.map((s) => (
+                                <span
+                                  key={s}
+                                  className="px-2 py-0.5 rounded bg-blue-50 text-blue-800 border border-blue-100 text-[10px] font-medium"
+                                >
+                                  {s}
+                                </span>
+                              ))}
+                              {job.niceToHaveSkills.length > 0 && job.niceToHaveSkills.map((s) => (
+                                <span
+                                  key={`nice-${s}`}
+                                  className="px-2 py-0.5 rounded bg-slate-50 text-slate-600 border border-slate-200 text-[10px] font-medium opacity-80"
+                                >
+                                  {s}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="bg-slate-50 p-3 rounded-lg flex items-center justify-between mt-3 border border-slate-100 shadow-inner">
                           <div className="flex flex-col">
                             <span className="font-display text-lg font-bold text-slate-900">
                               {job.matchesVerified}
                             </span>
-                            <span className="text-[10px] text-slate-500">Matches Verified</span>
+                            <span className="text-[10px] text-slate-500 font-medium">Matches Verified</span>
                           </div>
-                          <span className="text-xs text-primary font-semibold">100% Gated Match</span>
+                          <span className="text-[11px] text-emerald-600 font-bold bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100">
+                            ✓ 100% Gated Match
+                          </span>
                         </div>
                       </div>
 
-                      <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between">
+                      <div className="pt-4 mt-4 border-t border-slate-100 flex flex-col gap-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedJobDetails(job)}
+                            className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 text-xs font-semibold hover:bg-slate-50 transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
+                            title="View Full Job Details"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            <span>View Details</span>
+                          </button>
+
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingJob({
+                                  ...job,
+                                  mandatorySkills: job.mandatorySkills.join(', '),
+                                  niceToHaveSkills: job.niceToHaveSkills.join(', '),
+                                  allowedYearsOfStudy: job.allowedYearsOfStudy.join(', '),
+                                  applicationDeadline: new Date(job.applicationDeadline).toISOString().split('T')[0]
+                                });
+                              }}
+                              className="px-2.5 py-1.5 rounded-md bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 font-semibold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                              title="Update Criteria"
+                            >
+                              <Edit className="w-3.5 h-3.5" />
+                              <span>Update</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => confirmDeleteJob(job.jobId)}
+                              className="px-2.5 py-1.5 rounded-md bg-rose-50 text-rose-600 hover:bg-rose-100 hover:text-rose-700 font-semibold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                              title="Delete Drive"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>Delete</span>
+                            </button>
+                          </div>
+                        </div>
+
                         <button
                           type="button"
                           onClick={() => {
                             setCandidatesOpeningFilter(job.jobTitle);
                             setIsCandidatesFilterOpen(true);
-                            setActiveTab('candidates');
+                            
                             const element = document.getElementById('candidates-section');
                             element?.scrollIntoView({ behavior: 'smooth' });
                           }}
-                          className="text-primary text-xs font-semibold hover:underline flex items-center gap-1 cursor-pointer"
+                          className="w-full py-2 bg-slate-900 text-white rounded-lg text-xs font-semibold hover:bg-slate-800 transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-sm group"
                         >
-                          <span>View Matched Candidates</span>
-                          <ArrowRight className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          className="text-slate-400 hover:text-slate-700 p-1 cursor-pointer"
-                          title="Edit Criteria"
-                        >
-                          <SlidersHorizontal className="w-4 h-4" />
+                          <span>View Screened Candidates</span>
+                          <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
                         </button>
                       </div>
                     </div>
@@ -1090,7 +1202,7 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
               )}
 
               {/* Quick Search Bar */}
-              <div className="relative w-full">
+              <div className="relative w-full mb-4">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   type="text"
@@ -1115,6 +1227,37 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                   </button>
                 )}
               </div>
+
+              {/* Context Header for the current job */}
+              {candidatesOpeningFilter !== 'all' && (
+                <div className="mb-4 p-4 bg-blue-50 border border-blue-100 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                      <Briefcase className="w-4 h-4 text-primary" />
+                      Showing Candidates for: <span className="text-primary">{candidatesOpeningFilter}</span>
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-1">
+                      {(() => {
+                        const relatedJob = dashboardData?.activeJobs.find(j => j.jobTitle === candidatesOpeningFilter);
+                        return relatedJob 
+                          ? `Posted on ${relatedJob.createdAt ? new Date(relatedJob.createdAt).toLocaleDateString() : 'N/A'}` 
+                          : 'Job details available.';
+                      })()}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const relatedJob = dashboardData?.activeJobs.find(j => j.jobTitle === candidatesOpeningFilter);
+                      if (relatedJob) setSelectedJobDetails(relatedJob);
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-blue-200 text-blue-700 hover:bg-blue-100 text-xs font-semibold transition-colors shadow-xs"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    <span>View Job Details</span>
+                  </button>
+                </div>
+              )}
 
               {/* Advanced Filter Cohort Drawer / Panel */}
               {isCandidatesFilterOpen && (
@@ -1143,12 +1286,13 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                         1. Matched Opening
                       </label>
                       <select
+                        disabled
                         value={candidatesOpeningFilter}
                         onChange={(e) => {
                           setCandidatesOpeningFilter(e.target.value);
                           setCandidatesCurrentPage(1);
                         }}
-                        className="pl-3 pr-8 py-2 rounded-lg bg-white border border-slate-200 text-xs font-medium text-slate-800 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none cursor-pointer"
+                        className="pl-3 pr-8 py-2 rounded-lg bg-slate-50 border border-slate-200 text-xs font-medium text-slate-500 cursor-not-allowed opacity-70"
                       >
                         <option value="all">All Placement Drives</option>
                         {availableOpenings.map((op) => (
@@ -1181,47 +1325,45 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                       </select>
                     </div>
 
-                    {/* 3. Verified GPA */}
+                    {/* 3. Verified GPA Range */}
                     <div className="flex flex-col gap-1">
                       <label className="text-[11px] font-semibold text-slate-600">
-                        3. Verified GPA Threshold
+                        3. Verified GPA Range
                       </label>
-                      <select
-                        value={candidatesMinGpaFilter}
-                        onChange={(e) => {
-                          setCandidatesMinGpaFilter(Number(e.target.value));
-                          setCandidatesCurrentPage(1);
-                        }}
-                        className="pl-3 pr-8 py-2 rounded-lg bg-white border border-slate-200 text-xs font-medium text-slate-800 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none cursor-pointer"
-                      >
-                        <option value="0">All GPA Ranges</option>
-                        <option value="3.5">Min GPA ≥ 3.50</option>
-                        <option value="3.7">Min GPA ≥ 3.70</option>
-                        <option value="3.8">Min GPA ≥ 3.80</option>
-                        <option value="3.9">Min GPA ≥ 3.90</option>
-                      </select>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          step="0.01"
+                          placeholder="Min"
+                          value={candidatesMinGpaFilter}
+                          onChange={(e) => { setCandidatesMinGpaFilter(e.target.value); setCandidatesCurrentPage(1); }}
+                          className="w-1/2 px-3 py-2 rounded-lg bg-white border border-slate-200 text-xs font-medium text-slate-800 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
+                        />
+                        <span className="text-slate-400 text-xs">-</span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          placeholder="Max"
+                          value={candidatesMaxGpaFilter}
+                          onChange={(e) => { setCandidatesMaxGpaFilter(e.target.value); setCandidatesCurrentPage(1); }}
+                          className="w-1/2 px-3 py-2 rounded-lg bg-white border border-slate-200 text-xs font-medium text-slate-800 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
+                        />
+                      </div>
                     </div>
 
                     {/* 4. Core Competencies */}
                     <div className="flex flex-col gap-1">
-                      <label className="text-[11px] font-semibold text-slate-600">
-                        4. Core Competencies
+                      <label className="text-[11px] font-semibold text-slate-600 flex justify-between">
+                        <span>4. Core Competencies</span>
+                        <span className="text-[9px] text-slate-400 font-normal">(Comma separated)</span>
                       </label>
-                      <select
-                        value={candidatesCompetencyFilter}
-                        onChange={(e) => {
-                          setCandidatesCompetencyFilter(e.target.value);
-                          setCandidatesCurrentPage(1);
-                        }}
-                        className="pl-3 pr-8 py-2 rounded-lg bg-white border border-slate-200 text-xs font-medium text-slate-800 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none cursor-pointer"
-                      >
-                        <option value="all">All Competencies</option>
-                        {availableCompetencies.map((comp) => (
-                          <option key={comp} value={comp}>
-                            {comp}
-                          </option>
-                        ))}
-                      </select>
+                      <input
+                        type="text"
+                        placeholder="e.g. Python, SQL"
+                        value={candidatesCustomCompetency}
+                        onChange={(e) => { setCandidatesCustomCompetency(e.target.value); setCandidatesCurrentPage(1); }}
+                        className="w-full px-3 py-2 rounded-lg bg-white border border-slate-200 text-xs font-medium text-slate-800 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
+                      />
                     </div>
 
                     {/* 5. Status */}
@@ -1245,23 +1387,48 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                       </select>
                     </div>
 
-                    {/* 6. Match Score */}
+                    {/* 6. Match Score Range */}
                     <div className="flex flex-col gap-1">
                       <label className="text-[11px] font-semibold text-slate-600">
-                        6. AI Match Score
+                        6. AI Match Score Range
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          placeholder="Min %"
+                          value={candidatesMinMatchScore}
+                          onChange={(e) => { setCandidatesMinMatchScore(e.target.value); setCandidatesCurrentPage(1); }}
+                          className="w-1/2 px-3 py-2 rounded-lg bg-white border border-slate-200 text-xs font-medium text-slate-800 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
+                        />
+                        <span className="text-slate-400 text-xs">-</span>
+                        <input
+                          type="number"
+                          placeholder="Max %"
+                          value={candidatesMaxMatchScore}
+                          onChange={(e) => { setCandidatesMaxMatchScore(e.target.value); setCandidatesCurrentPage(1); }}
+                          className="w-1/2 px-3 py-2 rounded-lg bg-white border border-slate-200 text-xs font-medium text-slate-800 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    {/* 7. Sort By */}
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[11px] font-semibold text-slate-600">
+                        7. Sort Results
                       </label>
                       <select
-                        value={candidatesMinMatchScore}
+                        value={candidatesSortBy}
                         onChange={(e) => {
-                          setCandidatesMinMatchScore(Number(e.target.value));
+                          setCandidatesSortBy(e.target.value as any);
                           setCandidatesCurrentPage(1);
                         }}
                         className="pl-3 pr-8 py-2 rounded-lg bg-white border border-slate-200 text-xs font-medium text-slate-800 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none cursor-pointer"
                       >
-                        <option value="0">All Match Scores</option>
-                        <option value="90">≥ 90% AI Match</option>
-                        <option value="95">≥ 95% AI Match</option>
-                        <option value="98">≥ 98% AI Match</option>
+                        <option value="default">Default Sort</option>
+                        <option value="gpa-desc">GPA: High to Low</option>
+                        <option value="gpa-asc">GPA: Low to High</option>
+                        <option value="score-desc">Match Score: High to Low</option>
+                        <option value="score-asc">Match Score: Low to High</option>
                       </select>
                     </div>
                   </div>
@@ -1285,7 +1452,7 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                           </div>
                         </th>
                         <th className="py-3 px-4">Core Competencies</th>
-                        <th className="py-3 px-4">Status</th>
+                        <th className="py-3 px-4 text-center">Resume / CV</th>
                         <th className="py-3 px-4 text-right">Action</th>
                       </tr>
                     </thead>
@@ -1361,21 +1528,17 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                                 </div>
                               </td>
 
-                              {/* Status */}
-                              <td className="py-3.5 px-4">
-                                <span
-                                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${
-                                    isInvited
-                                      ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                                      : c.statusColor === 'emerald'
-                                      ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                                      : c.statusColor === 'purple'
-                                      ? 'bg-purple-50 text-purple-800 border-purple-200'
-                                      : 'bg-blue-50 text-blue-800 border-blue-200'
-                                  }`}
+                              {/* CV / Resume */}
+                              <td className="py-3.5 px-4 text-center">
+                                <a
+                                  href={c.cvPdfUrl || '#'}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 text-[11px] font-semibold transition-colors shadow-xs"
                                 >
-                                  {isInvited ? 'Interview Invited' : c.status}
-                                </span>
+                                  <Eye className="w-3.5 h-3.5 text-primary" />
+                                  <span>Review CV</span>
+                                </a>
                               </td>
 
                               {/* Action */}
@@ -1503,44 +1666,6 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
           </section>
 
 
-          {/* -------------------------------------------------------------
-              5. Institutional Support & Placement Desk Contact Card
-             ------------------------------------------------------------- */}
-          <section className="w-full pt-2 pb-6 px-4 sm:px-6 lg:px-8">
-            <div className="max-w-7xl mx-auto">
-              <div className="bg-slate-100/90 border border-slate-200 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-4">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                    <MessageSquare className="w-6 h-6 text-primary" />
-                  </div>
-                  <div className="flex flex-col">
-                    <h3 className="font-display text-base font-bold text-slate-900">
-                      Campus Placement Officer Dedicated Desk
-                    </h3>
-                    <p className="text-xs sm:text-sm text-slate-600">
-                      Need to coordinate an on-campus presentation day, custom testing slots, or multi-campus tie-ups? Our university relations desk is available 24/7.
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 shrink-0">
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white border border-slate-200 text-slate-800 text-xs font-semibold hover:bg-slate-50 transition-colors shadow-xs cursor-pointer"
-                  >
-                    <Calendar className="w-4 h-4 text-slate-600" />
-                    <span>Request Campus Day</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary hover:bg-blue-700 text-white text-xs font-semibold transition-all shadow-xs cursor-pointer"
-                  >
-                    <MessageSquare className="w-4 h-4" />
-                    <span>Message Placement Desk</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </section>
         </div>
       </main>
 
@@ -1617,6 +1742,359 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
           </div>
         </div>
       </footer>
+
+      {/* -------------------------------------------------------------
+          Job Details Modal
+         ------------------------------------------------------------- */}
+      {selectedJobDetails && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200">
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between sticky top-0 bg-white z-10">
+              <div>
+                <h2 className="text-xl font-display font-bold text-slate-900">
+                  {selectedJobDetails.jobTitle}
+                </h2>
+                <p className="text-sm text-slate-500 font-medium mt-0.5 flex items-center gap-2">
+                  <span>{selectedJobDetails.targetDomain}</span>
+                  <span>•</span>
+                  <span className="flex items-center gap-1">📍 {selectedJobDetails.locationCity}</span>
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedJobDetails(null)}
+                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-full transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto flex-1 space-y-6">
+              
+              {/* Top Overview Cards */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Duration</span>
+                  <div className="text-sm font-semibold text-slate-900 mt-0.5">{selectedJobDetails.durationMonths} Months</div>
+                </div>
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Compensation</span>
+                  <div className="text-sm font-semibold text-slate-900 mt-0.5">{selectedJobDetails.stipendOffered ? selectedJobDetails.stipendAmountOrDetails || 'Paid' : 'Unpaid'}</div>
+                </div>
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Deadline</span>
+                  <div className="text-sm font-semibold text-slate-900 mt-0.5">{new Date(selectedJobDetails.applicationDeadline).toLocaleDateString()}</div>
+                </div>
+                <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-100">
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-600">Matches Verified</span>
+                  <div className="text-sm font-bold text-emerald-700 mt-0.5">{selectedJobDetails.matchesVerified} 100% Matches</div>
+                </div>
+              </div>
+
+              {/* Description Section */}
+              <section>
+                <h3 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1.5">
+                  <Briefcase className="w-4 h-4 text-primary" />
+                  Role Summary
+                </h3>
+                <p className="text-sm text-slate-600 leading-relaxed bg-slate-50 p-4 rounded-xl border border-slate-100">
+                  {selectedJobDetails.jobDescriptionSummary}
+                </p>
+              </section>
+
+              {/* Requirements Grid */}
+              <div className="grid md:grid-cols-2 gap-6">
+                <section>
+                  <h3 className="text-sm font-bold text-slate-900 mb-3 flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-primary" />
+                    Strict Gating Requirements
+                  </h3>
+                  <ul className="space-y-3">
+                    <li className="flex flex-col gap-1">
+                      <span className="text-xs text-slate-500 font-medium">Minimum Required GPA</span>
+                      <div className="flex items-center gap-2">
+                        <span className="px-2.5 py-1 rounded bg-amber-50 text-amber-800 border border-amber-100 text-xs font-bold">
+                          {selectedJobDetails.minimumGPA} or higher
+                        </span>
+                      </div>
+                    </li>
+                    <li className="flex flex-col gap-1">
+                      <span className="text-xs text-slate-500 font-medium">Allowed Years of Study</span>
+                      <div className="flex items-center gap-2">
+                        <span className="px-2.5 py-1 rounded bg-purple-50 text-purple-800 border border-purple-100 text-xs font-bold">
+                          Year {selectedJobDetails.allowedYearsOfStudy.join(', ')}
+                        </span>
+                      </div>
+                    </li>
+                    <li className="flex flex-col gap-1">
+                      <span className="text-xs text-slate-500 font-medium">Preferred Degree Programs</span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {selectedJobDetails.preferredDegreePrograms.length > 0 ? selectedJobDetails.preferredDegreePrograms.map((deg: string) => (
+                          <span key={deg} className="px-2 py-1 rounded bg-slate-100 text-slate-700 border border-slate-200 text-xs font-medium">
+                            {deg}
+                          </span>
+                        )) : <span className="text-xs text-slate-400">Any matching degree</span>}
+                      </div>
+                    </li>
+                  </ul>
+                </section>
+
+                <section>
+                  <h3 className="text-sm font-bold text-slate-900 mb-3 flex items-center gap-1.5">
+                    <Sparkles className="w-4 h-4 text-primary" />
+                    Required Competencies
+                  </h3>
+                  <div className="space-y-4">
+                    <div>
+                      <span className="text-xs text-slate-500 font-medium block mb-2">Mandatory Skills</span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {selectedJobDetails.mandatorySkills.map((s: string) => (
+                          <span key={s} className="px-2.5 py-1 rounded bg-blue-50 text-blue-800 border border-blue-100 text-xs font-semibold">
+                            {s}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-xs text-slate-500 font-medium block mb-2">Nice-to-Have Skills</span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {selectedJobDetails.niceToHaveSkills.length > 0 ? selectedJobDetails.niceToHaveSkills.map((s: string) => (
+                          <span key={`nice-${s}`} className="px-2.5 py-1 rounded bg-slate-50 text-slate-600 border border-slate-200 text-xs font-medium">
+                            {s}
+                          </span>
+                        )) : <span className="text-xs text-slate-400 italic">None specified</span>}
+                      </div>
+                    </div>
+                  </div>
+                </section>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-end gap-3 bg-slate-50">
+              <button
+                type="button"
+                onClick={() => setSelectedJobDetails(null)}
+                className="px-4 py-2 rounded-lg text-slate-700 text-sm font-bold hover:bg-slate-200 transition-colors cursor-pointer"
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setCandidatesOpeningFilter(selectedJobDetails.jobTitle);
+                  setIsCandidatesFilterOpen(true);
+                  
+                  setSelectedJobDetails(null);
+                  const element = document.getElementById('candidates-section');
+                  element?.scrollIntoView({ behavior: 'smooth' });
+                }}
+                className="px-4 py-2 rounded-lg bg-primary text-white text-sm font-bold hover:bg-blue-700 transition-colors shadow-md cursor-pointer flex items-center gap-1.5"
+              >
+                View Screened Candidates
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* -------------------------------------------------------------
+          Update Job Modal
+         ------------------------------------------------------------- */}
+      {editingJob && !showUpdateConfirmation && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between sticky top-0 bg-white z-10">
+              <h2 className="text-xl font-display font-bold text-slate-900">
+                Update Job Drive: {editingJob.jobTitle}
+              </h2>
+              <button
+                type="button"
+                onClick={() => setEditingJob(null)}
+                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-full transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto flex-1 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Job Title</label>
+                  <input type="text" value={editingJob.jobTitle} onChange={(e) => handleUpdateJobChange('jobTitle', e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Target Domain</label>
+                  <input type="text" value={editingJob.targetDomain} onChange={(e) => handleUpdateJobChange('targetDomain', e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Job Description Summary</label>
+                  <textarea rows={3} value={editingJob.jobDescriptionSummary} onChange={(e) => handleUpdateJobChange('jobDescriptionSummary', e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"></textarea>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Location City</label>
+                  <input type="text" value={editingJob.locationCity} onChange={(e) => handleUpdateJobChange('locationCity', e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Application Deadline</label>
+                  <input type="date" value={editingJob.applicationDeadline} onChange={(e) => handleUpdateJobChange('applicationDeadline', e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Minimum GPA</label>
+                  <input type="number" step="0.01" value={editingJob.minimumGPA} onChange={(e) => handleUpdateJobChange('minimumGPA', parseFloat(e.target.value))} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Allowed Years of Study (comma separated)</label>
+                  <input type="text" value={editingJob.allowedYearsOfStudy} onChange={(e) => handleUpdateJobChange('allowedYearsOfStudy', e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Mandatory Skills (comma separated)</label>
+                  <input type="text" value={editingJob.mandatorySkills} onChange={(e) => handleUpdateJobChange('mandatorySkills', e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Nice-to-Have Skills (comma separated)</label>
+                  <input type="text" value={editingJob.niceToHaveSkills} onChange={(e) => handleUpdateJobChange('niceToHaveSkills', e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />
+                </div>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-end gap-3 bg-slate-50">
+              <button
+                type="button"
+                onClick={() => setEditingJob(null)}
+                className="px-4 py-2 rounded-lg text-slate-700 text-sm font-bold hover:bg-slate-200 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowUpdateConfirmation(true)}
+                className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 transition-colors shadow-md cursor-pointer"
+              >
+                Review Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* -------------------------------------------------------------
+          Update Confirmation Modal
+         ------------------------------------------------------------- */}
+      {showUpdateConfirmation && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                  <ShieldCheck className="w-5 h-5 text-amber-600" />
+                </div>
+                <h3 className="text-lg font-bold text-slate-900">Confirm Job Update</h3>
+              </div>
+              
+              <div className="bg-amber-50/50 border border-amber-200/60 rounded-xl p-4 mb-6">
+                <div className="flex gap-3">
+                  <div className="mt-0.5">
+                    <Sparkles className="w-4 h-4 text-amber-500" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-amber-900 mb-1">
+                      CampusAI Pipeline Impact
+                    </h4>
+                    <p className="text-xs text-amber-800/80 leading-relaxed font-medium">
+                      Modifying strict criteria (like GPA or Skills) will cause CampusAI to instantly re-score and re-qualify all current candidates.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <p className="text-sm font-semibold text-slate-700 mb-6 text-center">
+                Are you sure you want to apply these updates?
+              </p>
+
+              <div className="flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowUpdateConfirmation(false)}
+                  className="px-4 py-2 rounded-lg text-slate-700 text-sm font-bold hover:bg-slate-100 transition-colors cursor-pointer"
+                >
+                  Back to Editing
+                </button>
+                <button
+                  type="button"
+                  onClick={submitUpdateJob}
+                  className="px-4 py-2 rounded-lg bg-amber-500 text-white text-sm font-bold hover:bg-amber-600 transition-colors shadow-md cursor-pointer flex items-center gap-1.5"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  Apply Updates
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* -------------------------------------------------------------
+          Delete Confirmation Modal
+         ------------------------------------------------------------- */}
+      {showDeleteConfirmation && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-rose-100 flex items-center justify-center flex-shrink-0">
+                  <Trash2 className="w-5 h-5 text-rose-600" />
+                </div>
+                <h3 className="text-lg font-bold text-slate-900">Confirm Job Deletion</h3>
+              </div>
+              
+              <div className="bg-rose-50/50 border border-rose-200/60 rounded-xl p-4 mb-6">
+                <div className="flex gap-3">
+                  <div className="mt-0.5">
+                    <Trash2 className="w-4 h-4 text-rose-500" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-rose-900 mb-1">
+                      CampusAI Pipeline Impact
+                    </h4>
+                    <p className="text-xs text-rose-800/80 leading-relaxed font-medium">
+                      Deleting this active job opportunity will permanently remove it and all associated matched candidate flows from the platform. This action cannot be undone.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <p className="text-sm font-semibold text-slate-700 mb-6 text-center">
+                Are you sure you want to permanently delete this drive?
+              </p>
+
+              <div className="flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowDeleteConfirmation(false);
+                    setJobToDelete(null);
+                  }}
+                  className="px-4 py-2 rounded-lg text-slate-700 text-sm font-bold hover:bg-slate-100 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={executeDeleteJob}
+                  className="px-4 py-2 rounded-lg bg-rose-500 text-white text-sm font-bold hover:bg-rose-600 transition-colors shadow-md cursor-pointer flex items-center gap-1.5"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Delete Drive
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
