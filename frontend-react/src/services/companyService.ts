@@ -303,4 +303,26 @@ export const companyService = {
       return false;
     }
   },
+
+  async scheduleInterview(studentId: string, jobId: string, interviewDate: string, interviewTime: string, meetingLink?: string): Promise<boolean> {
+    try {
+      const url = `${API_BASE}/interviews/schedule`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          studentId,
+          jobId,
+          interviewDate,
+          interviewTime,
+          meetingLink
+        }),
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  },
 };

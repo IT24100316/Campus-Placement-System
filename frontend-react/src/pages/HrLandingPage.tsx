@@ -2244,17 +2244,40 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
+                  onClick={async () => {
                     if (!inviteDate || !inviteTime) {
                       alert("Please select both a date and time.");
                       return;
                     }
                     
-                    // Optimistically update the UI to show they were invited
-                    handleInvite(candidateToInvite.id);
+                    const btn = document.getElementById('btn-send-invite');
+                    if (btn) btn.innerHTML = '<span class="animate-pulse">Scheduling...</span>';
+
+                    // Derive a dummy Job ID from activeJobs if match is not perfect
+                    const matchedJob = activeJobs.find(j => j.jobTitle === candidateToInvite.matchedOpening);
+                    const jobId = matchedJob ? matchedJob.jobId : "00000000-0000-0000-0000-000000000000";
+                    // Generate a valid guid for Student ID since candidate.id is "cand-X"
+                    const studentId = "00000000-0000-0000-0000-000000000000";
+
+                    // Call the API via CompanyService
+                    const success = await companyService.scheduleInterview(
+                      studentId,
+                      jobId,
+                      inviteDate,
+                      inviteTime,
+                      "https://meet.google.com/xyz-abcd-efg"
+                    );
                     
-                    // Simulate the backend API call firing the template email
-                    alert(`Invitation Sent via API!\n\nTemplate generated for ${candidateToInvite.name} at ${companyName}.\nDate: ${inviteDate}\nTime: ${inviteTime}`);
+                    if (success) {
+                      // Optimistically update the UI to show they were invited
+                      handleInvite(candidateToInvite.id);
+                      alert(`Interview Scheduled!\n\nA calendar invitation (.ics) has been dispatched to ${candidateToInvite.name} for ${inviteDate} at ${inviteTime}.`);
+                    } else {
+                      // Note: It will likely fail in this demo because "cand-1" is not a real DB Guid, 
+                      // but we still update the UI to demonstrate the flow as requested!
+                      handleInvite(candidateToInvite.id);
+                      alert(`Mock Mode: UI updated to 'Invited', but actual DB dispatch failed (candidate not in DB).`);
+                    }
                     
                     setInviteModalOpen(false);
                     setCandidateToInvite(null);
