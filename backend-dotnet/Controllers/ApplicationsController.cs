@@ -269,4 +269,56 @@ public class ApplicationsController : ControllerBase
             return Conflict(new { message = ex.Message });
         }
     }
+
+    /// <summary>
+    /// Accepts an application offer.
+    /// </summary>
+    [HttpPost("{appId:guid}/student-accept")]
+    [Authorize(Roles = "Student")]
+    public Task<IActionResult> StudentAccept(
+        Guid appId,
+        CancellationToken cancellationToken)
+    {
+        return StudentDecision(appId, true, cancellationToken);
+    }
+
+    /// <summary>
+    /// Declines an application offer.
+    /// </summary>
+    [HttpPost("{appId:guid}/student-decline")]
+    [Authorize(Roles = "Student")]
+    public Task<IActionResult> StudentDecline(
+        Guid appId,
+        CancellationToken cancellationToken)
+    {
+        return StudentDecision(appId, false, cancellationToken);
+    }
+
+    private async Task<IActionResult> StudentDecision(
+        Guid appId,
+        bool accepted,
+        CancellationToken cancellationToken)
+    {
+        var claimValue = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (User.Identity?.IsAuthenticated != true || !Guid.TryParse(claimValue, out var studentId) || studentId == Guid.Empty)
+            return Unauthorized(new { message = "An authenticated student identity is required." });
+
+        try
+        {
+            var application = await _applicationService.StudentDecisionAsync(appId, studentId, accepted, cancellationToken);
+            return Ok(new
+            {
+                applicationId = application.AppId,
+                status = application.Status.ToString()
+            });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
+    }
 }

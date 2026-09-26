@@ -11,6 +11,7 @@ public class Application
     public DateTime? InterviewDate { get; set; }
     public TimeSpan? InterviewTime { get; set; }
     public string? CompanyMessage { get; set; }
+    public DateTime? DecisionDeadline { get; set; }
 
     // Navigation properties
     public User Student { get; set; } = null!;
