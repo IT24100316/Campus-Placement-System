@@ -308,7 +308,7 @@ public class JobService : IJobService
         };
     }
 
-    public async Task<PaginatedResult<JobFeedDto>> GetJobFeedAsync(string? search, string? skills, string? domain, string[]? workArrangements, bool? isPaidOnly, bool? isEligible, Guid? studentUserId, string? sortBy, int page, int pageSize)
+    public async Task<PaginatedResult<JobFeedDto>> GetJobFeedAsync(string? search, string? skills, string? domain, string[]? workArrangements, bool? isPaidOnly, bool? isEligible, Guid? studentUserId, decimal? minGpa, decimal? maxGpa, int[]? allowedYears, string? sortBy, int page, int pageSize)
     {
         IQueryable<Job> query = _context.Jobs
             .Include(j => j.Company)
@@ -339,6 +339,22 @@ public class JobService : IJobService
         if (isPaidOnly.HasValue && isPaidOnly.Value)
         {
             query = query.Where(j => j.StipendOffered);
+        }
+
+        // 5. GPA Range Filter
+        if (minGpa.HasValue)
+        {
+            query = query.Where(j => j.MinimumGPA >= minGpa.Value);
+        }
+        if (maxGpa.HasValue)
+        {
+            query = query.Where(j => j.MinimumGPA <= maxGpa.Value);
+        }
+
+        // 6. Allowed Years Filter
+        if (allowedYears != null && allowedYears.Any())
+        {
+            query = query.Where(j => j.AllowedYearsOfStudy.Any(y => allowedYears.Contains(y)));
         }
 
         // 5. Skills Sub-Search
