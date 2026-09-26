@@ -182,9 +182,32 @@ public class ApplicationService : IApplicationService
                 applicationId = a.AppId,
                 studentName = a.Student.StudentProfile != null ? a.Student.StudentProfile.FullName : a.Student.Email,
                 jobTitle = a.Job.JobTitle,
+                jobDescription = a.Job.JobDescriptionSummary,
+                jobDuration = a.Job.DurationMonths,
+                jobStipend = a.Job.StipendOffered,
+                jobMinGPA = a.Job.MinimumGPA,
+                mandatorySkills = a.Job.MandatorySkills,
+                niceToHaveSkills = a.Job.NiceToHaveSkills,
+                preferredDegrees = a.Job.PreferredDegreePrograms,
+                allowedYears = a.Job.AllowedYearsOfStudy,
                 companyName = a.Job.Company.CompanyName,
                 validationReport = a.SummaryReport,
-                status = a.Status.ToString()
+                status = a.Status.ToString(),
+                university = a.Student.StudentProfile != null ? a.Student.StudentProfile.UniversityName : "Unknown",
+                gpa = a.Student.StudentProfile != null ? a.Student.StudentProfile.GPA : 0,
+                skills = a.Student.StudentProfile != null ? a.Student.StudentProfile.Skills : null,
+                cvUrl = a.Student.StudentProfile != null ? a.Student.StudentProfile.CvPdfUrl : string.Empty,
+                phone = a.Student.StudentProfile != null ? a.Student.StudentProfile.Phone : string.Empty,
+                portfolioUrl = a.Student.StudentProfile != null ? a.Student.StudentProfile.PortfolioUrl : string.Empty,
+                tools = a.Student.StudentProfile != null ? a.Student.StudentProfile.ToolsAndTechnologies : null,
+                internshipType = a.Student.StudentProfile != null ? a.Student.StudentProfile.InternshipType : null,
+                preferredLocations = a.Student.StudentProfile != null ? a.Student.StudentProfile.PreferredLocations : null,
+                lectureSchedule = a.Student.StudentProfile != null ? a.Student.StudentProfile.LectureScheduleType : string.Empty,
+                degreeProgram = a.Student.StudentProfile != null ? a.Student.StudentProfile.DegreeProgram : string.Empty,
+                academicStatus = a.Student.StudentProfile != null ? a.Student.StudentProfile.AcademicStatus : string.Empty,
+                careerObjectives = a.Student.StudentProfile != null ? a.Student.StudentProfile.CareerObjectivesSummary : string.Empty,
+                matchScore = a.MatchScore,
+                graduationYear = (a.Student.StudentProfile != null && a.Student.StudentProfile.ExpectedGraduationDate.HasValue) ? a.Student.StudentProfile.ExpectedGraduationDate.Value.Year.ToString() : "N/A"
             }).ToListAsync(cancellationToken);
         return values.Cast<object>();
     }
