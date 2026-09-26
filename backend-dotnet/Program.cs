@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using backend_dotnet.Configuration;
 using backend_dotnet.Data;
 using backend_dotnet.Services;
 using backend_dotnet.Models;
@@ -27,12 +28,18 @@ builder.Services.AddHttpClient();
 builder.Services.AddScoped<IDocumentStorageService, DocumentStorageService>();
 builder.Services.AddScoped<IEmailService, SendGridEmailService>();
 
+// 2.1 CV storage configuration
+builder.Services.Configure<CvStorageOptions>(
+    builder.Configuration.GetSection(CvStorageOptions.SectionName));
+
 // 2.5 Register placement application matching services for Dependency Injection
 builder.Services.AddScoped<IApplicationService, ApplicationService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<ICompanyService, CompanyService>();
+builder.Services.AddScoped<ICvFileValidationService, CvFileValidationService>();
+builder.Services.AddScoped<ICvStorageService, LocalCvStorageService>();
 builder.Services.AddScoped<IJobService, JobService>();
 
 // 3. CORS
@@ -82,6 +89,14 @@ builder.Services.AddSwaggerGen(options =>
         Version = "v1",
         Description = "Account verification, document storage, AI validation approval gates, and interview scheduling."
     });
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        Description = "Enter the JWT returned by the login endpoint."
+    });
+    options.OperationFilter<AuthorizeOperationFilter>();
     var xmlPath = Path.Combine(AppContext.BaseDirectory, "backend-dotnet.xml");
     if (File.Exists(xmlPath)) options.IncludeXmlComments(xmlPath);
 });

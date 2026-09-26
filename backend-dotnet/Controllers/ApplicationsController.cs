@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using backend_dotnet.Services;
 using backend_dotnet.DTOs;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 
 namespace backend_dotnet.Controllers;
 
@@ -13,19 +15,6 @@ public class ApplicationsController : ControllerBase
     public ApplicationsController(IApplicationService applicationService)
     {
         _applicationService = applicationService;
-    }
-
-    /// <summary>Creates a pending job application for an approved student.</summary>
-    [HttpPost("apply")]
-    public async Task<IActionResult> Apply([FromBody] ApplyForJobDto request, CancellationToken cancellationToken)
-    {
-        try
-        {
-            var application = await _applicationService.ApplyAsync(request, cancellationToken);
-            return Ok(new { applicationId = application.AppId, status = application.Status.ToString() });
-        }
-        catch (KeyNotFoundException ex) { return NotFound(new { message = ex.Message }); }
-        catch (InvalidOperationException ex) { return Conflict(new { message = ex.Message }); }
     }
 
     /// <summary>Runs Agent 4 CV validation and pauses the workflow for administrator review.</summary>
@@ -54,6 +43,21 @@ public class ApplicationsController : ControllerBase
     [HttpGet("student/{studentId:guid}")]
     public async Task<IActionResult> StudentApplications(Guid studentId, CancellationToken cancellationToken) =>
         Ok(await _applicationService.GetStudentApplicationsAsync(studentId, cancellationToken));
+
+    /// <summary>Lists applications for the authenticated student.</summary>
+    [HttpGet("me")]
+    [Authorize(Roles = "Student")]
+    public async Task<IActionResult> MyApplications(CancellationToken cancellationToken)
+    {
+        var claimValue = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (User.Identity?.IsAuthenticated != true ||
+            !Guid.TryParse(claimValue, out var studentId) || studentId == Guid.Empty)
+        {
+            return Unauthorized(new { message = "An authenticated student identity is required." });
+        }
+
+        return Ok(await _applicationService.GetStudentApplicationsAsync(studentId, cancellationToken));
+    }
 
     private async Task<IActionResult> AdminDecision(Guid appId, bool approved, CancellationToken cancellationToken)
     {

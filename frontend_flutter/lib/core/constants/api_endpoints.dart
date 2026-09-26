@@ -19,5 +19,4 @@ class ApiEndpoints {
   // Applications
   static String myApplications(String studentId) =>
       '$baseUrl/applications/student/$studentId';
-  static final String applyJob = '$baseUrl/applications/apply';
 }
