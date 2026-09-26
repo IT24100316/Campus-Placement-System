@@ -13,7 +13,18 @@ Today's development sprint focused on streamlining and refining the **HR Dashboa
 
 ## 🛠️ Key Milestones & Detailed Implementation
 
-### 1. Advanced Candidate Filtering & Search Improvements
+### 1. Mobile Job Feed API (Backend)
+* **Dedicated Mobile DTOs**: Created lightweight `JobFeedDto` for fast mobile scanning (cards) and comprehensive `JobDetailsDto` for the rich detail view, minimizing bandwidth.
+* **Pagination & Infinite Scroll**: Implemented a `PaginatedResult` wrapper and `GET /api/jobs/feed` supporting `page` and `pageSize` for Flutter infinite scrolling.
+* **Advanced Filters & Sub-Search**: 
+  - Integrated text search for Title, Company, and Domain.
+  - Added a dedicated secondary `skills` query to refine results based on Mandatory and Nice-to-Have skills.
+  - Added `workArrangements` mapping to our `InternshipType` enum.
+  - Added `isPaidOnly` to filter for explicitly paid jobs.
+* **Strict Eligibility Gate**: Built a secure, server-side eligibility filter (`isEligible=true`) that extracts the student's ID from their JWT token, fetches their exact `GPA`, `CurrentYearOfStudy`, and `DegreeProgram` from the DB, and cross-references it with job requirements.
+* **Dedicated Job Details Endpoint**: Created `GET /api/jobs/{id}` providing full programmatic arrays for the master-detail mobile flow.
+
+### 2. UI Streamlining & Dashboard Pruning
 * **Numeric Range Filtering**: Replaced static dropdowns for GPA and AI Match Score with dynamic `min` and `max` numeric range inputs, allowing for much more granular candidate filtering.
 * **Competency Filtering**: Upgraded "Core Competencies" from a predefined static array to a dynamic comma-separated text input. This allows recruiters to type exactly what skills they want (e.g., "React, Node") and instantly filters the candidate pool.
 * **Matched Opening Filter Freeze**: Disabled the "Matched Opening" filter interaction since candidates are already contextualized to their specific jobs.
@@ -34,6 +45,18 @@ Today's development sprint focused on streamlining and refining the **HR Dashboa
 * **Custom Delete Verification Modal**: Replaced standard browser `window.confirm` dialogs with a beautiful, custom React modal in `HrLandingPage.tsx` using `rose-500` accents to clearly warn recruiters about the pipeline impact of deleting a job drive.
 * **Duplicate Active Job Prevention (`JobService.cs`)**: Implemented strict backend validation that prevents a company from creating a new job drive if an active drive with the same title already exists. This natively resolves a frontend issue where candidates from identical drives were being improperly clumped together under a single filter string.
 
+### 5. Mobile Job Feed & Details Flow (Flutter)
+* **Job Feed Model & Repository (`job_feed_model.dart`, `job_repository.dart`)**:
+  * Implemented strong-typed Dart models (`JobFeedModel`, `JobDetailsModel`, `PaginatedJobFeed`) mapping precisely to the `.NET` DTOs.
+  * Built a network repository to communicate with `GET /api/jobs/feed` and `GET /api/jobs/{id}`, passing URL query parameters for pagination and filters.
+* **Master View: Paginated Job Feed (`job_feed_screen.dart`)**:
+  * Converted the feed screen from static mock data to dynamic state management.
+  * Implemented a `ScrollController` delegate enabling seamless infinite scrolling on the mobile app.
+  * Wired up interactive filter chips (Work Arrangement, Paid Only, Eligible Jobs) and a text search bar that instantly refresh the paginated feed.
+* **Detail View: Rich Job Details (`job_details_screen.dart`)**:
+  * Built a rich detail screen accessed via tapping a `JobCard`.
+  * Renders full job description summary, numeric minimum GPA constraints, preferred degree programs, and skill tags in a clean, scrollable layout matching the web UI's HR modal style.
+
 ---
 
 ## 📂 Modified Files
@@ -44,6 +67,11 @@ Today's development sprint focused on streamlining and refining the **HR Dashboa
 | `frontend-react/src/types/company.ts` | Frontend | Added `cvPdfUrl` property to `ShortlistedCandidate` model. |
 | `backend-dotnet/DTOs/CompanyDtos.cs` | Backend | Synced `CvPdfUrl` property to `CompanyCandidateDto`. |
 | `backend-dotnet/Services/JobService.cs` | Backend | Added duplicate active job validation to `CreateJobAsync`. |
+| `frontend_flutter/lib/features/jobs/data/models/job_feed_model.dart` | Mobile | Added JobFeedModel and PaginatedJobFeed classes. |
+| `frontend_flutter/lib/features/jobs/data/models/job_details_model.dart` | Mobile | Added JobDetailsModel with extended fields. |
+| `frontend_flutter/lib/features/jobs/data/repositories/job_repository.dart` | Mobile | Implemented HTTP fetches for job feed and details endpoints. |
+| `frontend_flutter/lib/features/jobs/presentation/screens/job_feed_screen.dart` | Mobile | Added infinite scrolling, live filters, and API wiring. |
+| `frontend_flutter/lib/features/jobs/presentation/screens/job_details_screen.dart` | Mobile | Created rich job details interface. |
 
 ---
 
@@ -58,6 +86,9 @@ Today's development sprint focused on streamlining and refining the **HR Dashboa
 1. `[feat(hr-portal): streamline HR dashboard UI by removing redundant navigation elements, contact cards, banners, and resolving type errors]`
 2. `[feat(hr-portal): add beautiful delete verification modal with pipeline impact warning]`
 3. `[fix(hr-portal): prevent duplicate active job drives for the same role]`
+4. `[feat(backend): implement job feed and detail endpoints with pagination and filters]`
+5. `[feat(frontend): integrate mobile job feed with backend pagination and filters]`
+6. `[feat(frontend): implement Job Details screen and navigation from Job Feed]`
 
 <br><br>
 # 📋 Comprehensive Daily Work Summary
