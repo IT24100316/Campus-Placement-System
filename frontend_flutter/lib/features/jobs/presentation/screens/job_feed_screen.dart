@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import '../widgets/job_card.dart';
+import '../data/models/job_feed_model.dart';
+import '../data/repositories/job_repository.dart';
+import 'job_details_screen.dart';
 
 class JobFeedScreen extends StatefulWidget {
   const JobFeedScreen({super.key});
@@ -15,6 +18,18 @@ class _JobFeedScreenState extends State<JobFeedScreen> {
   final Color onSurface = const Color(0xFF0B1C30);
   final Color onSurfaceVariant = const Color(0xFF434655);
 
+  final JobRepository _repository = JobRepository();
+  final ScrollController _scrollController = ScrollController();
+  List<JobFeedModel> _jobs = [];
+  int _currentPage = 1;
+  int _totalJobs = 0;
+  bool _isLoading = false;
+  bool _hasMore = true;
+  String _searchQuery = '';
+  bool _isEligibleOnly = false;
+  bool _isPaidOnly = false;
+  String _workArrangement = '';
+
   String selectedFilter = 'All Roles';
   final List<String> filterChips = [
     'All Roles',
@@ -25,11 +40,84 @@ class _JobFeedScreenState extends State<JobFeedScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _fetchJobs();
+    _scrollController.addListener(() {
+      if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+        if (!_isLoading && _hasMore) {
+          _fetchNextPage();
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _fetchJobs() async {
+    setState(() {
+      _isLoading = true;
+      _currentPage = 1;
+      _jobs.clear();
+    });
+    try {
+      final result = await _repository.fetchJobFeed(
+        page: _currentPage,
+        search: _searchQuery,
+        domain: selectedFilter,
+        isEligible: _isEligibleOnly,
+        isPaidOnly: _isPaidOnly,
+        workArrangements: _workArrangement.isNotEmpty ? [_workArrangement] : null,
+      );
+      setState(() {
+        _jobs = result.items;
+        _totalJobs = result.totalCount;
+        _hasMore = _jobs.length < _totalJobs;
+      });
+    } catch (e) {
+      debugPrint(e.toString());
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _fetchNextPage() async {
+    setState(() {
+      _isLoading = true;
+      _currentPage++;
+    });
+    try {
+      final result = await _repository.fetchJobFeed(
+        page: _currentPage,
+        search: _searchQuery,
+        domain: selectedFilter,
+        isEligible: _isEligibleOnly,
+        isPaidOnly: _isPaidOnly,
+        workArrangements: _workArrangement.isNotEmpty ? [_workArrangement] : null,
+      );
+      setState(() {
+        _jobs.addAll(result.items);
+        _hasMore = _jobs.length < _totalJobs;
+      });
+    } catch (e) {
+      setState(() => _currentPage--);
+      debugPrint(e.toString());
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: backgroundColor,
       appBar: _buildAppBar(),
       body: CustomScrollView(
+        controller: _scrollController,
         slivers: [
           SliverToBoxAdapter(child: _buildSearchBar()),
           SliverToBoxAdapter(child: _buildFilterChips()),
@@ -39,17 +127,34 @@ class _JobFeedScreenState extends State<JobFeedScreen> {
             sliver: SliverList(
               delegate: SliverChildBuilderDelegate(
                 (context, index) {
-                  return JobCard(
-                    jobTitle: _getJobTitle(index),
-                    companyName: _getCompanyName(index),
-                    matchScore: 94 - (index * 6),
-                    location: 'Remote',
-                    stipend: '15+ LPA',
-                    tags: _getTags(index),
-                    imageUrl: _getImageUrl(index),
+                  if (index == _jobs.length) {
+                    return const Padding(
+                      padding: EdgeInsets.all(16.0),
+                      child: Center(child: CircularProgressIndicator()),
+                    );
+                  }
+                  final job = _jobs[index];
+                  return GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => JobDetailsScreen(jobId: job.jobId),
+                        ),
+                      );
+                    },
+                    child: JobCard(
+                      jobTitle: job.jobTitle,
+                      companyName: job.companyName,
+                      matchScore: job.matchScore,
+                      location: '${job.locationCity} • ${job.internshipType.isNotEmpty ? job.internshipType.first : 'OnSite'}',
+                      stipend: job.stipendOffered ? (job.stipendAmountOrDetails ?? 'Paid') : 'Unpaid',
+                      tags: job.tags,
+                      imageUrl: 'https://via.placeholder.com/150',
+                    ),
                   );
                 },
-                childCount: 3,
+                childCount: _jobs.length + (_hasMore ? 1 : 0),
               ),
             ),
           ),
@@ -57,39 +162,12 @@ class _JobFeedScreenState extends State<JobFeedScreen> {
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 24.0, horizontal: 16.0),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    'Showing 1–3 of 18 campus drives',
+                    'Showing ${_jobs.length} of $_totalJobs campus drives',
                     style: TextStyle(color: onSurfaceVariant, fontSize: 12),
                   ),
-                  Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.chevron_left),
-                        color: onSurfaceVariant,
-                        onPressed: () {}, // TODO: Add logic for previous page
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        'Page 1 of 6',
-                        style: TextStyle(
-                            color: primaryColor,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(width: 12),
-                      IconButton(
-                        icon: const Icon(Icons.chevron_right),
-                        color: primaryColor,
-                        onPressed: () {}, // TODO: Add logic for next page
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                      ),
-                    ],
-                  )
                 ],
               ),
             ),
@@ -193,6 +271,10 @@ class _JobFeedScreenState extends State<JobFeedScreen> {
                 ],
               ),
               child: TextField(
+                onSubmitted: (value) {
+                  _searchQuery = value;
+                  _fetchJobs();
+                },
                 decoration: InputDecoration(
                   hintText: 'Search roles, skills, or companies...',
                   hintStyle: TextStyle(color: onSurfaceVariant.withValues(alpha: 0.6), fontSize: 14),
@@ -250,6 +332,7 @@ class _JobFeedScreenState extends State<JobFeedScreen> {
                 setState(() {
                   selectedFilter = chip;
                 });
+                _fetchJobs();
               },
               borderRadius: BorderRadius.circular(20),
               child: Container(
@@ -295,26 +378,61 @@ class _JobFeedScreenState extends State<JobFeedScreen> {
             scrollDirection: Axis.horizontal,
             child: Row(
               children: [
-                _buildSubFilter('Job Type: Full-time', Icons.work, false),
+                GestureDetector(
+                  onTap: () {
+                    setState(() { _workArrangement = _workArrangement == 'Remote' ? '' : 'Remote'; });
+                    _fetchJobs();
+                  },
+                  child: _buildSubFilter('Work: Remote', Icons.home_work, _workArrangement == 'Remote')
+                ),
                 const SizedBox(width: 8),
-                _buildSubFilter('Mode: Remote', Icons.home_work, true),
+                GestureDetector(
+                  onTap: () {
+                    setState(() { _isPaidOnly = !_isPaidOnly; });
+                    _fetchJobs();
+                  },
+                  child: _buildSubFilter('Paid Only', Icons.payments, _isPaidOnly)
+                ),
                 const SizedBox(width: 8),
-                _buildSubFilter('CTC: 15+ LPA', Icons.payments, false),
-                const SizedBox(width: 8),
-                _buildSubFilter('Match: ≥ 85%', Icons.speed, true),
+                GestureDetector(
+                  onTap: () {
+                    setState(() { _isEligibleOnly = !_isEligibleOnly; });
+                    _fetchJobs();
+                  },
+                  child: _buildSubFilter('Eligible Jobs', Icons.verified_user, _isEligibleOnly)
+                ),
               ],
             ),
           ),
           const SizedBox(height: 12),
           Row(
             children: [
-              Text('Active (2):', style: TextStyle(color: onSurfaceVariant, fontSize: 11, fontWeight: FontWeight.bold)),
-              const SizedBox(width: 8),
-              _buildActiveTag('Remote'),
-              const SizedBox(width: 8),
-              _buildActiveTag('≥ 85% Match'),
+              Text('Active:', style: TextStyle(color: onSurfaceVariant, fontSize: 11, fontWeight: FontWeight.bold)),
+              if (_workArrangement.isNotEmpty) ...[
+                const SizedBox(width: 8),
+                _buildActiveTag(_workArrangement),
+              ],
+              if (_isPaidOnly) ...[
+                const SizedBox(width: 8),
+                _buildActiveTag('Paid Only'),
+              ],
+              if (_isEligibleOnly) ...[
+                const SizedBox(width: 8),
+                _buildActiveTag('Eligible Only'),
+              ],
               const Spacer(),
-              Text('Clear all', style: TextStyle(color: primaryColor, fontSize: 11, fontWeight: FontWeight.bold)),
+              if (_workArrangement.isNotEmpty || _isPaidOnly || _isEligibleOnly)
+                GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _workArrangement = '';
+                      _isPaidOnly = false;
+                      _isEligibleOnly = false;
+                    });
+                    _fetchJobs();
+                  },
+                  child: Text('Clear all', style: TextStyle(color: primaryColor, fontSize: 11, fontWeight: FontWeight.bold))
+                ),
             ],
           )
         ],
@@ -363,27 +481,6 @@ class _JobFeedScreenState extends State<JobFeedScreen> {
     );
   }
 
-  String _getJobTitle(int index) {
-    if (index == 0) return 'Senior Associate AI Engineer';
-    if (index == 1) return 'Autonomous Systems Software Engineer';
-    return 'Full Stack Flutter Developer';
-  }
+  // Removed mock data methods
 
-  String _getCompanyName(int index) {
-    if (index == 0) return 'CloudScale Systems';
-    if (index == 1) return 'AeroTech Robotics';
-    return 'Starlight Health';
-  }
-
-  List<String> _getTags(int index) {
-    if (index == 0) return ['Python', 'PyTorch', 'LangChain'];
-    if (index == 1) return ['C++20', 'ROS 2', 'CUDA', 'Embedded Linux'];
-    return ['Flutter', 'Dart', 'Firebase', 'GraphQL'];
-  }
-  
-  String _getImageUrl(int index) {
-    if (index == 0) return 'https://lh3.googleusercontent.com/aida-public/AB6AXuBIbNcaBnnzkmVRWbQyIPDGhIBshvG5VKvITy5CJlwgQCodafOK1KPx03h8uaXLH1G91vy6H9nZNN3koM6LUP8OjwNAnc9crDAVSI84sWKugouNjVT-4AX5sfMgXd99EHex25FCOW6tddvPaILde5EskGU4IJ2hOLlNEbd8YqofIwJrf9PjXX3ctG-v_ClD9fC3VrGxgSxuKMiQWxpbc1cjTnOmLbM0BllPZvWOlbblkptfArJdjiLB';
-    if (index == 1) return 'https://lh3.googleusercontent.com/aida-public/AB6AXuAuC0A5lH9kAfgh0FFS0dJH75QJFce7cnfH25ECvJed1se7qUFWKBa7V3MuzvBUndriQYFQ1sP27HbMw8xCPwGTNre1kJlN0IAetmHuvHQh-NdIMJluDoFKEF403EmspJoqdyoBG0pKWWPqcoSDi03H_Hp9sGabNGshv_AZ9Dkx6D_816dUhbYV-2cBMtIt0B5zBn_2Gah7XjTY9OAEwdDPHM9rvGrb1l7VNF_bkOIdZJis2ao0ipcE';
-    return 'https://lh3.googleusercontent.com/aida-public/AB6AXuC3s0Varx46LRkMLr_zlHsd0sMZR02ruZH4insrG-cNmld06XiZKpVtY_dJDXoYQJHC1NI2YptVbsCx1onujawCw70AS-aOkAnxEEZUJDIAZbo7jiyX8nkGu2arFiB00zZpS0igIhS6O99e32pTeTPCi8GPegwUCB_LmHcg_7orCPkHKUyJv81NRlKJf-LPIk1ThFg4RMIlXTiJsM-C4Co9HIviUhRl9h7LTWZAPkFeOK4bTuM3zBVq';
-  }
 }
