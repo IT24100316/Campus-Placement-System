@@ -313,4 +313,39 @@ public class CompanyService : ICompanyService
             ShortlistedCandidates = candidates
         };
     }
+
+    public async Task<bool> DeleteJobAsync(Guid jobId)
+    {
+        var job = await _context.Jobs.FindAsync(jobId);
+        if (job == null) return false;
+
+        _context.Jobs.Remove(job);
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<bool> UpdateJobAsync(Guid jobId, UpdateJobDto dto)
+    {
+        var job = await _context.Jobs.FindAsync(jobId);
+        if (job == null) return false;
+
+        job.JobTitle = dto.JobTitle;
+        job.TargetDomain = dto.TargetDomain;
+        job.JobDescriptionSummary = dto.JobDescriptionSummary;
+        job.InternshipType = dto.InternshipType;
+        job.LocationCity = dto.LocationCity;
+        job.MinimumGPA = dto.MinimumGPA;
+        job.AllowedYearsOfStudy = dto.AllowedYearsOfStudy;
+        job.MandatorySkills = dto.MandatorySkills;
+        job.NiceToHaveSkills = dto.NiceToHaveSkills;
+        job.PreferredDegreePrograms = dto.PreferredDegreePrograms;
+        job.StipendOffered = dto.StipendOffered;
+        job.StipendAmountOrDetails = dto.StipendAmountOrDetails;
+        job.DurationMonths = dto.DurationMonths;
+        job.ApplicationDeadline = dto.ApplicationDeadline.ToUniversalTime();
+
+        _context.Jobs.Update(job);
+        await _context.SaveChangesAsync();
+        return true;
+    }
 }
