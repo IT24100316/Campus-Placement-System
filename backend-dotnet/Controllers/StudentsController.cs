@@ -93,7 +93,7 @@ public class StudentsController : ControllerBase
     [Authorize(Roles = "Student")]
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> UploadCv(
-        [FromForm] IFormFile? file,
+        IFormFile? file,
         CancellationToken cancellationToken)
     {
         if (!TryGetCurrentUserId(out var userId))

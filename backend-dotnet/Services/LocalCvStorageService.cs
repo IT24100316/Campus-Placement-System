@@ -32,16 +32,20 @@ public sealed class LocalCvStorageService : ICvStorageService
 
         try
         {
-            await using var destinationStream = new FileStream(
+            // Dispose the exclusive file handle before renaming the completed
+            // upload. Windows does not allow File.Move while this stream is open.
+            await using (var destinationStream = new FileStream(
                 temporaryPath,
                 FileMode.CreateNew,
                 FileAccess.Write,
                 FileShare.None,
                 bufferSize: 81920,
-                useAsync: true);
+                useAsync: true))
+            {
+                await file.CopyToAsync(destinationStream, cancellationToken);
+                await destinationStream.FlushAsync(cancellationToken);
+            }
 
-            await file.CopyToAsync(destinationStream, cancellationToken);
-            await destinationStream.FlushAsync(cancellationToken);
             File.Move(temporaryPath, destinationPath);
         }
         catch

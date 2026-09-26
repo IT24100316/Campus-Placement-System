@@ -4,9 +4,12 @@ using backend_dotnet.Controllers;
 using backend_dotnet.Data;
 using backend_dotnet.Models;
 using backend_dotnet.Services;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Xunit;
 
@@ -93,6 +96,39 @@ public class CvUploadTests
         Assert.Contains("Complete the required internship profile", badRequest.Value!.ToString());
         Assert.Equal(0, storage.StoreCount);
         Assert.Empty((await context.StudentProfiles.SingleAsync()).CvPdfUrl);
+    }
+
+    [Fact]
+    public async Task LocalStorage_ClosesTemporaryFileBeforeMovingIt()
+    {
+        var testRoot = Path.Combine(Path.GetTempPath(), $"cv-storage-test-{Guid.NewGuid():N}");
+        var storageRoot = Path.Combine(testRoot, "storage");
+        var contentRoot = Path.Combine(testRoot, "content");
+        Directory.CreateDirectory(contentRoot);
+
+        try
+        {
+            var service = new LocalCvStorageService(
+                Options.Create(new CvStorageOptions { RootPath = storageRoot }),
+                new TestWebHostEnvironment(contentRoot));
+            var studentId = Guid.NewGuid();
+
+            var storageKey = await service.StoreAsync(
+                studentId,
+                CreateFile("resume.pdf", "application/pdf", "%PDF-test"u8.ToArray()));
+
+            var storedPath = Path.Combine(storageRoot, storageKey.Replace('/', Path.DirectorySeparatorChar));
+            Assert.True(File.Exists(storedPath));
+            Assert.Equal("%PDF-test"u8.ToArray(), await File.ReadAllBytesAsync(storedPath));
+            Assert.Empty(Directory.GetFiles(Path.GetDirectoryName(storedPath)!, "*.uploading"));
+        }
+        finally
+        {
+            if (Directory.Exists(testRoot))
+            {
+                Directory.Delete(testRoot, recursive: true);
+            }
+        }
     }
 
     private static StudentProfile CompleteProfile(Guid studentId) => new()
@@ -193,5 +229,20 @@ public class CvUploadTests
         {
             return Task.CompletedTask;
         }
+    }
+
+    private sealed class TestWebHostEnvironment : IWebHostEnvironment
+    {
+        public TestWebHostEnvironment(string contentRootPath)
+        {
+            ContentRootPath = contentRootPath;
+        }
+
+        public string ApplicationName { get; set; } = "backend-dotnet.Tests";
+        public IFileProvider WebRootFileProvider { get; set; } = new NullFileProvider();
+        public string WebRootPath { get; set; } = string.Empty;
+        public string EnvironmentName { get; set; } = Environments.Development;
+        public string ContentRootPath { get; set; }
+        public IFileProvider ContentRootFileProvider { get; set; } = new NullFileProvider();
     }
 }
