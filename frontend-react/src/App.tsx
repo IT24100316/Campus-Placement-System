@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Sparkles, Home, ShieldCheck, LogOut, Building2, PlusCircle, UserPlus, LogIn } from 'lucide-react';
 import { LandingPage } from './pages/LandingPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { AdminDashboardPage } from './pages/AdminDashboardPage';
