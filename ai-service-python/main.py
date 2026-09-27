@@ -16,7 +16,8 @@ from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.memory import MemorySaver
 
 from state import AgentState
-from agents.tier1_filter import tier1_node
+from agents.planner import planner_node
+from agents.tier1 import tier1_node
 from agents.analysis import analysis_node
 from agents.action import action_node
 from agents.validation import validation_node, run_validation
@@ -85,14 +86,16 @@ def email_node(state: dict) -> dict:
 workflow = StateGraph(AgentState)
 
 # Add Nodes
+workflow.add_node("planner", planner_node)
 workflow.add_node("tier1", tier1_node)
 workflow.add_node("analysis", analysis_node)
 workflow.add_node("action", action_node)
 workflow.add_node("validation", validation_node)
 workflow.add_node("email", email_node)
 
-# Define Edges (Tier 1 -> Analysis -> Action -> Validation -> Email)
-workflow.add_edge(START, "tier1")
+# Define Edges (Planner -> Tier 1 -> Analysis -> Action -> Validation -> Email)
+workflow.add_edge(START, "planner")
+workflow.add_edge("planner", "tier1")
 workflow.add_edge("tier1", "analysis")
 workflow.add_edge("analysis", "action")
 workflow.add_edge("action", "validation")
