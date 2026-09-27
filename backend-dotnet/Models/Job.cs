@@ -19,6 +19,7 @@ public class Job
     public int DurationMonths { get; set; }
     public DateTime ApplicationDeadline { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? LastRepostedAt { get; set; }
 
     // Controlled reference IDs
     public int? TargetDomainId { get; set; }

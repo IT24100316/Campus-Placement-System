@@ -454,4 +454,87 @@ public class JobService : IJobService
             PreferredDegreePrograms = j.PreferredDegreePrograms
         };
     }
+
+    public async Task<JobCreationResultDto> RepostJobAsync(Guid jobId)
+    {
+        var job = await _context.Jobs
+            .Include(j => j.Company)
+            .FirstOrDefaultAsync(j => j.JobId == jobId);
+
+        if (job == null)
+        {
+            return new JobCreationResultDto
+            {
+                Success = false,
+                ErrorTitle = "Job Not Found",
+                ErrorMessage = "The specified job does not exist."
+            };
+        }
+
+        var today = DateTime.UtcNow.Date;
+
+        if (job.ApplicationDeadline < DateTime.UtcNow)
+        {
+            return new JobCreationResultDto
+            {
+                Success = false,
+                ErrorTitle = "Job Expired",
+                ErrorMessage = "Cannot repost a job that has passed its application deadline."
+            };
+        }
+
+        if (job.CreatedAt.Date == today)
+        {
+            return new JobCreationResultDto
+            {
+                Success = false,
+                ErrorTitle = "Invalid Action",
+                ErrorMessage = "Cannot repost a job on the same day it was created."
+            };
+        }
+
+        if (job.LastRepostedAt.HasValue && job.LastRepostedAt.Value.Date == today)
+        {
+            return new JobCreationResultDto
+            {
+                Success = false,
+                ErrorTitle = "Daily Limit Reached",
+                ErrorMessage = "You have already reposted this job today. Limit: 1 per day."
+            };
+        }
+
+        // Pass validation, update the timestamp
+        job.LastRepostedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+
+        var responseDto = new JobResponseDto
+        {
+            JobId = job.JobId,
+            CompanyId = job.CompanyId,
+            CompanyName = job.Company.CompanyName,
+            JobTitle = job.JobTitle,
+            TargetDomain = job.TargetDomain,
+            JobDescriptionSummary = job.JobDescriptionSummary,
+            InternshipType = job.InternshipType,
+            LocationCity = job.LocationCity,
+            MinimumGPA = job.MinimumGPA,
+            AllowedYearsOfStudy = job.AllowedYearsOfStudy,
+            MandatorySkills = job.MandatorySkills,
+            NiceToHaveSkills = job.NiceToHaveSkills,
+            PreferredDegreePrograms = job.PreferredDegreePrograms,
+            StipendOffered = job.StipendOffered,
+            StipendAmountOrDetails = job.StipendAmountOrDetails,
+            DurationMonths = job.DurationMonths,
+            ApplicationDeadline = job.ApplicationDeadline,
+            CreatedAt = job.CreatedAt,
+            MatchesVerified = 42,
+            Status = "Active • Accepting"
+        };
+
+        return new JobCreationResultDto
+        {
+            Success = true,
+            Job = responseDto
+        };
+    }
 }

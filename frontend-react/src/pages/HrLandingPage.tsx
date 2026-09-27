@@ -145,12 +145,35 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
     setShowRepostConfirmation(true);
   };
 
+  const [isReposting, setIsReposting] = useState(false);
+
   const executeRepostJob = async () => {
     if (!jobToRepost) return;
-    // Here we would ideally trigger the backend AI agents endpoint
-    alert(`Successfully triggered AI agent matching for: ${jobToRepost.jobTitle}`);
-    setShowRepostConfirmation(false);
-    setJobToRepost(null);
+    
+    setIsReposting(true);
+    try {
+      const response = await fetch(`http://localhost:5032/api/Jobs/${jobToRepost.jobId}/repost`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok && data.success) {
+        alert(`Successfully triggered AI agent matching for: ${jobToRepost.jobTitle}`);
+        setShowRepostConfirmation(false);
+        setJobToRepost(null);
+      } else {
+        alert(`Failed to repost job: ${data.errorMessage || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error reposting job:', error);
+      alert('An error occurred while connecting to the server.');
+    } finally {
+      setIsReposting(false);
+    }
   };
 
   const handleUpdateJobChange = (field: string, value: any) => {

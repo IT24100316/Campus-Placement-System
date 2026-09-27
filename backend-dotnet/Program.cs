@@ -43,7 +43,7 @@ builder.Services.AddScoped<ICvStorageService, LocalCvStorageService>();
 builder.Services.AddScoped<IJobService, JobService>();
 
 // 2.7 Register Background Services
-builder.Services.AddHostedService<EvaluationTriggerService>();
+// builder.Services.AddHostedService<EvaluationTriggerService>();
 builder.Services.AddHostedService<AutoDeclineBackgroundService>();
 
 // 3. CORS

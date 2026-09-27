@@ -2,7 +2,7 @@ import re
 import requests
 import asyncio
 
-async def analyze_github_profile(cv_text: str) -> str:
+def analyze_github_profile(cv_text: str) -> str:
     """
     Extracts GitHub username from CV, calls GitHub API, 
     and deeply analyzes the quality and authenticity of the repos.
@@ -19,7 +19,7 @@ async def analyze_github_profile(cv_text: str) -> str:
     headers = {"Accept": "application/vnd.github.v3+json"}
     
     try:
-        response = await asyncio.to_thread(requests.get, url, headers=headers, timeout=15)
+        response = requests.get(url, headers=headers, timeout=15)
         
         if response.status_code == 404:
             return f"GitHub profile '{username}' found in CV, but does not exist."
@@ -58,7 +58,7 @@ async def analyze_github_profile(cv_text: str) -> str:
             # --- DEEP DIVE 1: Check Commits (Red Flag Check) ---
             # We fetch max 2 commits. If length is 1, it was uploaded in a single day!
             commits_url = repo.get("commits_url", "").replace("{/sha}", "?per_page=2")
-            commit_res = await asyncio.to_thread(requests.get, commits_url, headers=headers)
+            commit_res = requests.get(commits_url, headers=headers)
             
             commit_status = "Unknown"
             if commit_res.status_code == 200:
@@ -70,7 +70,7 @@ async def analyze_github_profile(cv_text: str) -> str:
 
             # --- DEEP DIVE 2: Check README (Documentation Quality) ---
             readme_url = f"https://api.github.com/repos/{username}/{name}/readme"
-            readme_res = await asyncio.to_thread(requests.get, readme_url, headers=headers)
+            readme_res = requests.get(readme_url, headers=headers)
             readme_status = "✅ Good documentation" if readme_res.status_code == 200 else "❌ Missing README"
             
             # Format the insights for this repo
