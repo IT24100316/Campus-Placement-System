@@ -76,13 +76,6 @@ def check_hard_filters_tool(student_id: str, job_id: str) -> Dict[str, Any]:
             if student["DegreeProgram"].lower() not in job_degrees:
                 return {"passed": False, "reason": f"Degree mismatch (Student: {student['DegreeProgram']})."}
                 
-        # 6. Location Check
-        if job["LocationCity"] and student["PreferredLocations"]:
-            job_loc = job["LocationCity"].lower()
-            student_locs = set(l.lower() for l in student["PreferredLocations"])
-            if job_loc not in student_locs and "any" not in student_locs:
-                return {"passed": False, "reason": f"Location mismatch (Job is in {job['LocationCity']})."}
-                
         return {"passed": True, "reason": "All hard filters passed."}
         
     except Exception as e:
