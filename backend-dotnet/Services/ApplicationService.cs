@@ -175,6 +175,7 @@ public class ApplicationService : IApplicationService
         if (payload.IsSuccess)
         {
             application.SummaryReport = payload.ResultJson ?? "{}";
+            application.MatchScore = payload.MatchScore;
             application.Status = ApplicationStatus.Agent_Evaluated;
         }
         else
@@ -207,6 +208,7 @@ public class ApplicationService : IApplicationService
                 allowedYears = a.Job.AllowedYearsOfStudy,
                 companyName = a.Job.Company.CompanyName,
                 validationReport = a.SummaryReport,
+                matchScore = a.MatchScore,
                 status = a.Status.ToString(),
                 university = a.Student.StudentProfile != null ? a.Student.StudentProfile.UniversityName : "Unknown",
                 gpa = a.Student.StudentProfile != null ? a.Student.StudentProfile.GPA : 0,
@@ -221,7 +223,6 @@ public class ApplicationService : IApplicationService
                 degreeProgram = a.Student.StudentProfile != null ? a.Student.StudentProfile.DegreeProgram : string.Empty,
                 academicStatus = a.Student.StudentProfile != null ? a.Student.StudentProfile.AcademicStatus : string.Empty,
                 careerObjectives = a.Student.StudentProfile != null ? a.Student.StudentProfile.CareerObjectivesSummary : string.Empty,
-                matchScore = a.MatchScore,
                 graduationYear = (a.Student.StudentProfile != null && a.Student.StudentProfile.ExpectedGraduationDate.HasValue) ? a.Student.StudentProfile.ExpectedGraduationDate.Value.Year.ToString() : "N/A"
             }).ToListAsync(cancellationToken);
         return values.Cast<object>();
