@@ -1,10 +1,6 @@
-import json
 import os
 from typing import List, Dict, Any, Tuple
-from pydantic import BaseModel, Field
-from langchain_core.prompts import ChatPromptTemplate
-
-from state import AgentState, SkillBreakdown, CandidateResult
+from state import CandidateResult
 from tools.skill_equivalence_tool import canonicalize_pair, check_skill_cache, save_skill_equivalence
 from tools.llm_equivalence_tool import check_llm_equivalence_batch
 
@@ -19,15 +15,11 @@ def normalize_skill_list(skills: List[str]) -> List[str]:
         return []
     return [normalize_skill(s) for s in skills if s and str(s).strip()]
 
-def analysis_node(state: AgentState) -> dict:
+def evaluate_candidates_skills(candidates: List[Dict[str, Any]], job: Dict[str, Any]) -> List[CandidateResult]:
     """
-    The Analysis Agent node for LangGraph.
-    Performs Tier 2 Semantic Skill Matching on a batch of candidates.
-    Applies a threshold of 60% and logs the results.
+    Evaluates the skills of a batch of candidates against the job requirements.
+    Applies Tier 2 Semantic Skill Matching.
     """
-    candidates = state.get("candidates", [])
-    job = state.get("job_posting", {})
-    
     job_mandatory = normalize_skill_list(job.get("MandatorySkills", []))
     job_nice = normalize_skill_list(job.get("NiceToHaveSkills", []))
     
@@ -36,7 +28,7 @@ def analysis_node(state: AgentState) -> dict:
     all_pending_pairs = set()
     
     for idx, student in enumerate(candidates):
-        student_id = student.get("StudentId", f"student_{idx}")
+        student_id = student.get("StudentId", student.get("UserId", f"student_{idx}"))
         student_skills = normalize_skill_list(student.get("Skills", []))
         student_tools = normalize_skill_list(student.get("ToolsAndTechnologies", []))
         
@@ -163,16 +155,14 @@ def analysis_node(state: AgentState) -> dict:
         
         if final_score >= 60:
             final_results.append({
-                "student_id": student_id,
+                "student_id": str(student_id),
                 "match_score": final_score,
                 "skill_breakdown": breakdown
             })
             
     # 6. Write to Log file
-    log_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "analysis_run_log.txt")
+    log_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "analysis_run_log.txt")
     with open(log_path, "w", encoding="utf-8") as f:
         f.write("\n".join(log_lines))
             
-    return {
-        "analysis_results": final_results
-    }
+    return final_results

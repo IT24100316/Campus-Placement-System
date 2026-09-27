@@ -38,6 +38,7 @@ public class CompanyCandidateDto
     public string Id { get; set; } = string.Empty;
     public string Initials { get; set; } = string.Empty;
     public string FullName { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
     public string University { get; set; } = string.Empty;
     public string Degree { get; set; } = string.Empty;
     public string Batch { get; set; } = string.Empty;
@@ -47,6 +48,8 @@ public class CompanyCandidateDto
     public string[] Competencies { get; set; } = Array.Empty<string>();
     public string Status { get; set; } = string.Empty;
     public string StatusColor { get; set; } = string.Empty;
+    public string? CvPdfUrl { get; set; }
+    public string? JobId { get; set; }
 }
 
 public class CompanyDashboardResponseDto

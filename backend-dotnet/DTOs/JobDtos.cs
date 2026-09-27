@@ -96,3 +96,38 @@ public class JobCreationResultDto
     public JobResponseDto? Job { get; set; }
 }
 
+public class PaginatedResult<T>
+{
+    public IEnumerable<T> Items { get; set; } = new List<T>();
+    public int TotalCount { get; set; }
+    public int Page { get; set; }
+    public int PageSize { get; set; }
+}
+
+public class JobFeedDto
+{
+    public Guid JobId { get; set; }
+    public string JobTitle { get; set; } = string.Empty;
+    public string CompanyName { get; set; } = string.Empty;
+    public string TargetDomain { get; set; } = string.Empty;
+    public string LocationCity { get; set; } = string.Empty;
+    public string[] InternshipType { get; set; } = Array.Empty<string>();
+    public bool StipendOffered { get; set; }
+    public string? StipendAmountOrDetails { get; set; }
+    public int DurationMonths { get; set; }
+    public DateTime ApplicationDeadline { get; set; }
+    public string[] Tags { get; set; } = Array.Empty<string>();
+    public DateTime CreatedAt { get; set; }
+    public int MatchScore { get; set; }
+}
+
+public class JobDetailsDto : JobFeedDto
+{
+    public string JobDescriptionSummary { get; set; } = string.Empty;
+    public decimal MinimumGPA { get; set; }
+    public int[] AllowedYearsOfStudy { get; set; } = Array.Empty<int>();
+    public string[] MandatorySkills { get; set; } = Array.Empty<string>();
+    public string[] NiceToHaveSkills { get; set; } = Array.Empty<string>();
+    public string[] PreferredDegreePrograms { get; set; } = Array.Empty<string>();
+}
+

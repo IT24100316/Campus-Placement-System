@@ -33,7 +33,6 @@ public class ApplicationService : IApplicationService
         _documentStorage = documentStorage;
     }
 
-
     /// <summary>
     /// GetApplicationsByJobIdAsync
     /// Fetches a paginated list of applications for a specific job, including the candidate's profile details.
@@ -86,8 +85,8 @@ public class ApplicationService : IApplicationService
             .Include(a => a.Student)
                 .ThenInclude(u => u.StudentProfile)
             .Where(a => 
-                (a.Student.StudentProfile.FullName != null && a.Student.StudentProfile.FullName.ToLower().Contains(lowerQuery)) ||
-                (a.Student.StudentProfile.Skills != null && a.Student.StudentProfile.Skills.Any(s => s.ToLower().Contains(lowerQuery)))
+                (a.Student.StudentProfile != null && a.Student.StudentProfile.FullName != null && a.Student.StudentProfile.FullName.ToLower().Contains(lowerQuery)) ||
+                (a.Student.StudentProfile != null && a.Student.StudentProfile.Skills != null && a.Student.StudentProfile.Skills.Any(s => s.ToLower().Contains(lowerQuery)))
             )
             .OrderByDescending(a => a.MatchScore)
             .ToListAsync();
@@ -103,67 +102,6 @@ public class ApplicationService : IApplicationService
             a.InterviewDate,
             a.InterviewTime
         ));
-    }
-
-    /// <summary>
-    /// UpdateApplicationStatusAsync
-    /// Updates the status of a specific application. Parses the provided string into the ApplicationStatus enum,
-    /// saves the changes to the database, and returns the updated application.
-    /// </summary>
-    public async Task<Application> UpdateApplicationStatusAsync(Guid appId, UpdateStatusRequestDto request)
-    {
-        var application = await _context.Applications.FindAsync(appId);
-        
-        if (application == null)
-        {
-            throw new KeyNotFoundException("Application not found");
-        }
-
-        if (!Enum.TryParse<ApplicationStatus>(request.NewStatus, true, out var nextStatus))
-            throw new InvalidOperationException("Unknown application status.");
-        if (nextStatus == ApplicationStatus.Admin_Approved && application.Status != ApplicationStatus.Agent_Evaluated)
-            throw new InvalidOperationException("Only Agent_Evaluated applications can be approved by an administrator.");
-        application.Status = nextStatus;
-        
-        await _context.SaveChangesAsync();
-        
-        return application;
-    }
-
-    /// <summary>
-    /// ScheduleInterviewAsync
-    /// Schedules an interview for a specific application by updating its InterviewDate and InterviewTime properties.
-    /// Acts as a trigger point for invoking external AI agent scheduling logic.
-    /// </summary>
-    public async Task<Application> ScheduleInterviewAsync(Guid appId, ScheduleInterviewRequestDto request)
-    {
-        var application = await _context.Applications
-            .Include(a => a.Student).ThenInclude(u => u.StudentProfile)
-            .Include(a => a.Job)
-            .FirstOrDefaultAsync(a => a.AppId == appId);
-        
-        if (application == null)
-        {
-            throw new KeyNotFoundException("Application not found");
-        }
-
-        if (application.Status != ApplicationStatus.Admin_Approved)
-            throw new InvalidOperationException("Administrator approval is required before scheduling an interview.");
-
-        application.InterviewDate = request.InterviewDate;
-        application.InterviewTime = request.InterviewTime;
-        application.Status = ApplicationStatus.Company_Scheduled;
-        
-        await _context.SaveChangesAsync();
-        
-        var interviewAt = request.InterviewDate.Date.Add(request.InterviewTime);
-        await _emailService.SendInterviewScheduledAsync(
-            application.Student.Email,
-            application.Student.StudentProfile?.FullName ?? application.Student.Email,
-            application.Job.JobTitle,
-            interviewAt);
-        
-        return application;
     }
 
 
@@ -210,56 +148,49 @@ public class ApplicationService : IApplicationService
         return application;
     }
 
-    public async Task<object> EvaluateAsync(Guid appId, EvaluateApplicationDto request, CancellationToken cancellationToken = default)
+    public async Task HandleEvaluationWebhookAsync(WebhookEvaluationResultDto payload, CancellationToken cancellationToken = default)
     {
+        // Look up by ApplicationId OR by JobId + StudentId
         var application = await _context.Applications
-            .Include(a => a.Student).ThenInclude(u => u.StudentProfile)
-            .FirstOrDefaultAsync(a => a.AppId == appId, cancellationToken)
-            ?? throw new KeyNotFoundException("Application not found.");
-        if (application.Status != ApplicationStatus.Pending)
-            throw new InvalidOperationException($"Only Pending applications can be evaluated; current status is {application.Status}.");
-        var cvKey = application.Student.StudentProfile?.CvPdfUrl;
-        if (string.IsNullOrWhiteSpace(cvKey)) throw new InvalidOperationException("The student must upload a CV PDF before validation.");
-
-        string? cvPdfBase64 = null;
-        if (cvKey.StartsWith("local://") || cvKey.StartsWith("supabase://"))
+            .FirstOrDefaultAsync(a => a.AppId == payload.ApplicationId 
+                                   || (a.JobId == payload.JobId && a.StudentId == payload.StudentId), cancellationToken);
+                                   
+        if (application == null)
         {
-            var storedCv = await _documentStorage.OpenReadAsync(cvKey, cancellationToken)
-                ?? throw new InvalidOperationException("The stored CV could not be read.");
-            using var memory = new MemoryStream();
-            await storedCv.Content.CopyToAsync(memory, cancellationToken);
-            cvPdfBase64 = Convert.ToBase64String(memory.ToArray());
+            // Auto-Match on Publish Flow: Create a new application!
+            application = new Application
+            {
+                AppId = Guid.NewGuid(),
+                StudentId = payload.StudentId,
+                JobId = payload.JobId,
+                Status = ApplicationStatus.Processing, // Briefly processing before updated below
+                SummaryReport = "{}"
+            };
+            _context.Applications.Add(application);
+        }
+        
+        // At this point we bypass the strict "Processing" check because it might be a fresh auto-match
+        // or a re-run. We just update it.
+
+        if (payload.IsSuccess)
+        {
+            application.SummaryReport = payload.ResultJson ?? "{}";
+            application.MatchScore = payload.MatchScore;
+            application.Status = ApplicationStatus.Agent_Evaluated;
+        }
+        else
+        {
+            application.SummaryReport = payload.ResultJson ?? "{\"error\": \"Unknown evaluation error\"}";
+            application.Status = ApplicationStatus.Evaluation_Failed;
         }
 
-        var body = JsonSerializer.Serialize(new
-        {
-            application_id = application.AppId,
-            summary = request.Summary,
-            cv_pdf_url = cvPdfBase64 is null ? cvKey : null,
-            cv_pdf_base64 = cvPdfBase64
-        });
-        var aiBaseUrl = (_configuration["AiService:BaseUrl"] ?? "http://127.0.0.1:8000").TrimEnd('/');
-        var response = await _httpClientFactory.CreateClient().PostAsync(
-            $"{aiBaseUrl}/validate", new StringContent(body, Encoding.UTF8, "application/json"), cancellationToken);
-        if (!response.IsSuccessStatusCode)
-            throw new HttpRequestException($"Validation Agent failed: {await response.Content.ReadAsStringAsync(cancellationToken)}");
-
-        application.SummaryReport = await response.Content.ReadAsStringAsync(cancellationToken);
-        application.Status = ApplicationStatus.Agent_Evaluated;
         await _context.SaveChangesAsync(cancellationToken);
-        return new
-        {
-            applicationId = application.AppId,
-            status = application.Status.ToString(),
-            requiresAdminApproval = true,
-            validation = JsonSerializer.Deserialize<JsonElement>(application.SummaryReport)
-        };
     }
 
     public async Task<IEnumerable<object>> GetPendingAdminApprovalAsync(CancellationToken cancellationToken = default)
     {
         var values = await _context.Applications
-            .Where(a => a.Status == ApplicationStatus.Agent_Evaluated)
+            .Where(a => a.Status != ApplicationStatus.Pending && a.Status != ApplicationStatus.Processing)
             .Include(a => a.Student).ThenInclude(u => u.StudentProfile)
             .Include(a => a.Job).ThenInclude(j => j.Company)
             .Select(a => new
@@ -267,9 +198,32 @@ public class ApplicationService : IApplicationService
                 applicationId = a.AppId,
                 studentName = a.Student.StudentProfile != null ? a.Student.StudentProfile.FullName : a.Student.Email,
                 jobTitle = a.Job.JobTitle,
+                jobDescription = a.Job.JobDescriptionSummary,
+                jobDuration = a.Job.DurationMonths,
+                jobStipend = a.Job.StipendOffered,
+                jobMinGPA = a.Job.MinimumGPA,
+                mandatorySkills = a.Job.MandatorySkills,
+                niceToHaveSkills = a.Job.NiceToHaveSkills,
+                preferredDegrees = a.Job.PreferredDegreePrograms,
+                allowedYears = a.Job.AllowedYearsOfStudy,
                 companyName = a.Job.Company.CompanyName,
                 validationReport = a.SummaryReport,
-                status = a.Status.ToString()
+                matchScore = a.MatchScore,
+                status = a.Status.ToString(),
+                university = a.Student.StudentProfile != null ? a.Student.StudentProfile.UniversityName : "Unknown",
+                gpa = a.Student.StudentProfile != null ? a.Student.StudentProfile.GPA : 0,
+                skills = a.Student.StudentProfile != null ? a.Student.StudentProfile.Skills : null,
+                cvUrl = a.Student.StudentProfile != null ? a.Student.StudentProfile.CvPdfUrl : string.Empty,
+                phone = a.Student.StudentProfile != null ? a.Student.StudentProfile.Phone : string.Empty,
+                portfolioUrl = a.Student.StudentProfile != null ? a.Student.StudentProfile.PortfolioUrl : string.Empty,
+                tools = a.Student.StudentProfile != null ? a.Student.StudentProfile.ToolsAndTechnologies : null,
+                internshipType = a.Student.StudentProfile != null ? a.Student.StudentProfile.InternshipType : null,
+                preferredLocations = a.Student.StudentProfile != null ? a.Student.StudentProfile.PreferredLocations : null,
+                lectureSchedule = a.Student.StudentProfile != null ? a.Student.StudentProfile.LectureScheduleType : string.Empty,
+                degreeProgram = a.Student.StudentProfile != null ? a.Student.StudentProfile.DegreeProgram : string.Empty,
+                academicStatus = a.Student.StudentProfile != null ? a.Student.StudentProfile.AcademicStatus : string.Empty,
+                careerObjectives = a.Student.StudentProfile != null ? a.Student.StudentProfile.CareerObjectivesSummary : string.Empty,
+                graduationYear = (a.Student.StudentProfile != null && a.Student.StudentProfile.ExpectedGraduationDate.HasValue) ? a.Student.StudentProfile.ExpectedGraduationDate.Value.Year.ToString() : "N/A"
             }).ToListAsync(cancellationToken);
         return values.Cast<object>();
     }
@@ -281,6 +235,20 @@ public class ApplicationService : IApplicationService
         if (application.Status != ApplicationStatus.Agent_Evaluated)
             throw new InvalidOperationException("Application is not waiting for administrator approval.");
         application.Status = approved ? ApplicationStatus.Admin_Approved : ApplicationStatus.Rejected;
+        if (approved) {
+            application.DecisionDeadline = DateTime.UtcNow.AddDays(3);
+        }
+        await _context.SaveChangesAsync(cancellationToken);
+        return application;
+    }
+
+    public async Task<Application> StudentDecisionAsync(Guid appId, Guid studentId, bool accepted, CancellationToken cancellationToken = default)
+    {
+        var application = await _context.Applications.FirstOrDefaultAsync(a => a.AppId == appId && a.StudentId == studentId, cancellationToken)
+            ?? throw new KeyNotFoundException("Application not found or access denied.");
+        if (application.Status != ApplicationStatus.Admin_Approved)
+            throw new InvalidOperationException("Application is not in a valid state for a student decision.");
+        application.Status = accepted ? ApplicationStatus.Student_Accepted : ApplicationStatus.Rejected;
         await _context.SaveChangesAsync(cancellationToken);
         return application;
     }
@@ -293,13 +261,65 @@ public class ApplicationService : IApplicationService
             .Select(a => new
             {
                 applicationId = a.AppId,
+                jobId = a.JobId,
                 jobTitle = a.Job.JobTitle,
                 companyName = a.Job.Company.CompanyName,
                 status = a.Status.ToString(),
                 interviewDate = a.InterviewDate,
                 interviewTime = a.InterviewTime,
-                companyMessage = a.CompanyMessage
+                companyMessage = a.CompanyMessage,
+                decisionDeadline = a.DecisionDeadline
             }).ToListAsync(cancellationToken);
         return values.Cast<object>();
+    }
+
+    public async Task<bool> ScheduleInterviewAsync(ScheduleInterviewRequestDto request)
+    {
+        // 1. Strict Validation: Verify Application exists for this specific Student and Job relationship
+        var application = await _context.Applications
+            .Include(a => a.Student)
+                .ThenInclude(u => u.StudentProfile)
+            .Include(a => a.Job)
+                .ThenInclude(j => j.Company)
+            .FirstOrDefaultAsync(a => a.StudentId == request.StudentId && a.JobId == request.JobId);
+
+        if (application == null || application.Status != ApplicationStatus.Student_Accepted)
+        {
+            return false;
+        }
+
+        // 2. Extract Data Securely (Do not trust frontend for these fields)
+        var studentEmail = application.Student.Email;
+        var studentName = application.Student.StudentProfile?.FullName ?? "Student";
+        var companyName = application.Job.Company?.CompanyName ?? "Company";
+        var jobTitle = application.Job.JobTitle;
+
+        // 3. Set the confirmed interview dates in the entity (Not saved yet)
+        application.InterviewDate = DateTime.SpecifyKind(request.InterviewDate, DateTimeKind.Utc);
+        application.InterviewTime = request.InterviewTime;
+        
+        // 4. Generate .ics and Dispatch Email via SendGrid Service (with Polly resilience built-in)
+        var emailSent = await _emailService.SendInterviewScheduledAsync(
+            studentEmail,
+            studentName,
+            companyName,
+            jobTitle,
+            request.InterviewDate,
+            request.InterviewTime,
+            request.MeetingLink
+        );
+
+        if (!emailSent)
+        {
+            return false;
+        }
+
+        // 5. Database Consistency: Only save state to DB if the third-party SendGrid request succeeded
+        application.InterviewStatus = InterviewStatus.Invited;
+        application.Status = ApplicationStatus.Company_Scheduled;
+
+        await _context.SaveChangesAsync();
+
+        return true;
     }
 }

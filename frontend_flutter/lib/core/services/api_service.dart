@@ -48,27 +48,15 @@ class ApiService {
             'universityName': universityName.trim(),
             'password': password,
           });
-    if (campusId.bytes != null) {
-      request.files.add(
-        http.MultipartFile.fromBytes(
-          'campusIdPhoto',
-          campusId.bytes!,
-          filename: campusId.name,
-          contentType: contentType,
-        ),
-      );
-    } else if (campusId.path != null) {
-      request.files.add(
-        await http.MultipartFile.fromPath(
-          'campusIdPhoto',
-          campusId.path!,
-          filename: campusId.name,
-          contentType: contentType,
-        ),
-      );
-    } else {
-      throw Exception('The selected campus ID could not be read.');
-    }
+    final campusIdBytes = await campusId.readAsBytes();
+    request.files.add(
+      http.MultipartFile.fromBytes(
+        'campusIdPhoto',
+        campusIdBytes,
+        filename: campusId.name,
+        contentType: contentType,
+      ),
+    );
     final streamed = await request.send();
     final response = await http.Response.fromStream(streamed);
     return _decode(response);
@@ -128,6 +116,30 @@ class ApiService {
     if (response.statusCode < 200 || response.statusCode >= 300)
       _decode(response);
     return (jsonDecode(response.body) as List).cast<Map<String, dynamic>>();
+  }
+
+  Future<void> acceptOffer(String appId) async {
+    final token = StudentSession.token;
+    if (token == null) throw Exception('Not authenticated.');
+    final response = await http.post(
+      Uri.parse('${ApiEndpoints.baseUrl}/Applications/$appId/student-accept'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      _decode(response); // Throws the error inside _decode
+    }
+  }
+
+  Future<void> declineOffer(String appId) async {
+    final token = StudentSession.token;
+    if (token == null) throw Exception('Not authenticated.');
+    final response = await http.post(
+      Uri.parse('${ApiEndpoints.baseUrl}/Applications/$appId/student-decline'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      _decode(response);
+    }
   }
 
   Map<String, dynamic> _decode(http.Response response) {

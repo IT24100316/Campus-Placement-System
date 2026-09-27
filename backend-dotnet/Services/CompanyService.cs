@@ -103,195 +103,64 @@ public class CompanyService : ICompanyService
                 Status = "Active • Accepting"
             }).ToList();
 
-        // Candidate pool of pre-screened students from premier Sri Lankan universities,
-        // dynamically matched to the company's active placement drives from database
-        string GetMatchedJob(int index) => activeJobs.Count > 0 
-            ? activeJobs[index % activeJobs.Count].JobTitle 
-            : "Backend Engineering Co-op";
+        // ── Real DB query: fetch all screened & matched candidates for this company ──
+        var screened = await _context.Applications
+            .Include(a => a.Student)
+                .ThenInclude(u => u.StudentProfile)
+            .Include(a => a.Job)
+            .Where(a =>
+                a.Job.CompanyId == company.UserId &&
+                (a.Status == ApplicationStatus.Student_Accepted ||
+                 a.Status == ApplicationStatus.Company_Scheduled))
+            .OrderByDescending(a => a.MatchScore)
+            .ToListAsync();
 
-        var candidates = new List<CompanyCandidateDto>
+        static string GetInitials(string fullName)
         {
-            new CompanyCandidateDto
-            {
-                Id = "cand-1",
-                Initials = "KP",
-                FullName = "Kasun Perera",
-                University = "SLIIT",
-                Degree = "B.Sc. (Hons) Software Engineering",
-                Batch = "Class of 2026",
-                Gpa = 3.92m,
-                MatchedOpening = GetMatchedJob(0),
-                MatchScore = 98,
-                Competencies = new[] { "Python", "Go", "PostgreSQL", "Docker" },
-                Status = "Shortlisted",
-                StatusColor = "blue"
-            },
-            new CompanyCandidateDto
-            {
-                Id = "cand-2",
-                Initials = "CJ",
-                FullName = "Chamodi Jayawardena",
-                University = "University of Moratuwa",
-                Degree = "B.Sc. (Hons) Computer Science & Engineering",
-                Batch = "Class of 2025",
-                Gpa = 3.95m,
-                MatchedOpening = GetMatchedJob(1),
-                MatchScore = 97,
-                Competencies = new[] { "PyTorch", "Python", "CUDA", "FastAPI" },
-                Status = "Pre-screen Cleared",
-                StatusColor = "emerald"
-            },
-            new CompanyCandidateDto
-            {
-                Id = "cand-3",
-                Initials = "TS",
-                FullName = "Thisara Senanayake",
-                University = "UCSC",
-                Degree = "B.Sc. (Hons) Computer Science",
-                Batch = "Class of 2026",
-                Gpa = 3.84m,
-                MatchedOpening = GetMatchedJob(2),
-                MatchScore = 95,
-                Competencies = new[] { "C++", "RTOS", "Verilog", "Embedded Systems" },
-                Status = "Interview Confirmed",
-                StatusColor = "purple"
-            },
-            new CompanyCandidateDto
-            {
-                Id = "cand-4",
-                Initials = "AW",
-                FullName = "Anuki Wijesinghe",
-                University = "University of Peradeniya",
-                Degree = "B.Sc. (Hons) Electrical & Electronic Engineering",
-                Batch = "Class of 2026",
-                Gpa = 3.88m,
-                MatchedOpening = GetMatchedJob(0),
-                MatchScore = 94,
-                Competencies = new[] { "Python", "Distributed Systems", "PostgreSQL" },
-                Status = "Shortlisted",
-                StatusColor = "blue"
-            },
-            new CompanyCandidateDto
-            {
-                Id = "cand-5",
-                Initials = "DF",
-                FullName = "Dilan Fernando",
-                University = "IIT Sri Lanka",
-                Degree = "B.Eng. (Hons) Software Engineering",
-                Batch = "Class of 2025",
-                Gpa = 3.79m,
-                MatchedOpening = GetMatchedJob(1),
-                MatchScore = 93,
-                Competencies = new[] { "PyTorch", "LangChain", "Vector DBs", "Python" },
-                Status = "Pre-screen Cleared",
-                StatusColor = "emerald"
-            },
-            new CompanyCandidateDto
-            {
-                Id = "cand-6",
-                Initials = "RG",
-                FullName = "Rashmi Gunasekara",
-                University = "University of Sri Jayewardenepura",
-                Degree = "B.Sc. (Hons) Information Technology",
-                Batch = "Class of 2026",
-                Gpa = 3.76m,
-                MatchedOpening = GetMatchedJob(2),
-                MatchScore = 91,
-                Competencies = new[] { "Linux", "C++", "UART/SPI", "ARM Cortex" },
-                Status = "Shortlisted",
-                StatusColor = "blue"
-            },
-            new CompanyCandidateDto
-            {
-                Id = "cand-7",
-                Initials = "KB",
-                FullName = "Kavindu Bandara",
-                University = "University of Kelaniya",
-                Degree = "B.Sc. (Hons) Software Engineering",
-                Batch = "Class of 2025",
-                Gpa = 3.87m,
-                MatchedOpening = GetMatchedJob(0),
-                MatchScore = 96,
-                Competencies = new[] { "Go", "Docker", "Kubernetes", "gRPC" },
-                Status = "Interview Confirmed",
-                StatusColor = "purple"
-            },
-            new CompanyCandidateDto
-            {
-                Id = "cand-8",
-                Initials = "SS",
-                FullName = "Sanduni Silva",
-                University = "NSBM",
-                Degree = "B.Sc. (Hons) Computer Science",
-                Batch = "Class of 2026",
-                Gpa = 3.71m,
-                MatchedOpening = GetMatchedJob(1),
-                MatchScore = 92,
-                Competencies = new[] { "Python", "FastAPI", "SQL", "Pandas" },
-                Status = "Shortlisted",
-                StatusColor = "blue"
-            },
-            new CompanyCandidateDto
-            {
-                Id = "cand-9",
-                Initials = "PD",
-                FullName = "Praveen De Silva",
-                University = "SLIIT",
-                Degree = "B.Sc. (Hons) Information Technology",
-                Batch = "Class of 2025",
-                Gpa = 3.91m,
-                MatchedOpening = GetMatchedJob(0),
-                MatchScore = 97,
-                Competencies = new[] { "Python", "Microservices", "PostgreSQL", "Redis" },
-                Status = "Pre-screen Cleared",
-                StatusColor = "emerald"
-            },
-            new CompanyCandidateDto
-            {
-                Id = "cand-10",
-                Initials = "NW",
-                FullName = "Nimasha Wickramasinghe",
-                University = "University of Moratuwa",
-                Degree = "B.Sc. (Hons) Electronic & Telecommunication Eng",
-                Batch = "Class of 2026",
-                Gpa = 3.96m,
-                MatchedOpening = GetMatchedJob(2),
-                MatchScore = 99,
-                Competencies = new[] { "C++", "RTOS", "Firmware", "Verilog" },
-                Status = "Interview Confirmed",
-                StatusColor = "purple"
-            },
-            new CompanyCandidateDto
-            {
-                Id = "cand-11",
-                Initials = "SA",
-                FullName = "Sachintha Alwis",
-                University = "UCSC",
-                Degree = "B.Sc. (Hons) Software Engineering",
-                Batch = "Class of 2026",
-                Gpa = 3.82m,
-                MatchedOpening = GetMatchedJob(0),
-                MatchScore = 95,
-                Competencies = new[] { "Go", "PostgreSQL", "Docker", "AWS" },
-                Status = "Shortlisted",
-                StatusColor = "blue"
-            },
-            new CompanyCandidateDto
-            {
-                Id = "cand-12",
-                Initials = "HM",
-                FullName = "Hiruni Mendis",
-                University = "University of Peradeniya",
-                Degree = "B.Sc. (Hons) Computer Engineering",
-                Batch = "Class of 2025",
-                Gpa = 3.89m,
-                MatchedOpening = GetMatchedJob(1),
-                MatchScore = 96,
-                Competencies = new[] { "PyTorch", "Python", "Computer Vision", "TensorFlow" },
-                Status = "Pre-screen Cleared",
-                StatusColor = "emerald"
-            }
+            var parts = fullName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            return parts.Length >= 2
+                ? $"{parts[0][0]}{parts[^1][0]}".ToUpper()
+                : fullName.Substring(0, Math.Min(2, fullName.Length)).ToUpper();
+        }
+
+        static (string label, string color) MapStatus(ApplicationStatus s) => s switch
+        {
+            ApplicationStatus.Agent_Evaluated   => ("Pre-screen Cleared",   "emerald"),
+            ApplicationStatus.Admin_Approved    => ("Shortlisted",          "blue"),
+            ApplicationStatus.Company_Scheduled => ("Interview Confirmed",  "purple"),
+            ApplicationStatus.Student_Accepted  => ("Accepted",             "green"),
+            _                                   => ("In Review",            "gray")
         };
+
+        var candidates = screened.Select(a =>
+        {
+            var profile = a.Student.StudentProfile;
+            var (statusLabel, statusColor) = MapStatus(a.Status);
+            var skills = profile?.Skills?.Length > 0
+                ? profile.Skills
+                : profile?.ToolsAndTechnologies ?? Array.Empty<string>();
+
+            return new CompanyCandidateDto
+            {
+                Id             = a.StudentId.ToString(),
+                JobId          = a.JobId.ToString(),
+                Initials       = GetInitials(profile?.FullName ?? a.Student.Email),
+                FullName       = profile?.FullName ?? a.Student.Email,
+                Email          = a.Student.Email,
+                University     = profile?.UniversityName ?? "—",
+                Degree         = profile?.DegreeProgram ?? "—",
+                Batch          = profile?.ExpectedGraduationDate.HasValue == true
+                                    ? $"Class of {profile.ExpectedGraduationDate.Value.Year}"
+                                    : "—",
+                Gpa            = profile?.GPA ?? 0m,
+                MatchedOpening = a.Job?.JobTitle ?? "—",
+                MatchScore     = a.MatchScore,
+                Competencies   = skills.Take(5).ToArray(),
+                Status         = statusLabel,
+                StatusColor    = statusColor,
+                CvPdfUrl       = profile?.CvPdfUrl
+            };
+        }).ToList();
 
         return new CompanyDashboardResponseDto
         {
@@ -305,12 +174,47 @@ public class CompanyService : ICompanyService
             Stats = new CompanyStatsDto
             {
                 ActiveJobDrives = Math.Max(activeJobs.Count, 3),
-                PrescreenedStudents = 186,
-                InterviewsScheduled = 24,
+                PrescreenedStudents = screened.Count,
+                InterviewsScheduled = screened.Count(a => a.Status == ApplicationStatus.Company_Scheduled || a.Status == ApplicationStatus.Student_Accepted),
                 PartnerUniversityReach = 34
             },
             ActiveJobs = activeJobs,
             ShortlistedCandidates = candidates
         };
+    }
+
+    public async Task<bool> DeleteJobAsync(Guid jobId)
+    {
+        var job = await _context.Jobs.FindAsync(jobId);
+        if (job == null) return false;
+
+        _context.Jobs.Remove(job);
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<bool> UpdateJobAsync(Guid jobId, UpdateJobDto dto)
+    {
+        var job = await _context.Jobs.FindAsync(jobId);
+        if (job == null) return false;
+
+        job.JobTitle = dto.JobTitle;
+        job.TargetDomain = dto.TargetDomain;
+        job.JobDescriptionSummary = dto.JobDescriptionSummary;
+        job.InternshipType = dto.InternshipType;
+        job.LocationCity = dto.LocationCity;
+        job.MinimumGPA = dto.MinimumGPA;
+        job.AllowedYearsOfStudy = dto.AllowedYearsOfStudy;
+        job.MandatorySkills = dto.MandatorySkills;
+        job.NiceToHaveSkills = dto.NiceToHaveSkills;
+        job.PreferredDegreePrograms = dto.PreferredDegreePrograms;
+        job.StipendOffered = dto.StipendOffered;
+        job.StipendAmountOrDetails = dto.StipendAmountOrDetails;
+        job.DurationMonths = dto.DurationMonths;
+        job.ApplicationDeadline = dto.ApplicationDeadline.ToUniversalTime();
+
+        _context.Jobs.Update(job);
+        await _context.SaveChangesAsync();
+        return true;
     }
 }

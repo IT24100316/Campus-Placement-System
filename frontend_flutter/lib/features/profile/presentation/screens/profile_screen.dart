@@ -1,34 +1,73 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
 import 'dart:convert';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
+
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/constants/api_endpoints.dart';
+import '../../../../core/services/api_service.dart';
+import '../../../../core/services/cv_upload_service.dart';
+import '../../../auth/presentation/screens/landing_screen.dart';
+import '../../data/student_profile_models.dart';
+import '../../data/student_profile_service.dart';
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key});
+  const ProfileScreen({
+    super.key,
+    this.profileService,
+    this.referenceClient,
+    this.cvUploadService,
+    this.pickCvFile,
+  });
+
+  final StudentProfileService? profileService;
+  final http.Client? referenceClient;
+  final CvUploadService? cvUploadService;
+  final Future<PlatformFile?> Function()? pickCvFile;
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  final List<String> _skills = ['Python', 'Dart / Flutter', 'TypeScript', 'React', 'PyTorch', 'PostgreSQL'];
-  final List<String> _tools = ['Docker', 'AWS', 'Git & GitHub', 'Kubernetes', 'Figma', 'FastAPI'];
-  
+  static const int _maxCvFileSizeBytes = 10 * 1024 * 1024;
+
+  final _formKey = GlobalKey<FormState>();
+  final List<String> _skills = [];
+  final List<String> _tools = [];
+
   final TextEditingController _skillController = TextEditingController();
   final TextEditingController _toolController = TextEditingController();
-  final TextEditingController _gpaController = TextEditingController(text: '3.88');
+  final TextEditingController _fullNameController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _universityController = TextEditingController();
+  final TextEditingController _gpaController = TextEditingController();
+  final TextEditingController _expectedGraduationController =
+      TextEditingController();
+  final TextEditingController _portfolioUrlController = TextEditingController();
+  final TextEditingController _careerObjectivesController =
+      TextEditingController();
 
-  final Set<String> _selectedWorkArrangements = {'Remote', 'Hybrid'};
-  final Set<String> _selectedLocations = {'Colombo', 'Remote'};
-  String _selectedSchedule = 'Weekday';
+  final Set<String> _selectedWorkArrangements = {};
+  final Set<String> _selectedLocations = {};
+  String? _selectedSchedule;
   String? _selectedDegree;
+  String? _selectedAcademicStatus;
+  int? _selectedYearOfStudy;
+  String _campusIdPhotoUrl = '';
 
-  bool _isSaving = false;
-  String _saveButtonText = 'Save Resume';
-  IconData _saveButtonIcon = Icons.verified;
-
-  final String _baseUrl = 'http://127.0.0.1:5168';
+  bool _isLoadingProfile = true;
+  bool _isSavingProfile = false;
+  String _saveButtonText = 'Complete Internship Registration';
+  IconData _saveButtonIcon = Icons.save_outlined;
+  String? _profileMessage;
+  bool _profileMessageIsError = false;
+  bool _profileLoadFailed = false;
+  bool _sessionExpired = false;
+  bool _registrationComplete = false;
 
   List<dynamic> _domains = [];
   List<dynamic> _jobTitles = [];
@@ -36,21 +75,52 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isLoadingTitles = false;
   int? _selectedDomainId;
   int? _selectedJobTitleId;
+  String? _skillsError;
+  String? _toolsError;
+  String? _internshipTypeError;
+  String? _locationError;
+  PlatformFile? _selectedCvFile;
+  int? _selectedCvFileSize;
+  String? _cvSelectionError;
+  String? _cvUploadError;
+  String? _uploadedCvStorageKey;
+  bool _isSelectingCv = false;
 
-  static const List<String> degreePrograms = ['BSc (Hons) Information Technology', 'BSc (Hons) Software Engineering', 'BSc (Hons) Computer Science', 'BSc (Hons) Data Science', 'BSc (Hons) Cyber Security'];
+  late final StudentProfileService _profileService;
+  late final CvUploadService _cvUploadService;
+  late final http.Client _referenceClient;
+
+  static const List<String> degreePrograms = [
+    'BSc (Hons) Information Technology',
+    'BSc (Hons) Software Engineering',
+    'BSc (Hons) Computer Science',
+    'BSc (Hons) Data Science',
+    'BSc (Hons) Cyber Security',
+  ];
   static const List<String> internshipTypes = ['OnSite', 'Hybrid', 'Remote'];
 
   @override
   void initState() {
     super.initState();
-    _fetchDomains();
+    _profileService = widget.profileService ?? StudentProfileService();
+    _cvUploadService = widget.cvUploadService ?? CvUploadService();
+    _referenceClient = widget.referenceClient ?? http.Client();
+    _initializeProfile();
+  }
+
+  Future<void> _initializeProfile() async {
+    await _fetchDomains();
+    await _loadProfile();
   }
 
   Future<void> _fetchDomains() async {
     setState(() => _isLoadingDomains = true);
     try {
-      final response = await http.get(Uri.parse('$_baseUrl/api/Jobs/reference/domains'));
+      final response = await _referenceClient.get(
+        Uri.parse('${ApiEndpoints.baseUrl}/jobs/reference/domains'),
+      );
       if (response.statusCode == 200) {
+        if (!mounted) return;
         setState(() {
           _domains = json.decode(response.body);
         });
@@ -69,8 +139,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _selectedJobTitleId = null;
     });
     try {
-      final response = await http.get(Uri.parse('$_baseUrl/api/Jobs/reference/titles?domainId=$domainId'));
+      final response = await _referenceClient.get(
+        Uri.parse(
+          '${ApiEndpoints.baseUrl}/jobs/reference/titles?domainId=$domainId',
+        ),
+      );
       if (response.statusCode == 200) {
+        if (!mounted) return;
         setState(() {
           _jobTitles = json.decode(response.body);
         });
@@ -80,6 +155,150 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } finally {
       if (mounted) setState(() => _isLoadingTitles = false);
     }
+  }
+
+  Future<void> _loadProfile() async {
+    if (mounted) {
+      setState(() {
+        _isLoadingProfile = true;
+        _profileMessage = null;
+        _profileLoadFailed = false;
+      });
+    }
+    try {
+      final profile = await _profileService.loadProfile(
+        bearerToken: StudentSession.token ?? '',
+      );
+      if (!mounted) return;
+      if (profile == null) {
+        setState(() {
+          _fullNameController.text = StudentSession.fullName ?? '';
+          _profileMessage = 'Create your student profile to get started.';
+          _profileMessageIsError = false;
+          _registrationComplete = false;
+        });
+        return;
+      }
+      await _populateProfile(profile);
+      if (mounted) {
+        setState(() {
+          _profileMessage = _registrationComplete
+              ? 'Internship registration completed successfully'
+              : 'Your saved profile is ready to edit.';
+          _profileMessageIsError = false;
+        });
+      }
+    } on StudentProfileException catch (error) {
+      if (mounted) {
+        if (error.type == StudentProfileErrorType.unauthorized) {
+          _expireSession();
+        }
+        setState(() {
+          _profileMessage = error.message;
+          _profileMessageIsError = true;
+          _profileLoadFailed = true;
+        });
+      }
+    } finally {
+      if (mounted) setState(() => _isLoadingProfile = false);
+    }
+  }
+
+  Future<void> _populateProfile(StudentProfileResponse profile) async {
+    if (!mounted) return;
+    setState(() {
+      _fullNameController.text = profile.fullName;
+      _phoneController.text = profile.phone;
+      _campusIdPhotoUrl = profile.campusIdPhotoUrl;
+      _portfolioUrlController.text = profile.portfolioUrl ?? '';
+      _universityController.text = profile.universityName;
+      _gpaController.text = profile.gpa.toString();
+      _expectedGraduationController.text =
+          profile.expectedGraduationDate == null
+          ? ''
+          : '${profile.expectedGraduationDate!.year.toString().padLeft(4, '0')}-${profile.expectedGraduationDate!.month.toString().padLeft(2, '0')}-${profile.expectedGraduationDate!.day.toString().padLeft(2, '0')}';
+      _careerObjectivesController.text = profile.careerObjectivesSummary;
+      _selectedAcademicStatus = profile.academicStatus.isEmpty
+          ? null
+          : profile.academicStatus;
+      _selectedDegree = profile.degreeProgram.isEmpty
+          ? null
+          : profile.degreeProgram;
+      _selectedYearOfStudy = profile.currentYearOfStudy == 0
+          ? null
+          : profile.currentYearOfStudy;
+      _selectedSchedule = profile.lectureScheduleType.isEmpty
+          ? null
+          : profile.lectureScheduleType;
+      _skills
+        ..clear()
+        ..addAll(profile.skills);
+      _tools
+        ..clear()
+        ..addAll(profile.toolsAndTechnologies);
+      _selectedWorkArrangements
+        ..clear()
+        ..addAll(profile.internshipType);
+      _selectedLocations
+        ..clear()
+        ..addAll(profile.preferredLocations);
+      _uploadedCvStorageKey = profile.cvPdfUrl.isEmpty
+          ? null
+          : profile.cvPdfUrl;
+      _registrationComplete =
+          _uploadedCvStorageKey != null &&
+          profile.fullName.trim().isNotEmpty &&
+          profile.phone.trim().isNotEmpty &&
+          profile.universityName.trim().isNotEmpty &&
+          profile.degreeProgram.trim().isNotEmpty &&
+          profile.academicStatus.trim().isNotEmpty &&
+          profile.currentYearOfStudy >= 1 &&
+          profile.expectedGraduationDate != null &&
+          profile.desiredJobTitle.trim().isNotEmpty &&
+          profile.primaryDomain.trim().isNotEmpty &&
+          profile.careerObjectivesSummary.trim().isNotEmpty &&
+          profile.skills.isNotEmpty &&
+          profile.toolsAndTechnologies.isNotEmpty &&
+          profile.internshipType.isNotEmpty &&
+          profile.lectureScheduleType.trim().isNotEmpty &&
+          profile.preferredLocations.isNotEmpty;
+
+      final matchingDomain = _domains.where(
+        (domain) =>
+            domain['name'].toString().toLowerCase() ==
+            profile.primaryDomain.toLowerCase(),
+      );
+      if (matchingDomain.isNotEmpty) {
+        _selectedDomainId = matchingDomain.first['id'] as int;
+      } else if (profile.primaryDomain.isNotEmpty) {
+        _domains = [
+          ..._domains,
+          {'id': -2, 'name': profile.primaryDomain},
+        ];
+        _selectedDomainId = -2;
+      }
+    });
+
+    if (_selectedDomainId != null && _selectedDomainId! > 0) {
+      await _fetchJobTitles(_selectedDomainId!);
+    }
+    if (!mounted) return;
+    setState(() {
+      final matchingTitle = _jobTitles.where(
+        (title) =>
+            title['title'].toString().toLowerCase() ==
+            profile.desiredJobTitle.toLowerCase(),
+      );
+      if (matchingTitle.isNotEmpty) {
+        _selectedJobTitleId = matchingTitle.first['id'] as int;
+      } else if (profile.desiredJobTitle.isNotEmpty) {
+        _jobTitles = [
+          ..._jobTitles,
+          {'id': -2, 'title': profile.desiredJobTitle},
+        ];
+        _selectedJobTitleId = -2;
+      }
+    });
   }
 
   void _addSkill() {
@@ -102,21 +321,334 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  void _triggerSaveAnimation() async {
+  Future<void> _selectCvFile() async {
+    if (_isSelectingCv || _isSavingProfile) {
+      return;
+    }
+
     setState(() {
-      _isSaving = true;
-      _saveButtonText = 'Profile Synchronized!';
-      _saveButtonIcon = Icons.check_circle;
+      _isSelectingCv = true;
+      _cvSelectionError = null;
     });
 
-    await Future.delayed(const Duration(milliseconds: 2200));
+    try {
+      final file =
+          await (widget.pickCvFile?.call() ??
+              FilePicker.pickFile(
+                type: FileType.custom,
+                allowedExtensions: const ['pdf'],
+              ));
 
-    if (mounted) {
+      if (file == null) {
+        return;
+      }
+
+      final fileSize = file.lengthSync() ?? await file.length();
+      if (fileSize == null || fileSize <= 0) {
+        _setCvSelectionError(
+          'The selected PDF could not be read. Please try again.',
+        );
+        return;
+      }
+
+      if (fileSize > _maxCvFileSizeBytes) {
+        _setCvSelectionError('The CV must not exceed 10 MB.');
+        return;
+      }
+
+      if (!file.name.toLowerCase().endsWith('.pdf')) {
+        _setCvSelectionError('Only PDF files can be selected.');
+        return;
+      }
+
+      final bytes = await file.readAsBytes();
+      if (!_hasPdfSignature(bytes)) {
+        _setCvSelectionError(
+          'The selected file does not contain valid PDF content.',
+        );
+        return;
+      }
+
+      if (!mounted) {
+        return;
+      }
+
       setState(() {
-        _isSaving = false;
-        _saveButtonText = 'Save Resume';
-        _saveButtonIcon = Icons.verified;
+        _selectedCvFile = file;
+        _selectedCvFileSize = fileSize;
+        _cvSelectionError = null;
+        _cvUploadError = null;
       });
+    } catch (_) {
+      _setCvSelectionError(
+        'Unable to access the selected file. Please check permissions and try again.',
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isSelectingCv = false);
+      }
+    }
+  }
+
+  void _removeSelectedCv() {
+    setState(() {
+      _selectedCvFile = null;
+      _selectedCvFileSize = null;
+      _cvSelectionError = null;
+      _cvUploadError = null;
+    });
+  }
+
+  void _setCvSelectionError(String message) {
+    if (mounted) {
+      setState(() => _cvSelectionError = message);
+    }
+  }
+
+  bool _hasPdfSignature(Uint8List bytes) {
+    const pdfSignature = [0x25, 0x50, 0x44, 0x46, 0x2D];
+    if (bytes.length < pdfSignature.length) {
+      return false;
+    }
+
+    return List.generate(
+      pdfSignature.length,
+      (index) => index,
+    ).every((index) => bytes[index] == pdfSignature[index]);
+  }
+
+  String _formatFileSize(int bytes) {
+    const bytesPerMegabyte = 1024 * 1024;
+    return '${(bytes / bytesPerMegabyte).toStringAsFixed(1)} MB';
+  }
+
+  void _expireSession() {
+    StudentSession.clear();
+    _sessionExpired = true;
+  }
+
+  void _goToLogin() {
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const LandingScreen()),
+      (route) => false,
+    );
+  }
+
+  Future<Uint8List> _validatedPdfBytes(PlatformFile file) async {
+    if (!file.name.toLowerCase().endsWith('.pdf')) {
+      throw const CvUploadException('Only PDF files can be selected.');
+    }
+    final size = file.lengthSync() ?? await file.length();
+    if (size == null || size <= 0) {
+      throw const CvUploadException(
+        'The selected PDF could not be read. Please try again.',
+      );
+    }
+    if (size > _maxCvFileSizeBytes) {
+      throw const CvUploadException('The CV must not exceed 10 MB.');
+    }
+    final bytes = await file.readAsBytes();
+    if (bytes.isEmpty ||
+        bytes.length > _maxCvFileSizeBytes ||
+        !_hasPdfSignature(bytes)) {
+      throw const CvUploadException(
+        'The selected file does not contain valid PDF content.',
+      );
+    }
+    return bytes;
+  }
+
+  Future<void> _saveProfile() async {
+    if (_isLoadingProfile || _isSavingProfile) {
+      return;
+    }
+
+    final isFormValid = _formKey.currentState?.validate() ?? false;
+    setState(() {
+      _skillsError = _skills.isEmpty ? 'Add at least one skill.' : null;
+      _toolsError = _tools.isEmpty
+          ? 'Add at least one tool or technology.'
+          : null;
+      _internshipTypeError = _selectedWorkArrangements.isEmpty
+          ? 'Select at least one internship type.'
+          : null;
+      _locationError = _selectedLocations.isEmpty
+          ? 'Select at least one preferred location.'
+          : null;
+    });
+
+    if (!isFormValid ||
+        _skillsError != null ||
+        _toolsError != null ||
+        _internshipTypeError != null ||
+        _locationError != null) {
+      return;
+    }
+
+    if (StudentSession.token?.trim().isNotEmpty != true) {
+      setState(() {
+        _expireSession();
+        _profileMessage = 'Your session has expired. Please sign in again.';
+        _profileMessageIsError = true;
+      });
+      return;
+    }
+
+    if (_selectedCvFile == null && _uploadedCvStorageKey == null) {
+      setState(() {
+        _cvSelectionError = 'Select a valid PDF CV to complete registration.';
+        _profileMessage =
+            'A PDF CV is required to complete internship registration.';
+        _profileMessageIsError = true;
+      });
+      return;
+    }
+
+    if (_cvSelectionError != null) {
+      return;
+    }
+
+    setState(() {
+      _isSavingProfile = true;
+      _profileMessage = null;
+      _profileLoadFailed = false;
+      _saveButtonText = 'Completing registration...';
+    });
+
+    try {
+      final selectedCv = _selectedCvFile;
+      final cvBytes = selectedCv == null
+          ? null
+          : await _validatedPdfBytes(selectedCv);
+      final graduation = DateTime.parse(
+        _expectedGraduationController.text.trim(),
+      );
+      final domain = _domains.firstWhere(
+        (item) => item['id'] == _selectedDomainId,
+      );
+      final title = _jobTitles.firstWhere(
+        (item) => item['id'] == _selectedJobTitleId,
+      );
+      final request = StudentProfileUpsertRequest(
+        fullName: _fullNameController.text.trim(),
+        phone: _phoneController.text.trim(),
+        campusIdPhotoUrl: _campusIdPhotoUrl,
+        portfolioUrl: _portfolioUrlController.text.trim().isEmpty
+            ? null
+            : _portfolioUrlController.text.trim(),
+        universityName: _universityController.text.trim(),
+        academicStatus: _selectedAcademicStatus!,
+        degreeProgram: _selectedDegree!,
+        currentYearOfStudy: _selectedYearOfStudy!,
+        gpa: double.parse(_gpaController.text.trim()),
+        expectedGraduationDate: DateTime.utc(
+          graduation.year,
+          graduation.month,
+          graduation.day,
+        ),
+        desiredJobTitle: title['title'].toString(),
+        primaryDomain: domain['name'].toString(),
+        careerObjectivesSummary: _careerObjectivesController.text.trim(),
+        skills: List.of(_skills),
+        toolsAndTechnologies: List.of(_tools),
+        internshipType: _selectedWorkArrangements.toList(),
+        lectureScheduleType: _selectedSchedule!,
+        preferredLocations: _selectedLocations.toList(),
+      );
+      final result = await _profileService.saveProfile(
+        profile: request,
+        bearerToken: StudentSession.token ?? '',
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _campusIdPhotoUrl = result.campusIdPhotoUrl;
+        if (result.cvPdfUrl.isNotEmpty) _uploadedCvStorageKey = result.cvPdfUrl;
+      });
+
+      if (selectedCv != null && cvBytes != null) {
+        try {
+          final uploaded = await _cvUploadService.uploadPdf(
+            fileBytes: cvBytes,
+            fileName: selectedCv.name,
+            authToken: StudentSession.token ?? '',
+          );
+          if (!mounted) return;
+          setState(() {
+            _uploadedCvStorageKey = uploaded.storageKey;
+            _selectedCvFile = null;
+            _selectedCvFileSize = null;
+            _cvUploadError = null;
+          });
+        } on CvUploadException catch (error) {
+          if (!mounted) return;
+          if (error.statusCode == 401) _expireSession();
+          setState(() {
+            _profileMessage =
+                'Profile saved, but the CV still needs to be uploaded. ${error.message}';
+            _profileMessageIsError = true;
+            _cvUploadError = error.message;
+            _saveButtonText = 'Complete Internship Registration';
+            _saveButtonIcon = Icons.upload_file;
+            _registrationComplete = false;
+          });
+          return;
+        } catch (_) {
+          if (!mounted) return;
+          setState(() {
+            _profileMessage = 'Profile saved, but the CV still needs to be uploaded. Please retry.';
+            _profileMessageIsError = true;
+            _saveButtonText = 'Complete Internship Registration';
+            _saveButtonIcon = Icons.upload_file;
+            _registrationComplete = false;
+          });
+          return;
+        }
+      }
+
+      setState(() {
+        _registrationComplete = true;
+        _profileMessage = 'Internship registration completed successfully';
+        _profileMessageIsError = false;
+        _saveButtonText = 'Complete Internship Registration';
+        _saveButtonIcon = Icons.check_circle;
+      });
+    } on StudentProfileException catch (error) {
+      if (mounted) {
+        if (error.type == StudentProfileErrorType.unauthorized) {
+          _expireSession();
+        }
+        setState(() {
+          _profileMessage = error.message;
+          _profileMessageIsError = true;
+          _saveButtonText = 'Complete Internship Registration';
+          _saveButtonIcon = Icons.save_outlined;
+        });
+      }
+    } on CvUploadException catch (error) {
+      if (mounted) {
+        setState(() {
+          _cvSelectionError = error.message;
+          _profileMessage = error.message;
+          _profileMessageIsError = true;
+          _saveButtonText = 'Complete Internship Registration';
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _profileMessage = 'Unable to save your profile. Please check the form and try again.';
+          _profileMessageIsError = true;
+          _saveButtonText = 'Complete Internship Registration';
+          _saveButtonIcon = Icons.save_outlined;
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSavingProfile = false);
+      }
     }
   }
 
@@ -124,7 +656,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void dispose() {
     _skillController.dispose();
     _toolController.dispose();
+    _fullNameController.dispose();
+    _phoneController.dispose();
+    _universityController.dispose();
     _gpaController.dispose();
+    _expectedGraduationController.dispose();
+    _portfolioUrlController.dispose();
+    _careerObjectivesController.dispose();
     super.dispose();
   }
 
@@ -156,18 +694,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: const Icon(Icons.layers, color: Colors.white, size: 20),
             ),
             const SizedBox(width: 8),
-            const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'CampusAI Portal',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimaryLight),
-                ),
-                Text(
-                  'Autonomous Placement',
-                  style: TextStyle(fontSize: 11, color: AppColors.textSecondaryLight, fontWeight: FontWeight.normal),
-                ),
-              ],
+            const Flexible(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'CampusAI Portal',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimaryLight,
+                    ),
+                  ),
+                  Text(
+                    'Autonomous Placement',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textSecondaryLight,
+                      fontWeight: FontWeight.normal,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -176,7 +724,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             icon: const Badge(
               backgroundColor: Colors.red,
               smallSize: 8,
-              child: Icon(Icons.notifications_outlined, color: AppColors.textSecondaryLight),
+              child: Icon(
+                Icons.notifications_outlined,
+                color: AppColors.textSecondaryLight,
+              ),
             ),
             onPressed: () {},
           ),
@@ -192,7 +743,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     color: AppColors.primary,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.person, color: Colors.white, size: 18),
+                  child: const Icon(
+                    Icons.person,
+                    color: Colors.white,
+                    size: 18,
+                  ),
                 ),
                 Positioned(
                   bottom: -2,
@@ -202,7 +757,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       color: Colors.white,
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.verified, color: AppColors.primary, size: 14),
+                    child: const Icon(
+                      Icons.verified,
+                      color: AppColors.primary,
+                      size: 14,
+                    ),
                   ),
                 ),
               ],
@@ -213,140 +772,267 @@ class _ProfileScreenState extends State<ProfileScreen> {
       body: Stack(
         children: [
           SingleChildScrollView(
-            padding: const EdgeInsets.only(left: 16.0, right: 16.0, top: 16.0, bottom: 100.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Header & Completeness
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+            padding: const EdgeInsets.only(
+              left: 16.0,
+              right: 16.0,
+              top: 16.0,
+              bottom: 100.0,
+            ),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Header & Completeness
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'STUDENT INTERNSHIP',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primary,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              'Internship Registration',
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.textPrimaryLight,
+                              ),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              'Complete your profile and upload a PDF CV to register',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: AppColors.textSecondaryLight,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.description,
+                          color: AppColors.primary,
+                          size: 28,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  if (_isLoadingProfile) ...[
+                    const LinearProgressIndicator(),
+                    const SizedBox(height: 12),
+                    const Text('Loading student profile...'),
+                    const SizedBox(height: 16),
+                  ],
+                  if (_profileMessage != null) ...[
+                    Text(
+                      _profileMessage!,
+                      style: TextStyle(
+                        color: _profileMessageIsError
+                            ? Colors.red
+                            : AppColors.primary,
+                        fontSize: 13,
+                      ),
+                    ),
+                    if (_profileLoadFailed && !_isLoadingProfile)
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton(
+                          onPressed: _loadProfile,
+                          child: const Text('Retry loading'),
+                        ),
+                      ),
+                    if (_sessionExpired)
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton(
+                          onPressed: _goToLogin,
+                          child: const Text('Sign in again'),
+                        ),
+                      ),
+                    const SizedBox(height: 16),
+                  ],
+
+                  _buildCompletenessMeter(),
+                  const SizedBox(height: 24),
+
+                  _buildCardSection(
+                    icon: Icons.person_outline,
+                    title: 'Personal Information',
+                    children: [
+                      _buildInputField(
+                        'Full Name',
+                        Icons.person_outline,
+                        _fullNameController,
+                        validator: _validateRequired,
+                      ),
+                      const SizedBox(height: 16),
+                      _buildInputField(
+                        'Phone Number',
+                        Icons.phone_outlined,
+                        _phoneController,
+                        keyboardType: TextInputType.phone,
+                        validator: _validatePhone,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Academic Information Section
+                  _buildCardSection(
+                    icon: Icons.school,
+                    title: 'Academic Information',
+                    headerBadgeIcon: Icons.verified_user,
+                    children: [
+                      _buildInputField(
+                        'University / Institution',
+                        Icons.account_balance,
+                        _universityController,
+                        validator: _validateRequired,
+                      ),
+                      const SizedBox(height: 16),
+                      _buildDegreeDropdown(),
+                      const SizedBox(height: 16),
+                      Row(
                         children: [
-                          Text(
-                            'AUTONOMOUS MATCH READY',
-                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary, letterSpacing: 0.5),
-                          ),
-                          SizedBox(height: 2),
-                          Text(
-                            'My Resume',
-                            style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: AppColors.textPrimaryLight),
-                          ),
-                          SizedBox(height: 4),
-                          Text(
-                            'Build and synchronize your placement profile for AI match drives',
-                            style: TextStyle(fontSize: 14, color: AppColors.textSecondaryLight),
+                          Expanded(child: _buildAcademicStatusDropdown()),
+                          const SizedBox(width: 12),
+                          Expanded(child: _buildYearOfStudyDropdown()),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(child: _buildGpaField()),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildInputField(
+                              'Expected Grad',
+                              Icons.event,
+                              _expectedGraduationController,
+                              hintText: 'YYYY-MM-DD',
+                              keyboardType: TextInputType.datetime,
+                              validator: _validateExpectedGraduationDate,
+                            ),
                           ),
                         ],
                       ),
-                    ),
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
+                      const SizedBox(height: 16),
+                      _buildScheduleDropdown(),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Career Goals & Preferences Section
+                  _buildCardSection(
+                    icon: Icons.track_changes,
+                    title: 'Career Goals & Preferences',
+                    children: [
+                      _buildInputField(
+                        'Portfolio URL',
+                        Icons.link,
+                        _portfolioUrlController,
+                        keyboardType: TextInputType.url,
+                        validator: _validateOptionalUrl,
                       ),
-                      child: const Icon(Icons.description, color: AppColors.primary, size: 28),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
+                      const SizedBox(height: 16),
+                      _buildDomainDropdown(),
+                      const SizedBox(height: 16),
+                      _buildJobTitleDropdown(),
+                      const SizedBox(height: 16),
+                      _buildTextAreaField(
+                        'Career Objectives Summary',
+                        _careerObjectivesController,
+                        validator: _validateCareerObjectives,
+                      ),
+                      const SizedBox(height: 16),
+                      _buildInternshipTypeChips(),
+                      const SizedBox(height: 16),
+                      _buildPreferredLocationsChips(),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
 
-                _buildCompletenessMeter(),
-                const SizedBox(height: 24),
+                  // Technical Profile Section
+                  _buildCardSection(
+                    icon: Icons.code,
+                    title: 'Technical Profile',
+                    headerBadgeText: 'Sync Engine',
+                    headerBadgeIcon: Icons.auto_awesome,
+                    children: [
+                      _buildTagsSection(
+                        title: 'Core Programming & Skills',
+                        tags: _skills,
+                        controller: _skillController,
+                        onAdd: _addSkill,
+                        onRemove: (tag) => setState(() => _skills.remove(tag)),
+                        validationMessage: _skillsError,
+                        tagColor: AppColors.primary,
+                        tagBgColor: AppColors.primary.withValues(alpha: 0.1),
+                      ),
+                      const SizedBox(height: 24),
+                      _buildTagsSection(
+                        title: 'Tools, Cloud & Infra',
+                        tags: _tools,
+                        controller: _toolController,
+                        onAdd: _addTool,
+                        onRemove: (tag) => setState(() => _tools.remove(tag)),
+                        validationMessage: _toolsError,
+                        tagColor: Colors.deepPurple,
+                        tagBgColor: Colors.deepPurple.withValues(alpha: 0.1),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
 
-                // Document Upload Section
-                _buildSectionHeader('upload_file', 'Document Upload', badgeText: 'Primary Source'),
-                const SizedBox(height: 12),
-                _buildDocumentUploadDropzone(),
-                const SizedBox(height: 12),
-                _buildUploadedFileItem(),
-                const SizedBox(height: 24),
-
-                // Academic Information Section
-                _buildCardSection(
-                  icon: Icons.school,
-                  title: 'Academic Information',
-                  headerBadgeIcon: Icons.verified_user,
-                  children: [
-                    _buildInputField('University / Institution', Icons.account_balance, 'Stanford University / National Institute of Technology'),
-                    const SizedBox(height: 16),
-                    _buildDegreeDropdown(),
-                    const SizedBox(height: 16),
-                    Row(
+                  // Document Upload Section
+                  _buildSectionHeader(
+                    'upload_file',
+                    'Document Upload',
+                    badgeText: 'Primary Source',
+                  ),
+                  const SizedBox(height: 12),
+                  _buildDocumentUploadDropzone(),
+                  const SizedBox(height: 12),
+                  if (_uploadedCvStorageKey != null) ...[
+                    const Row(
                       children: [
-                        Expanded(child: _buildDropdownField('Status', null, ['Full-time Student', 'Graduating Senior'])),
-                        const SizedBox(width: 12),
-                        Expanded(child: _buildDropdownField('Year of Study', null, ['4th Year (Final)', '3rd Year (Junior)'])),
+                        Icon(Icons.check_circle, color: Colors.teal, size: 18),
+                        SizedBox(width: 8),
+                        Text(
+                          'CV uploaded',
+                          style: TextStyle(
+                            color: Colors.teal,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ],
                     ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(child: _buildGpaField()),
-                        const SizedBox(width: 12),
-                        Expanded(child: _buildInputField('Expected Grad', Icons.event, 'June 2026')),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    _buildScheduleDropdown(),
+                    const SizedBox(height: 12),
                   ],
-                ),
-                const SizedBox(height: 24),
-
-                // Career Goals & Preferences Section
-                _buildCardSection(
-                  icon: Icons.track_changes,
-                  title: 'Career Goals & Preferences',
-                  children: [
-                    _buildInputField('Portfolio URL', Icons.link, 'https://github.com/alexmorgan'),
-                    const SizedBox(height: 16),
-                    _buildDomainDropdown(),
-                    const SizedBox(height: 16),
-                    _buildJobTitleDropdown(),
-                    const SizedBox(height: 16),
-                    _buildTextAreaField('Career Objectives Summary', 'Passionate software engineer focused on building robust scalable systems and generative AI infrastructure. Seeking summer internship or graduate engineering role.'),
-                    const SizedBox(height: 16),
-                    _buildInternshipTypeChips(),
-                    const SizedBox(height: 16),
-                    _buildPreferredLocationsChips(),
-                  ],
-                ),
-                const SizedBox(height: 24),
-
-                // Technical Profile Section
-                _buildCardSection(
-                  icon: Icons.code,
-                  title: 'Technical Profile',
-                  headerBadgeText: 'Sync Engine',
-                  headerBadgeIcon: Icons.auto_awesome,
-                  children: [
-                    _buildTagsSection(
-                      title: 'Core Programming & Skills',
-                      tags: _skills,
-                      controller: _skillController,
-                      onAdd: _addSkill,
-                      onRemove: (tag) => setState(() => _skills.remove(tag)),
-                      tagColor: AppColors.primary,
-                      tagBgColor: AppColors.primary.withValues(alpha: 0.1),
-                    ),
-                    const SizedBox(height: 24),
-                    _buildTagsSection(
-                      title: 'Tools, Cloud & Infra',
-                      tags: _tools,
-                      controller: _toolController,
-                      onAdd: _addTool,
-                      onRemove: (tag) => setState(() => _tools.remove(tag)),
-                      tagColor: Colors.deepPurple,
-                      tagBgColor: Colors.deepPurple.withValues(alpha: 0.1),
-                    ),
-                  ],
-                ),
-              ],
+                  _buildUploadedFileItem(),
+                ],
+              ),
             ),
           ),
 
@@ -356,17 +1042,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
             right: 0,
             bottom: 0,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16.0,
+                vertical: 12.0,
+              ),
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.9),
                 border: Border(top: BorderSide(color: Colors.grey.shade200)),
               ),
               child: ElevatedButton.icon(
-                onPressed: _triggerSaveAnimation,
-                icon: Icon(_saveButtonIcon, size: 20),
-                label: Text(_saveButtonText, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                onPressed:
+                    _isLoadingProfile || _isSavingProfile || _sessionExpired
+                    ? null
+                    : _saveProfile,
+                icon: _isSavingProfile
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : Icon(_saveButtonIcon, size: 20),
+                label: Text(
+                  _saveButtonText,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _isSaving ? Colors.teal : AppColors.primary,
+                  backgroundColor: _isSavingProfile
+                      ? Colors.teal
+                      : AppColors.primary,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
@@ -389,7 +1098,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 4, offset: const Offset(0, 2)),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
         ],
       ),
       child: Column(
@@ -397,12 +1110,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Row(
-                children: [
-                  Icon(Icons.verified, color: AppColors.primary, size: 18),
-                  SizedBox(width: 6),
-                  Text('Profile Completeness', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                ],
+              const Expanded(
+                child: Row(
+                  children: [
+                    Icon(Icons.verified, color: AppColors.primary, size: 18),
+                    SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        'Profile Completeness',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -410,7 +1134,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   color: AppColors.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Text('85% Complete', style: TextStyle(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.bold)),
+                child: const Text(
+                  '85% Complete',
+                  style: TextStyle(
+                    color: AppColors.primary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
             ],
           ),
@@ -428,14 +1159,39 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Container(width: 6, height: 6, decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.5), shape: BoxShape.circle)),
-                  const SizedBox(width: 6),
-                  const Text('13 of 15 parameters optimized', style: TextStyle(fontSize: 12, color: AppColors.textSecondaryLight)),
-                ],
+              Expanded(
+                child: Row(
+                  children: [
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.5),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    const Flexible(
+                      child: Text(
+                        '13 of 15 parameters optimized',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondaryLight,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              const Text('View Gaps', style: TextStyle(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.bold)),
+              const Text(
+                'View Gaps',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ],
           ),
         ],
@@ -443,22 +1199,47 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildSectionHeader(String iconName, String title, {String? badgeText}) {
+  Widget _buildSectionHeader(
+    String iconName,
+    String title, {
+    String? badgeText,
+  }) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Row(
-          children: [
-            Icon(Icons.upload_file, color: AppColors.primary, size: 20),
-            const SizedBox(width: 8),
-            Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textPrimaryLight)),
-          ],
+        Expanded(
+          child: Row(
+            children: [
+              Icon(Icons.upload_file, color: AppColors.primary, size: 20),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimaryLight,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
         ),
         if (badgeText != null)
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-            decoration: BoxDecoration(color: Colors.grey.shade200, borderRadius: BorderRadius.circular(12)),
-            child: Text(badgeText, style: const TextStyle(fontSize: 11, color: AppColors.textSecondaryLight)),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade200,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              badgeText,
+              style: const TextStyle(
+                fontSize: 11,
+                color: AppColors.textSecondaryLight,
+              ),
+            ),
           ),
       ],
     );
@@ -470,7 +1251,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       decoration: BoxDecoration(
         color: AppColors.primary.withValues(alpha: 0.03),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)), // Approximating dashed with a light solid border
+        border: Border.all(
+          color: AppColors.primary.withValues(alpha: 0.2),
+        ), // Approximating dashed with a light solid border
       ),
       child: Column(
         children: [
@@ -481,52 +1264,139 @@ class _ProfileScreenState extends State<ProfileScreen> {
               color: AppColors.primary.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.cloud_upload_outlined, color: AppColors.primary, size: 26),
+            child: const Icon(
+              Icons.cloud_upload_outlined,
+              color: AppColors.primary,
+              size: 26,
+            ),
           ),
           const SizedBox(height: 12),
-          const Text('Upload CV (PDF)', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimaryLight)),
+          const Text(
+            'Upload CV (PDF)',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimaryLight,
+            ),
+          ),
           const SizedBox(height: 4),
           Text.rich(
             TextSpan(
               children: [
                 const TextSpan(text: 'Drag & drop or '),
-                const TextSpan(text: 'tap to browse', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
+                const TextSpan(
+                  text: 'tap to browse',
+                  style: TextStyle(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 const TextSpan(text: ' from device. Maximum 10MB.'),
               ],
             ),
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 12, color: AppColors.textSecondaryLight),
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppColors.textSecondaryLight,
+            ),
           ),
           const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+          Wrap(
+            alignment: WrapAlignment.center,
+            runSpacing: 8,
             children: [
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(4), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 2)]),
-                child: const Text('PDF format only', style: TextStyle(fontSize: 11, color: AppColors.textSecondaryLight)),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(4),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 2,
+                    ),
+                  ],
+                ),
+                child: const Text(
+                  'PDF format only',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textSecondaryLight,
+                  ),
+                ),
               ),
               const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(4)),
-                child: const Text('Campus AI OCR', style: TextStyle(fontSize: 11, color: AppColors.primary, fontWeight: FontWeight.bold)),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Text(
+                  'Campus AI OCR',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
             ],
-          )
+          ),
+          const SizedBox(height: 16),
+          OutlinedButton.icon(
+            onPressed: _isSelectingCv || _isSavingProfile
+                ? null
+                : _selectCvFile,
+            icon: _isSelectingCv
+                ? const SizedBox(
+                    height: 16,
+                    width: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.attach_file),
+            label: Text(_selectedCvFile == null ? 'Select PDF' : 'Change PDF'),
+          ),
+          if (_cvSelectionError != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                _cvSelectionError!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.red, fontSize: 12),
+              ),
+            ),
+          if (_cvUploadError != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                _cvUploadError!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.red, fontSize: 12),
+              ),
+            ),
         ],
       ),
     );
   }
 
   Widget _buildUploadedFileItem() {
+    final file = _selectedCvFile;
+    if (file == null) {
+      return const SizedBox.shrink();
+    }
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 4, offset: const Offset(0, 2)),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
         ],
       ),
       child: Row(
@@ -534,7 +1404,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Container(
             width: 40,
             height: 40,
-            decoration: BoxDecoration(color: Colors.red.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
+            decoration: BoxDecoration(
+              color: Colors.red.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
             child: const Icon(Icons.picture_as_pdf, color: Colors.red),
           ),
           const SizedBox(width: 12),
@@ -542,46 +1415,106 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('alex_morgan_cv_2025.pdf', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
+                Text(
+                  file.name,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 const SizedBox(height: 2),
-                Row(
+                Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    const Text('1.8 MB', style: TextStyle(fontSize: 12, color: AppColors.textSecondaryLight)),
+                    Text(
+                      _selectedCvFileSize == null
+                          ? 'Size unavailable'
+                          : _formatFileSize(_selectedCvFileSize!),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondaryLight,
+                      ),
+                    ),
                     const SizedBox(width: 6),
-                    Container(width: 4, height: 4, decoration: const BoxDecoration(color: Colors.grey, shape: BoxShape.circle)),
+                    Container(
+                      width: 4,
+                      height: 4,
+                      decoration: const BoxDecoration(
+                        color: Colors.grey,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
                     const SizedBox(width: 6),
-                    const Icon(Icons.task_alt, color: Colors.teal, size: 12),
+                    Icon(
+                      Icons.pending_outlined,
+                      color: Colors.orange,
+                      size: 12,
+                    ),
                     const SizedBox(width: 4),
-                    const Text('AI Parsed', style: TextStyle(fontSize: 11, color: Colors.teal, fontWeight: FontWeight.bold)),
+                    Text(
+                      'Ready to upload',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.orange,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ],
                 ),
+                if (_uploadedCvStorageKey != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    'Existing CV storage ID: $_uploadedCvStorageKey',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textSecondaryLight,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ],
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.visibility_outlined, color: Colors.grey, size: 20),
-            onPressed: () {},
-            style: IconButton.styleFrom(backgroundColor: Colors.grey.shade100, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-          ),
-          const SizedBox(width: 4),
-          IconButton(
-            icon: const Icon(Icons.delete_sweep_outlined, color: Colors.red, size: 20),
-            onPressed: () {},
-            style: IconButton.styleFrom(backgroundColor: Colors.red.shade50, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+            icon: const Icon(
+              Icons.delete_sweep_outlined,
+              color: Colors.red,
+              size: 20,
+            ),
+            onPressed: _isSavingProfile ? null : _removeSelectedCv,
+            style: IconButton.styleFrom(
+              backgroundColor: Colors.red.shade50,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildCardSection({required IconData icon, required String title, IconData? headerBadgeIcon, String? headerBadgeText, required List<Widget> children}) {
+  Widget _buildCardSection({
+    required IconData icon,
+    required String title,
+    IconData? headerBadgeIcon,
+    String? headerBadgeText,
+    required List<Widget> children,
+  }) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 4, offset: const Offset(0, 2)),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
         ],
       ),
       child: Column(
@@ -590,17 +1523,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
-                    child: Icon(icon, color: AppColors.primary, size: 18),
-                  ),
-                  const SizedBox(width: 12),
-                  Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textPrimaryLight)),
-                ],
+              Expanded(
+                child: Row(
+                  children: [
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(icon, color: AppColors.primary, size: 18),
+                    ),
+                    const SizedBox(width: 12),
+                    Flexible(
+                      child: Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimaryLight,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
               ),
               if (headerBadgeIcon != null && headerBadgeText == null)
                 Icon(headerBadgeIcon, color: AppColors.primary, size: 20),
@@ -609,7 +1557,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   children: [
                     Icon(headerBadgeIcon, color: AppColors.primary, size: 16),
                     const SizedBox(width: 4),
-                    Text(headerBadgeText, style: const TextStyle(color: AppColors.primary, fontSize: 11, fontWeight: FontWeight.bold)),
+                    Text(
+                      headerBadgeText,
+                      style: const TextStyle(
+                        color: AppColors.primary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ],
                 ),
             ],
@@ -621,20 +1576,91 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildInputField(String label, IconData? icon, String initialValue) {
+  String? _validateRequired(String? value) {
+    return value == null || value.trim().isEmpty
+        ? 'This field is required.'
+        : null;
+  }
+
+  String? _validatePhone(String? value) {
+    final phone = value?.trim() ?? '';
+    if (phone.isEmpty) return 'Phone number is required.';
+    return RegExp(r'^\+?[0-9][0-9\s\-()]{6,24}$').hasMatch(phone)
+        ? null
+        : 'Enter a valid phone number.';
+  }
+
+  String? _validateExpectedGraduationDate(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'Expected graduation date is required.';
+    }
+
+    final date = DateTime.tryParse(value.trim());
+    if (date == null) {
+      return 'Use YYYY-MM-DD.';
+    }
+
+    final today = DateUtils.dateOnly(DateTime.now());
+    return date.isBefore(today) ? 'Date cannot be in the past.' : null;
+  }
+
+  String? _validateOptionalUrl(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return null;
+    }
+
+    final uri = Uri.tryParse(value.trim());
+    return uri != null && uri.hasScheme && uri.hasAuthority
+        ? null
+        : 'Enter a valid URL.';
+  }
+
+  String? _validateCareerObjectives(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'Career objectives are required.';
+    }
+
+    return value.trim().length < 20 ? 'Enter at least 20 characters.' : null;
+  }
+
+  Widget _buildInputField(
+    String label,
+    IconData? icon,
+    TextEditingController controller, {
+    String? hintText,
+    TextInputType? keyboardType,
+    String? Function(String?)? validator,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 11, color: AppColors.textSecondaryLight)),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 11,
+            color: AppColors.textSecondaryLight,
+          ),
+        ),
         const SizedBox(height: 4),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-          decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(8),
+          ),
           child: TextFormField(
-            initialValue: initialValue,
-            style: const TextStyle(fontSize: 14, color: AppColors.textPrimaryLight),
+            controller: controller,
+            keyboardType: keyboardType,
+            validator: validator,
+            style: const TextStyle(
+              fontSize: 14,
+              color: AppColors.textPrimaryLight,
+            ),
             decoration: InputDecoration(
-              icon: icon != null ? Icon(icon, color: Colors.grey, size: 20) : null,
+              icon: icon != null
+                  ? Icon(icon, color: Colors.grey, size: 20)
+                  : null,
+              hintText: hintText,
               border: InputBorder.none,
               isDense: true,
               contentPadding: const EdgeInsets.symmetric(vertical: 12),
@@ -645,51 +1671,142 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildDropdownField(String label, IconData? icon, List<String> items) {
+  Widget _buildAcademicStatusDropdown() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 11, color: AppColors.textSecondaryLight)),
+        const Text(
+          'Status',
+          style: TextStyle(fontSize: 11, color: AppColors.textSecondaryLight),
+        ),
         const SizedBox(height: 4),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-          decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
-          child: Row(
-            children: [
-              if (icon != null) ...[
-                Icon(icon, color: Colors.grey, size: 20),
-                const SizedBox(width: 8),
-              ],
-              Expanded(
-                child: Text(items.first, style: const TextStyle(fontSize: 13, color: AppColors.textPrimaryLight), maxLines: 1, overflow: TextOverflow.ellipsis),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: DropdownButtonFormField<String>(
+            value: _selectedAcademicStatus,
+            hint: const Text(
+              'Select status',
+              style: TextStyle(
+                fontSize: 13,
+                color: AppColors.textSecondaryLight,
               ),
-              const Icon(Icons.expand_more, color: Colors.grey, size: 18),
-            ],
+            ),
+            isExpanded: true,
+            decoration: const InputDecoration(
+              border: InputBorder.none,
+              isDense: true,
+            ),
+            items:
+                {
+                      ...const ['Full-time Student', 'Graduating Senior'],
+                      if (_selectedAcademicStatus != null)
+                        _selectedAcademicStatus!,
+                    }
+                    .map(
+                      (status) =>
+                          DropdownMenuItem(value: status, child: Text(status)),
+                    )
+                    .toList(),
+            onChanged: (status) =>
+                setState(() => _selectedAcademicStatus = status),
+            validator: _validateRequired,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildTextAreaField(String label, String initialValue) {
+  Widget _buildYearOfStudyDropdown() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Year of Study',
+          style: TextStyle(fontSize: 11, color: AppColors.textSecondaryLight),
+        ),
+        const SizedBox(height: 4),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: DropdownButtonFormField<int>(
+            value: _selectedYearOfStudy,
+            hint: const Text(
+              'Select year',
+              style: TextStyle(
+                fontSize: 13,
+                color: AppColors.textSecondaryLight,
+              ),
+            ),
+            isExpanded: true,
+            decoration: const InputDecoration(
+              border: InputBorder.none,
+              isDense: true,
+            ),
+            items: List.generate(8, (index) {
+              final year = index + 1;
+              return DropdownMenuItem(value: year, child: Text('Year $year'));
+            }),
+            onChanged: (year) => setState(() => _selectedYearOfStudy = year),
+            validator: (year) => year == null ? 'Select a year.' : null,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTextAreaField(
+    String label,
+    TextEditingController controller, {
+    String? Function(String?)? validator,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(label, style: const TextStyle(fontSize: 11, color: AppColors.textSecondaryLight)),
-            const Text('174 / 300', style: TextStyle(fontSize: 11, color: AppColors.textSecondaryLight)),
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: AppColors.textSecondaryLight,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const Text(
+              '174 / 300',
+              style: TextStyle(
+                fontSize: 11,
+                color: AppColors.textSecondaryLight,
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 4),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-          decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(8),
+          ),
           child: TextFormField(
-            initialValue: initialValue,
+            controller: controller,
             maxLines: 3,
-            style: const TextStyle(fontSize: 14, color: AppColors.textPrimaryLight, height: 1.5),
+            validator: validator,
+            style: const TextStyle(
+              fontSize: 14,
+              color: AppColors.textPrimaryLight,
+              height: 1.5,
+            ),
             decoration: const InputDecoration(
               border: InputBorder.none,
               isDense: true,
@@ -705,11 +1822,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Lecture Schedule Type', style: TextStyle(fontSize: 11, color: AppColors.textSecondaryLight)),
+        const Text(
+          'Lecture Schedule Type',
+          style: TextStyle(fontSize: 11, color: AppColors.textSecondaryLight),
+        ),
         const SizedBox(height: 4),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-          decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(8),
+          ),
           child: DropdownButtonFormField<String>(
             value: _selectedSchedule,
             icon: const Icon(Icons.expand_more, color: Colors.grey, size: 18),
@@ -719,19 +1842,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
               isDense: true,
               contentPadding: EdgeInsets.symmetric(vertical: 10),
             ),
-            style: const TextStyle(fontSize: 13, color: AppColors.textPrimaryLight),
+            style: const TextStyle(
+              fontSize: 13,
+              color: AppColors.textPrimaryLight,
+            ),
             dropdownColor: Colors.white,
-            items: ['Weekday', 'Weekend'].map((String value) {
-              return DropdownMenuItem<String>(
-                value: value,
-                child: Text(value),
-              );
-            }).toList(),
+            items:
+                {
+                  ...const ['Weekday', 'Weekend'],
+                  if (_selectedSchedule != null) _selectedSchedule!,
+                }.map((String value) {
+                  return DropdownMenuItem<String>(
+                    value: value,
+                    child: Text(value),
+                  );
+                }).toList(),
             onChanged: (newValue) {
               if (newValue != null) {
                 setState(() => _selectedSchedule = newValue);
               }
             },
+            validator: _validateRequired,
           ),
         ),
       ],
@@ -742,45 +1873,67 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Preferred Work Locations', style: TextStyle(fontSize: 11, color: AppColors.textSecondaryLight)),
+        const Text(
+          'Preferred Work Locations',
+          style: TextStyle(fontSize: 11, color: AppColors.textSecondaryLight),
+        ),
         const SizedBox(height: 8),
         Wrap(
           spacing: 8,
           runSpacing: 8,
-          children: ['Colombo', 'Gampaha', 'Kandy', 'Remote'].map((location) {
-            final isSelected = _selectedLocations.contains(location);
-            return FilterChip(
-              label: Text(
-                location,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                  color: isSelected ? Colors.white : AppColors.textPrimaryLight,
-                ),
-              ),
-              selected: isSelected,
-              onSelected: (bool selected) {
-                setState(() {
-                  if (selected) {
-                    _selectedLocations.add(location);
-                  } else {
-                    _selectedLocations.remove(location);
-                  }
-                });
-              },
-              backgroundColor: Colors.grey.shade100,
-              selectedColor: AppColors.primary,
-              checkmarkColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-                side: BorderSide.none,
-              ),
-              showCheckmark: true,
-              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
-            );
-          }).toList(),
+          children:
+              {
+                ...const ['Colombo', 'Gampaha', 'Kandy', 'Remote'],
+                ..._selectedLocations,
+              }.map((location) {
+                final isSelected = _selectedLocations.contains(location);
+                return FilterChip(
+                  label: Text(
+                    location,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: isSelected
+                          ? FontWeight.bold
+                          : FontWeight.normal,
+                      color: isSelected
+                          ? Colors.white
+                          : AppColors.textPrimaryLight,
+                    ),
+                  ),
+                  selected: isSelected,
+                  onSelected: (bool selected) {
+                    setState(() {
+                      if (selected) {
+                        _selectedLocations.add(location);
+                      } else {
+                        _selectedLocations.remove(location);
+                      }
+                    });
+                  },
+                  backgroundColor: Colors.grey.shade100,
+                  selectedColor: AppColors.primary,
+                  checkmarkColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                    side: BorderSide.none,
+                  ),
+                  showCheckmark: true,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 0,
+                  ),
+                );
+              }).toList(),
         ),
+        if (_locationError != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(
+              _locationError!,
+              style: const TextStyle(color: Colors.red, fontSize: 12),
+            ),
+          ),
       ],
     );
   }
@@ -789,12 +1942,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Internship Work Arrangement', style: TextStyle(fontSize: 11, color: AppColors.textSecondaryLight)),
+        const Text(
+          'Internship Work Arrangement',
+          style: TextStyle(fontSize: 11, color: AppColors.textSecondaryLight),
+        ),
         const SizedBox(height: 8),
         Wrap(
           spacing: 8,
           runSpacing: 8,
-          children: internshipTypes.map((type) {
+          children: {...internshipTypes, ..._selectedWorkArrangements}.map((
+            type,
+          ) {
             final isSelected = _selectedWorkArrangements.contains(type);
             return FilterChip(
               label: Text(
@@ -828,6 +1986,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
             );
           }).toList(),
         ),
+        if (_internshipTypeError != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(
+              _internshipTypeError!,
+              style: const TextStyle(color: Colors.red, fontSize: 12),
+            ),
+          ),
       ],
     );
   }
@@ -836,15 +2002,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Cumulative GPA', style: TextStyle(fontSize: 11, color: AppColors.textSecondaryLight)),
+        const Text(
+          'Cumulative GPA',
+          style: TextStyle(fontSize: 11, color: AppColors.textSecondaryLight),
+        ),
         const SizedBox(height: 4),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-          decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(8),
+          ),
           child: TextFormField(
             controller: _gpaController,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            style: const TextStyle(fontSize: 14, color: AppColors.textPrimaryLight),
+            style: const TextStyle(
+              fontSize: 14,
+              color: AppColors.textPrimaryLight,
+            ),
             decoration: const InputDecoration(
               icon: Icon(Icons.grade, color: Colors.grey, size: 20),
               border: InputBorder.none,
@@ -852,10 +2027,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
               contentPadding: EdgeInsets.symmetric(vertical: 12),
             ),
             validator: (value) {
-              if (value == null || value.isEmpty) return null;
+              if (value == null || value.trim().isEmpty)
+                return 'GPA is required.';
               final numValue = double.tryParse(value);
               if (numValue == null || numValue < 0.0 || numValue > 4.0) {
-                return 'Invalid';
+                return 'Enter a GPA from 0.00 to 4.00.';
               }
               return null;
             },
@@ -869,14 +2045,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Degree Program', style: TextStyle(fontSize: 11, color: AppColors.textSecondaryLight)),
+        const Text(
+          'Degree Program',
+          style: TextStyle(fontSize: 11, color: AppColors.textSecondaryLight),
+        ),
         const SizedBox(height: 4),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-          decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(8),
+          ),
           child: DropdownButtonFormField<String>(
             value: _selectedDegree,
-            hint: const Text('Select Degree Program', style: TextStyle(fontSize: 13, color: AppColors.textSecondaryLight)),
+            hint: const Text(
+              'Select Degree Program',
+              style: TextStyle(
+                fontSize: 13,
+                color: AppColors.textSecondaryLight,
+              ),
+            ),
             icon: const Icon(Icons.expand_more, color: Colors.grey, size: 18),
             decoration: const InputDecoration(
               icon: Icon(Icons.menu_book, color: Colors.grey, size: 20),
@@ -885,17 +2073,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
               contentPadding: EdgeInsets.symmetric(vertical: 10),
             ),
             isExpanded: true,
-            style: const TextStyle(fontSize: 13, color: AppColors.textPrimaryLight),
+            style: const TextStyle(
+              fontSize: 13,
+              color: AppColors.textPrimaryLight,
+            ),
             dropdownColor: Colors.white,
-            items: degreePrograms.map((String value) {
-              return DropdownMenuItem<String>(
-                value: value,
-                child: Text(value, overflow: TextOverflow.ellipsis),
-              );
-            }).toList(),
+            items:
+                {
+                  ...degreePrograms,
+                  if (_selectedDegree != null) _selectedDegree!,
+                }.map((String value) {
+                  return DropdownMenuItem<String>(
+                    value: value,
+                    child: Text(value, overflow: TextOverflow.ellipsis),
+                  );
+                }).toList(),
             onChanged: (newValue) {
               setState(() => _selectedDegree = newValue);
             },
+            validator: _validateRequired,
           ),
         ),
       ],
@@ -906,16 +2102,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Primary Domain', style: TextStyle(fontSize: 11, color: AppColors.textSecondaryLight)),
+        const Text(
+          'Primary Domain',
+          style: TextStyle(fontSize: 11, color: AppColors.textSecondaryLight),
+        ),
         const SizedBox(height: 4),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-          decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(8),
+          ),
           child: DropdownButtonFormField<int>(
             value: _selectedDomainId,
             hint: _isLoadingDomains
-                ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                : const Text('Select Domain', style: TextStyle(fontSize: 13, color: AppColors.textSecondaryLight)),
+                ? const SizedBox(
+                    height: 16,
+                    width: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text(
+                    'Select Domain',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textSecondaryLight,
+                    ),
+                  ),
             icon: const Icon(Icons.expand_more, color: Colors.grey, size: 18),
             decoration: const InputDecoration(
               icon: Icon(Icons.hub, color: Colors.grey, size: 20),
@@ -924,24 +2136,43 @@ class _ProfileScreenState extends State<ProfileScreen> {
               contentPadding: EdgeInsets.symmetric(vertical: 10),
             ),
             isExpanded: true,
-            style: const TextStyle(fontSize: 13, color: AppColors.textPrimaryLight),
+            style: const TextStyle(
+              fontSize: 13,
+              color: AppColors.textPrimaryLight,
+            ),
             dropdownColor: Colors.white,
-            items: _domains.isEmpty 
-              ? [const DropdownMenuItem<int>(value: -1, child: Text('No Domains (Backend Offline?)', style: TextStyle(color: Colors.red)))]
-              : _domains.map<DropdownMenuItem<int>>((dynamic domain) {
-                  return DropdownMenuItem<int>(
-                    value: domain['id'],
-                    child: Text(domain['name'].toString(), overflow: TextOverflow.ellipsis),
-                  );
-                }).toList(),
+            items: _domains.isEmpty
+                ? [
+                    const DropdownMenuItem<int>(
+                      value: -1,
+                      child: Text(
+                        'No Domains (Backend Offline?)',
+                        style: TextStyle(color: Colors.red),
+                      ),
+                    ),
+                  ]
+                : _domains.map<DropdownMenuItem<int>>((dynamic domain) {
+                    return DropdownMenuItem<int>(
+                      value: domain['id'],
+                      child: Text(
+                        domain['name'].toString(),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    );
+                  }).toList(),
             onChanged: (newValue) {
-              if (newValue != null && newValue != -1 && newValue != _selectedDomainId) {
+              if (newValue != null &&
+                  newValue != -1 &&
+                  newValue != _selectedDomainId) {
                 setState(() {
                   _selectedDomainId = newValue;
                 });
-                _fetchJobTitles(newValue);
+                if (newValue > 0) _fetchJobTitles(newValue);
               }
             },
+            validator: (domainId) => domainId == null || domainId == -1
+                ? 'Select a primary domain.'
+                : null,
           ),
         ),
       ],
@@ -952,16 +2183,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Target Job Title', style: TextStyle(fontSize: 11, color: AppColors.textSecondaryLight)),
+        const Text(
+          'Target Job Title',
+          style: TextStyle(fontSize: 11, color: AppColors.textSecondaryLight),
+        ),
         const SizedBox(height: 4),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-          decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(8),
+          ),
           child: DropdownButtonFormField<int>(
             value: _selectedJobTitleId,
             hint: _isLoadingTitles
-                ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                : const Text('Select Job Title', style: TextStyle(fontSize: 13, color: AppColors.textSecondaryLight)),
+                ? const SizedBox(
+                    height: 16,
+                    width: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text(
+                    'Select Job Title',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textSecondaryLight,
+                    ),
+                  ),
             icon: const Icon(Icons.expand_more, color: Colors.grey, size: 18),
             decoration: const InputDecoration(
               icon: Icon(Icons.badge, color: Colors.grey, size: 20),
@@ -970,23 +2217,42 @@ class _ProfileScreenState extends State<ProfileScreen> {
               contentPadding: EdgeInsets.symmetric(vertical: 10),
             ),
             isExpanded: true,
-            style: const TextStyle(fontSize: 13, color: AppColors.textPrimaryLight),
+            style: const TextStyle(
+              fontSize: 13,
+              color: AppColors.textPrimaryLight,
+            ),
             dropdownColor: Colors.white,
             items: _jobTitles.isEmpty
-              ? [const DropdownMenuItem<int>(value: -1, child: Text('No Titles Found', style: TextStyle(color: Colors.red)))]
-              : _jobTitles.map<DropdownMenuItem<int>>((dynamic title) {
-                  return DropdownMenuItem<int>(
-                    value: title['id'],
-                    child: Text(title['title'].toString(), overflow: TextOverflow.ellipsis),
-                  );
-                }).toList(),
-            onChanged: _selectedDomainId == null ? null : (newValue) {
-              if (newValue != -1) {
-                setState(() {
-                  _selectedJobTitleId = newValue;
-                });
-              }
-            },
+                ? [
+                    const DropdownMenuItem<int>(
+                      value: -1,
+                      child: Text(
+                        'No Titles Found',
+                        style: TextStyle(color: Colors.red),
+                      ),
+                    ),
+                  ]
+                : _jobTitles.map<DropdownMenuItem<int>>((dynamic title) {
+                    return DropdownMenuItem<int>(
+                      value: title['id'],
+                      child: Text(
+                        title['title'].toString(),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    );
+                  }).toList(),
+            onChanged: _selectedDomainId == null
+                ? null
+                : (newValue) {
+                    if (newValue != -1) {
+                      setState(() {
+                        _selectedJobTitleId = newValue;
+                      });
+                    }
+                  },
+            validator: (jobTitleId) => jobTitleId == null || jobTitleId == -1
+                ? 'Select a target job title.'
+                : null,
           ),
         ),
       ],
@@ -999,6 +2265,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required TextEditingController controller,
     required VoidCallback onAdd,
     required Function(String) onRemove,
+    String? validationMessage,
     required Color tagColor,
     required Color tagBgColor,
   }) {
@@ -1008,8 +2275,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimaryLight)),
-            Text('${tags.length} active', style: const TextStyle(fontSize: 11, color: AppColors.textSecondaryLight)),
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimaryLight,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            Text(
+              '${tags.length} active',
+              style: const TextStyle(
+                fontSize: 11,
+                color: AppColors.textSecondaryLight,
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 8),
@@ -1019,11 +2302,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: tags.map((tag) {
             return Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(color: tagBgColor, borderRadius: BorderRadius.circular(20)),
+              decoration: BoxDecoration(
+                color: tagBgColor,
+                borderRadius: BorderRadius.circular(20),
+              ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(tag, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: tagColor)),
+                  Text(
+                    tag,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: tagColor,
+                    ),
+                  ),
                   const SizedBox(width: 4),
                   GestureDetector(
                     onTap: () => onRemove(tag),
@@ -1036,26 +2329,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         const SizedBox(height: 12),
         Container(
-          decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(8),
+          ),
           child: Row(
             children: [
               Expanded(
                 child: TextField(
                   controller: controller,
                   onSubmitted: (_) => onAdd(),
-                  style: const TextStyle(fontSize: 13, color: AppColors.textPrimaryLight),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textPrimaryLight,
+                  ),
                   decoration: const InputDecoration(
                     hintText: '+ Add Skill (press enter)...',
                     hintStyle: TextStyle(fontSize: 12, color: Colors.grey),
                     border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
                   ),
                 ),
               ),
               IconButton(
                 icon: Container(
                   padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(color: tagBgColor, borderRadius: BorderRadius.circular(6)),
+                  decoration: BoxDecoration(
+                    color: tagBgColor,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
                   child: Icon(Icons.add, size: 16, color: tagColor),
                 ),
                 onPressed: onAdd,
@@ -1063,6 +2368,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ],
           ),
         ),
+        if (validationMessage != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(
+              validationMessage,
+              style: const TextStyle(color: Colors.red, fontSize: 12),
+            ),
+          ),
       ],
     );
   }

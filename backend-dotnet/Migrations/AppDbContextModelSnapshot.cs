@@ -31,8 +31,14 @@ namespace backend_dotnet.Migrations
                     b.Property<string>("CompanyMessage")
                         .HasColumnType("text");
 
+                    b.Property<DateTime?>("DecisionDeadline")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTime?>("InterviewDate")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("InterviewStatus")
+                        .HasColumnType("integer");
 
                     b.Property<TimeSpan?>("InterviewTime")
                         .HasColumnType("interval");
@@ -58,7 +64,8 @@ namespace backend_dotnet.Migrations
 
                     b.HasIndex("JobId");
 
-                    b.HasIndex("StudentId");
+                    b.HasIndex("StudentId", "JobId")
+                        .IsUnique();
 
                     b.ToTable("Applications");
                 });
@@ -171,6 +178,9 @@ namespace backend_dotnet.Migrations
 
                     b.Property<int?>("JobTitleId")
                         .HasColumnType("integer");
+
+                    b.Property<DateTime?>("LastRepostedAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("LocationCity")
                         .IsRequired()

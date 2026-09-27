@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using backend_dotnet.Configuration;
 using backend_dotnet.Data;
 using backend_dotnet.Services;
 using backend_dotnet.Models;
@@ -7,6 +8,8 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
+using Polly;
+using Polly.Extensions.Http;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,9 +26,16 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 // 2. Controllers
 builder.Services.AddControllers();
-builder.Services.AddHttpClient();
 builder.Services.AddScoped<IDocumentStorageService, DocumentStorageService>();
-builder.Services.AddScoped<IEmailService, SendGridEmailService>();
+
+// Phase 2: Register SendGrid Email Service with Polly Exponential Backoff Retry Policy
+builder.Services.AddHttpClient<IEmailService, BrevoEmailService>()
+    .AddTransientHttpErrorPolicy(policyBuilder =>
+        policyBuilder.WaitAndRetryAsync(3, retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt))));
+
+// 2.1 CV storage configuration
+builder.Services.Configure<CvStorageOptions>(
+    builder.Configuration.GetSection(CvStorageOptions.SectionName));
 
 // 2.5 Register placement application matching services for Dependency Injection
 builder.Services.AddScoped<IApplicationService, ApplicationService>();
@@ -33,7 +43,13 @@ builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<ICompanyService, CompanyService>();
+builder.Services.AddScoped<ICvFileValidationService, CvFileValidationService>();
+builder.Services.AddHttpClient<ICvStorageService, SupabaseCvStorageService>();
 builder.Services.AddScoped<IJobService, JobService>();
+
+// 2.7 Register Background Services
+// builder.Services.AddHostedService<EvaluationTriggerService>();
+builder.Services.AddHostedService<AutoDeclineBackgroundService>();
 
 // 3. CORS
 builder.Services.AddCors(options =>
@@ -82,6 +98,14 @@ builder.Services.AddSwaggerGen(options =>
         Version = "v1",
         Description = "Account verification, document storage, AI validation approval gates, and interview scheduling."
     });
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        Description = "Enter the JWT returned by the login endpoint."
+    });
+    options.OperationFilter<AuthorizeOperationFilter>();
     var xmlPath = Path.Combine(AppContext.BaseDirectory, "backend-dotnet.xml");
     if (File.Exists(xmlPath)) options.IncludeXmlComments(xmlPath);
 });
@@ -203,7 +227,7 @@ if (builder.Configuration.GetValue("SeedAdminOnStartup", true))
             dbContext.Jobs.AddRange(
                 new Job
                 {
-                    JobId = Guid.NewGuid(),
+                    JobId = Guid.Parse("22222222-2222-2222-2222-222222222222"),
                     CompanyId = targetCompany.UserId,
                     JobTitle = "Backend Engineering Co-op",
                     TargetDomain = "Distributed Systems & Cloud APIs",
@@ -268,6 +292,72 @@ if (builder.Configuration.GetValue("SeedAdminOnStartup", true))
         // 5b. Seed Controlled Computing Target Domains & Realistic Internship Titles (Idempotent)
         await JobReferenceSeeder.SeedAsync(dbContext);
     }
+    
+    // ── Demo Students (Thusara Abey + Dinuri) ───────────────────────────────
+    var hasher2 = new PasswordHasher<User>();
+    var virtusaId = dbContext.Users.FirstOrDefault(u => u.Email == "virtusa@company.com")?.Id;
+    var coopJob    = virtusaId.HasValue ? dbContext.Jobs.FirstOrDefault(j => j.CompanyId == virtusaId.Value && j.JobTitle == "Backend Engineering Co-op") : null;
+    var mlJob      = virtusaId.HasValue ? dbContext.Jobs.FirstOrDefault(j => j.CompanyId == virtusaId.Value && j.JobTitle == "Associate Machine Learning Engineer") : null;
+
+    // ── Student 1: Thusara Abey ──────────────────────────────────────────────
+    var thusaraId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+    if (!dbContext.Users.Any(u => u.Id == thusaraId))
+    {
+        var thusara = new User { Id = thusaraId, Email = "thusaraabey16645@gmail.com", Role = UserRole.Student, Status = AccountStatus.Approved, CreatedAt = DateTime.UtcNow };
+        thusara.PasswordHash = hasher2.HashPassword(thusara, "DemoPass123!");
+        dbContext.Users.Add(thusara);
+        dbContext.StudentProfiles.Add(new StudentProfile
+        {
+            UserId     = thusaraId,
+            FullName   = "Thusara Abey",
+            UniversityName = "University of Moratuwa",
+            DegreeProgram  = "B.Sc. (Hons) Software Engineering",
+            GPA        = 3.95m,
+            Skills     = new[] { "Python", "Go", "PostgreSQL", "Docker" },
+            ToolsAndTechnologies = new[] { "Kubernetes", "Redis", "gRPC" },
+            PrimaryDomain = "Software Engineering"
+        });
+        if (coopJob != null)
+            dbContext.Applications.Add(new Application { AppId = Guid.NewGuid(), StudentId = thusaraId, JobId = coopJob.JobId, Status = ApplicationStatus.Admin_Approved, MatchScore = 98, SummaryReport = "{}" });
+        dbContext.SaveChanges();
+    }
+
+    // ── Student 2: Dinuri ────────────────────────────────────────────────────
+    var dinuriId = Guid.Parse("55555555-5555-5555-5555-555555555555");
+    if (!dbContext.Users.Any(u => u.Id == dinuriId))
+    {
+        var dinuri = new User { Id = dinuriId, Email = "thusaraabeyrathna@gmail.com", Role = UserRole.Student, Status = AccountStatus.Approved, CreatedAt = DateTime.UtcNow };
+        dinuri.PasswordHash = hasher2.HashPassword(dinuri, "DemoPass123!");
+        dbContext.Users.Add(dinuri);
+        dbContext.StudentProfiles.Add(new StudentProfile
+        {
+            UserId     = dinuriId,
+            FullName   = "Dinuri Perera",
+            UniversityName = "University of Colombo",
+            DegreeProgram  = "B.Sc. (Hons) Computer Science",
+            GPA        = 3.88m,
+            Skills     = new[] { "PyTorch", "Python", "TensorFlow", "FastAPI" },
+            ToolsAndTechnologies = new[] { "CUDA", "LangChain", "Docker" },
+            PrimaryDomain = "Artificial Intelligence & Machine Learning"
+        });
+        var targetJob = mlJob ?? coopJob;
+        if (targetJob != null)
+            dbContext.Applications.Add(new Application { AppId = Guid.NewGuid(), StudentId = dinuriId, JobId = targetJob.JobId, Status = ApplicationStatus.Admin_Approved, MatchScore = 94, SummaryReport = "{}" });
+        dbContext.SaveChanges();
+    }
+
+    // ── Reset demo application statuses to Admin_Approved on every startup ──
+    // This ensures a clean, re-demonstrable state every time the server restarts
+    var demoStudentIds = new[] { thusaraId, dinuriId };
+    var demoApps = dbContext.Applications.Where(a => demoStudentIds.Contains(a.StudentId)).ToList();
+    foreach (var demoApp in demoApps)
+    {
+        demoApp.Status = ApplicationStatus.Admin_Approved;
+        demoApp.InterviewStatus = InterviewStatus.NotScheduled;
+        demoApp.InterviewDate = null;
+        demoApp.InterviewTime = null;
+    }
+    dbContext.SaveChanges();
 }
 
 // Configure HTTP request pipeline

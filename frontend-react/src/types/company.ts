@@ -32,6 +32,8 @@ export interface ShortlistedCandidate {
   competencies: string[];
   status: string;
   statusColor: string;
+  cvPdfUrl?: string;
+  jobId?: string;
 }
 
 export interface CompanyDashboardData {

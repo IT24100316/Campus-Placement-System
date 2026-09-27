@@ -13,11 +13,10 @@ class ApiEndpoints {
   static String get uploadCv => '$baseUrl/students/upload-cv';
 
   // Jobs
-  static String get jobsFeed => '$baseUrl/jobs';
+  static String get jobsFeed => '$baseUrl/jobs/feed';
   static String jobDetails(String id) => '$baseUrl/jobs/$id';
 
   // Applications
   static String myApplications(String studentId) =>
       '$baseUrl/applications/student/$studentId';
-  static final String applyJob = '$baseUrl/applications/apply';
 }

@@ -1,6 +1,8 @@
-using Microsoft.AspNetCore.Mvc;
-using backend_dotnet.Services;
+using System.Security.Claims;
 using backend_dotnet.DTOs;
+using backend_dotnet.Services;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 
 namespace backend_dotnet.Controllers;
 
@@ -9,139 +11,370 @@ namespace backend_dotnet.Controllers;
 public class ApplicationsController : ControllerBase
 {
     private readonly IApplicationService _applicationService;
+    private readonly IConfiguration _configuration;
 
-    public ApplicationsController(IApplicationService applicationService)
+    public ApplicationsController(
+        IApplicationService applicationService,
+        IConfiguration configuration)
     {
         _applicationService = applicationService;
+        _configuration = configuration;
     }
 
-    /// <summary>Creates a pending job application for an approved student.</summary>
-    [HttpPost("apply")]
-    public async Task<IActionResult> Apply([FromBody] ApplyForJobDto request, CancellationToken cancellationToken)
-    {
-        try
-        {
-            var application = await _applicationService.ApplyAsync(request, cancellationToken);
-            return Ok(new { applicationId = application.AppId, status = application.Status.ToString() });
-        }
-        catch (KeyNotFoundException ex) { return NotFound(new { message = ex.Message }); }
-        catch (InvalidOperationException ex) { return Conflict(new { message = ex.Message }); }
-    }
-
-    /// <summary>Runs Agent 4 CV validation and pauses the workflow for administrator review.</summary>
-    [HttpPost("{appId:guid}/evaluate")]
-    public async Task<IActionResult> Evaluate(Guid appId, [FromBody] EvaluateApplicationDto request, CancellationToken cancellationToken)
-    {
-        try { return Ok(await _applicationService.EvaluateAsync(appId, request, cancellationToken)); }
-        catch (KeyNotFoundException ex) { return NotFound(new { message = ex.Message }); }
-        catch (InvalidOperationException ex) { return Conflict(new { message = ex.Message }); }
-        catch (HttpRequestException ex) { return StatusCode(502, new { message = ex.Message }); }
-    }
-
-    /// <summary>Lists Agent 4 results paused for administrator approval.</summary>
-    [HttpGet("pending-admin-approval")]
-    public async Task<IActionResult> PendingAdminApproval(CancellationToken cancellationToken) =>
-        Ok(await _applicationService.GetPendingAdminApprovalAsync(cancellationToken));
-
-    [HttpPost("{appId:guid}/admin-approve")]
-    public async Task<IActionResult> AdminApprove(Guid appId, CancellationToken cancellationToken) =>
-        await AdminDecision(appId, true, cancellationToken);
-
-    [HttpPost("{appId:guid}/admin-reject")]
-    public async Task<IActionResult> AdminReject(Guid appId, CancellationToken cancellationToken) =>
-        await AdminDecision(appId, false, cancellationToken);
-
-    [HttpGet("student/{studentId:guid}")]
-    public async Task<IActionResult> StudentApplications(Guid studentId, CancellationToken cancellationToken) =>
-        Ok(await _applicationService.GetStudentApplicationsAsync(studentId, cancellationToken));
-
-    private async Task<IActionResult> AdminDecision(Guid appId, bool approved, CancellationToken cancellationToken)
-    {
-        try
-        {
-            var application = await _applicationService.AdminDecisionAsync(appId, approved, cancellationToken);
-            return Ok(new { applicationId = application.AppId, status = application.Status.ToString(), workflowResumed = approved });
-        }
-        catch (KeyNotFoundException ex) { return NotFound(new { message = ex.Message }); }
-        catch (InvalidOperationException ex) { return Conflict(new { message = ex.Message }); }
-    }
 
     /// <summary>
-    /// Retrieves a paginated list of applications for a specific job, optionally filtered by status.
+    /// Creates a pending job application for an approved student.
     /// </summary>
-    [HttpGet("job/{jobId}")]
-    public async Task<IActionResult> GetApplicationsByJobId(Guid jobId, [FromQuery] int page = 1, [FromQuery] string? status = null)
+    [HttpPost("apply")]
+    public async Task<IActionResult> Apply(
+        [FromBody] ApplyForJobDto request,
+        CancellationToken cancellationToken)
     {
-        var result = await _applicationService.GetApplicationsByJobIdAsync(jobId, page, status);
-        return Ok(result);
+        try
+        {
+            var application = await _applicationService.ApplyAsync(
+                request,
+                cancellationToken);
+
+            return Ok(new
+            {
+                applicationId = application.AppId,
+                status = application.Status.ToString()
+            });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
     }
 
     /// <summary>
-    /// Searches for applications based on a provided query string.
+    /// Webhook endpoint for Python Agent 3 to return evaluation results.
+    /// </summary>
+    [HttpPost("webhook/evaluation-result")]
+    public async Task<IActionResult> EvaluationWebhook(
+        [FromBody] WebhookEvaluationResultDto payload,
+        CancellationToken cancellationToken)
+    {
+        var configuredSecret = _configuration["Webhook:Secret"];
+
+        if (string.IsNullOrWhiteSpace(configuredSecret))
+        {
+            return StatusCode(
+                StatusCodes.Status503ServiceUnavailable,
+                new { message = "The webhook is not configured." });
+        }
+
+        if (!Request.Headers.TryGetValue(
+                "x-webhook-secret",
+                out var providedSecret) ||
+            providedSecret != configuredSecret)
+        {
+            return Unauthorized(new
+            {
+                message = "Invalid or missing webhook secret."
+            });
+        }
+
+        try
+        {
+            await _applicationService.HandleEvaluationWebhookAsync(
+                payload,
+                cancellationToken);
+
+            return Ok(new
+            {
+                message = "Webhook processed successfully."
+            });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Lists Agent 4 results paused for administrator approval.
+    /// </summary>
+    [HttpGet("pending-admin-approval")]
+    public async Task<IActionResult> PendingAdminApproval(
+        CancellationToken cancellationToken)
+    {
+        var applications =
+            await _applicationService.GetPendingAdminApprovalAsync(
+                cancellationToken);
+
+        return Ok(applications);
+    }
+
+    /// <summary>
+    /// Approves an application and resumes its workflow.
+    /// </summary>
+    [HttpPost("{appId:guid}/admin-approve")]
+    public Task<IActionResult> AdminApprove(
+        Guid appId,
+        CancellationToken cancellationToken)
+    {
+        return AdminDecision(
+            appId,
+            approved: true,
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// Rejects an application during administrator review.
+    /// </summary>
+    [HttpPost("{appId:guid}/admin-reject")]
+    public Task<IActionResult> AdminReject(
+        Guid appId,
+        CancellationToken cancellationToken)
+    {
+        return AdminDecision(
+            appId,
+            approved: false,
+            cancellationToken);
+    }
+
+    public class HumanVerifyRequest
+    {
+        public Guid AppId { get; set; }
+        public bool Approved { get; set; }
+    }
+
+    /// <summary>
+    /// Bridge endpoint for React UI to approve/reject an application.
+    /// This updates the local DB and forwards the resume signal to Python AI.
+    /// </summary>
+    [HttpPost("human-verify")]
+    public async Task<IActionResult> HumanVerify(
+        [FromBody] HumanVerifyRequest request,
+        [FromServices] IHttpClientFactory httpClientFactory,
+        [FromServices] IConfiguration configuration,
+        CancellationToken cancellationToken)
+    {
+        // 1. First, process the local Admin Decision 
+        try
+        {
+            await _applicationService.AdminDecisionAsync(request.AppId, request.Approved, cancellationToken);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
+
+        // 2. Forward the decision to Python to wake up the sleeping Agent
+        var aiBaseUrl = (configuration["AiService:BaseUrl"] ?? "http://127.0.0.1:8000").TrimEnd('/');
+        var client = httpClientFactory.CreateClient();
+        
+        var body = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            thread_id = request.AppId.ToString(), // thread_id matches the application ID
+            human_approved = request.Approved
+        });
+
+        try
+        {
+            // We just fire it and don't strictly care if it fails, but we can check.
+            await client.PostAsync($"{aiBaseUrl}/resume", 
+                new StringContent(body, System.Text.Encoding.UTF8, "application/json"), cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            // Log it but don't fail the UI request
+            Console.WriteLine($"Warning: Failed to resume Python graph for thread {request.AppId}. {ex.Message}");
+        }
+
+        return Ok(new { message = "Decision processed and AI resumed." });
+    }
+
+    /// <summary>
+    /// Lists applications belonging to the specified student.
+    /// </summary>
+    [HttpGet("student/{studentId:guid}")]
+    public async Task<IActionResult> StudentApplications(
+        Guid studentId,
+        CancellationToken cancellationToken)
+    {
+        var applications =
+            await _applicationService.GetStudentApplicationsAsync(
+                studentId,
+                cancellationToken);
+
+        return Ok(applications);
+    }
+
+    /// <summary>
+    /// Lists applications belonging to the authenticated student.
+    /// </summary>
+    [HttpGet("me")]
+    [Authorize(Roles = "Student")]
+    public async Task<IActionResult> MyApplications(
+        CancellationToken cancellationToken)
+    {
+        var claimValue =
+            User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        if (User.Identity?.IsAuthenticated != true ||
+            !Guid.TryParse(claimValue, out var studentId) ||
+            studentId == Guid.Empty)
+        {
+            return Unauthorized(new
+            {
+                message =
+                    "An authenticated student identity is required."
+            });
+        }
+
+        var applications =
+            await _applicationService.GetStudentApplicationsAsync(
+                studentId,
+                cancellationToken);
+
+        return Ok(applications);
+    }
+
+    /// <summary>
+    /// Retrieves a paginated list of applications for a specific job.
+    /// </summary>
+    [HttpGet("job/{jobId:guid}")]
+    public async Task<IActionResult> GetApplicationsByJobId(
+        Guid jobId,
+        [FromQuery] int page = 1,
+        [FromQuery] string? status = null)
+    {
+        var applications =
+            await _applicationService.GetApplicationsByJobIdAsync(
+                jobId,
+                page,
+                status!);
+
+        return Ok(applications);
+    }
+
+    /// <summary>
+    /// Searches for applications using the provided query.
     /// </summary>
     [HttpGet("search")]
-    public async Task<IActionResult> SearchApplications([FromQuery] string query)
+    public async Task<IActionResult> SearchApplications(
+        [FromQuery] string query)
     {
-        var result = await _applicationService.SearchApplicationsAsync(query);
-        return Ok(result);
+        var applications =
+            await _applicationService.SearchApplicationsAsync(query);
+
+        return Ok(applications);
     }
 
-    /// <summary>
-    /// Updates the status of a specific application.
-    /// </summary>
-    [HttpPut("{appId}/status")]
-    public async Task<IActionResult> UpdateApplicationStatus(Guid appId, [FromBody] UpdateStatusRequestDto request)
-    {
-        try
-        {
-            await _applicationService.UpdateApplicationStatusAsync(appId, request);
-            return Ok(new { message = "Status updated successfully" });
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new { message = ex.Message });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return Conflict(new { message = ex.Message });
-        }
-    }
 
     /// <summary>
-    /// Schedules an interview for a specific application.
+    /// Retrieves the CV download URL for an application.
     /// </summary>
-    [HttpPut("{appId}/interview")]
-    public async Task<IActionResult> ScheduleInterview(Guid appId, [FromBody] ScheduleInterviewRequestDto request)
-    {
-        try
-        {
-            await _applicationService.ScheduleInterviewAsync(appId, request);
-            return Ok(new { message = "Interview scheduled successfully" });
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new { message = ex.Message });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return Conflict(new { message = ex.Message });
-        }
-    }
-
-    /// <summary>
-    /// Retrieves the CV download URL for a specific application.
-    /// </summary>
-    [HttpGet("{appId}/cv")]
+    [HttpGet("{appId:guid}/cv")]
     public async Task<IActionResult> GetCvDownloadUrl(Guid appId)
     {
         try
         {
-            var url = await _applicationService.GetCvDownloadUrlAsync(appId);
+            var url =
+                await _applicationService.GetCvDownloadUrlAsync(appId);
+
             return Ok(new { cvUrl = url });
         }
         catch (KeyNotFoundException ex)
         {
             return NotFound(new { message = ex.Message });
+        }
+    }
+
+    private async Task<IActionResult> AdminDecision(
+        Guid appId,
+        bool approved,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var application =
+                await _applicationService.AdminDecisionAsync(
+                    appId,
+                    approved,
+                    cancellationToken);
+
+            return Ok(new
+            {
+                applicationId = application.AppId,
+                status = application.Status.ToString(),
+                workflowResumed = approved
+            });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Accepts an application offer.
+    /// </summary>
+    [HttpPost("{appId:guid}/student-accept")]
+    [Authorize(Roles = "Student")]
+    public Task<IActionResult> StudentAccept(
+        Guid appId,
+        CancellationToken cancellationToken)
+    {
+        return StudentDecision(appId, true, cancellationToken);
+    }
+
+    /// <summary>
+    /// Declines an application offer.
+    /// </summary>
+    [HttpPost("{appId:guid}/student-decline")]
+    [Authorize(Roles = "Student")]
+    public Task<IActionResult> StudentDecline(
+        Guid appId,
+        CancellationToken cancellationToken)
+    {
+        return StudentDecision(appId, false, cancellationToken);
+    }
+
+    private async Task<IActionResult> StudentDecision(
+        Guid appId,
+        bool accepted,
+        CancellationToken cancellationToken)
+    {
+        var claimValue = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (User.Identity?.IsAuthenticated != true || !Guid.TryParse(claimValue, out var studentId) || studentId == Guid.Empty)
+            return Unauthorized(new { message = "An authenticated student identity is required." });
+
+        try
+        {
+            var application = await _applicationService.StudentDecisionAsync(appId, studentId, accepted, cancellationToken);
+            return Ok(new
+            {
+                applicationId = application.AppId,
+                status = application.Status.ToString()
+            });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
         }
     }
 }

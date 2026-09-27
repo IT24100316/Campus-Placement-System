@@ -183,3 +183,6 @@ $RECYCLE.BIN/
 .fseventsd
 .Spotlight-V100
 .Trashes
+
+# Project Documentation (Local)
+COMPONENT_B_RESPONSIBILITIES.md

@@ -1,0 +1,92 @@
+==================================================
+ANALYSIS AGENT BATCH RUN LOG
+==================================================
+Job Title: Backend Engineer
+Candidates processed: 5
+Threshold to pass: 60%
+--------------------------------------------------
+
+Student ID: STU_1001
+Score: 60/100 [PASSED]
+Mandatory Matches: 2/3
+Nice-to-Have Matches: 1/2
+Breakdown:
+  [Y] MANDATORY: req 'python' -> stud 'python'
+      (Resolution: exact | Reason: Exact normalized skill match.)
+  [Y] MANDATORY: req 'postgresql' -> stud 'postgresql'
+      (Resolution: exact | Reason: Exact normalized skill match.)
+  [Y] NICE_TO_HAVE: req 'docker' -> stud 'docker'
+      (Resolution: exact | Reason: Exact normalized skill match.)
+  [N] MANDATORY: req 'django' -> stud 'None'
+      (Resolution: no_match | Reason: No exact or verified equivalent skill.)
+  [N] NICE_TO_HAVE: req 'aws' -> stud 'None'
+      (Resolution: no_match | Reason: No exact or verified equivalent skill.)
+--------------------------------------------------
+
+Student ID: STU_1002
+Score: 40/100 [FAILED]
+Mandatory Matches: 1/3
+Nice-to-Have Matches: 1/2
+Breakdown:
+  [Y] MANDATORY: req 'python' -> stud 'python'
+      (Resolution: exact | Reason: Exact normalized skill match.)
+  [Y] NICE_TO_HAVE: req 'aws' -> stud 'aws'
+      (Resolution: exact | Reason: Exact normalized skill match.)
+  [N] MANDATORY: req 'django' -> stud 'None'
+      (Resolution: no_match | Reason: No exact or verified equivalent skill.)
+  [N] MANDATORY: req 'postgresql' -> stud 'None'
+      (Resolution: no_match | Reason: No exact or verified equivalent skill.)
+  [N] NICE_TO_HAVE: req 'docker' -> stud 'None'
+      (Resolution: no_match | Reason: No exact or verified equivalent skill.)
+--------------------------------------------------
+
+Student ID: STU_1003
+Score: 0/100 [FAILED]
+Mandatory Matches: 0/3
+Nice-to-Have Matches: 0/2
+Breakdown:
+  [N] MANDATORY: req 'python' -> stud 'None'
+      (Resolution: no_match | Reason: No exact or verified equivalent skill.)
+  [N] MANDATORY: req 'django' -> stud 'None'
+      (Resolution: no_match | Reason: No exact or verified equivalent skill.)
+  [N] MANDATORY: req 'postgresql' -> stud 'None'
+      (Resolution: no_match | Reason: No exact or verified equivalent skill.)
+  [N] NICE_TO_HAVE: req 'docker' -> stud 'None'
+      (Resolution: no_match | Reason: No exact or verified equivalent skill.)
+  [N] NICE_TO_HAVE: req 'aws' -> stud 'None'
+      (Resolution: no_match | Reason: No exact or verified equivalent skill.)
+--------------------------------------------------
+
+Student ID: STU_1004
+Score: 40/100 [FAILED]
+Mandatory Matches: 1/3
+Nice-to-Have Matches: 1/2
+Breakdown:
+  [Y] MANDATORY: req 'python' -> stud 'python'
+      (Resolution: exact | Reason: Exact normalized skill match.)
+  [Y] NICE_TO_HAVE: req 'docker' -> stud 'docker'
+      (Resolution: exact | Reason: Exact normalized skill match.)
+  [N] MANDATORY: req 'django' -> stud 'None'
+      (Resolution: no_match | Reason: No exact or verified equivalent skill.)
+  [N] MANDATORY: req 'postgresql' -> stud 'None'
+      (Resolution: no_match | Reason: No exact or verified equivalent skill.)
+  [N] NICE_TO_HAVE: req 'aws' -> stud 'None'
+      (Resolution: no_match | Reason: No exact or verified equivalent skill.)
+--------------------------------------------------
+
+Student ID: STU_1005
+Score: 20/100 [FAILED]
+Mandatory Matches: 1/3
+Nice-to-Have Matches: 0/2
+Breakdown:
+  [Y] MANDATORY: req 'django' -> stud 'django'
+      (Resolution: exact | Reason: Exact normalized skill match.)
+  [N] MANDATORY: req 'python' -> stud 'None'
+      (Resolution: no_match | Reason: No exact or verified equivalent skill.)
+  [N] MANDATORY: req 'postgresql' -> stud 'None'
+      (Resolution: no_match | Reason: No exact or verified equivalent skill.)
+  [N] NICE_TO_HAVE: req 'docker' -> stud 'None'
+      (Resolution: no_match | Reason: No exact or verified equivalent skill.)
+  [N] NICE_TO_HAVE: req 'aws' -> stud 'None'
+      (Resolution: no_match | Reason: No exact or verified equivalent skill.)
+--------------------------------------------------

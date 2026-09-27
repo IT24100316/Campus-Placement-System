@@ -77,13 +77,27 @@ Follow these steps **in order** when setting up the project for the very first t
 
    Keep credentials outside tracked files. You can also use .NET user secrets:
    ```bash
-   dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Host=localhost;Port=5432;Database=SEF_Project;Username=postgres;Password=YOUR_POSTGRES_PASSWORD"
-   dotnet user-secrets set "Supabase:Url" "https://YOUR_PROJECT.supabase.co"
-   dotnet user-secrets set "Supabase:ServiceRoleKey" "YOUR_SERVICE_ROLE_KEY"
+   # From Supabase Dashboard → Connect. Keep sslmode=require.
+   dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Host=db.YOUR_PROJECT_REF.supabase.co;Port=5432;Database=postgres;Username=postgres;Password=YOUR_SUPABASE_DATABASE_PASSWORD;Ssl Mode=Require"
+   dotnet user-secrets set "Supabase:Url" "https://YOUR_PROJECT_REF.supabase.co"
+   dotnet user-secrets set "Supabase:ServiceRoleKey" "YOUR_SUPABASE_SECRET_KEY"
+   dotnet user-secrets set "Supabase:VerificationBucket" "verification-docs"
+   dotnet user-secrets set "Supabase:CvBucket" "student-cvs"
    dotnet user-secrets set "SendGrid:ApiKey" "YOUR_SENDGRID_API_KEY"
    dotnet user-secrets set "SendGrid:FromEmail" "verified-sender@example.edu"
    ```
    The backend creates the private Supabase bucket `verification-docs` on the first upload. If Supabase is not configured, development uploads use `backend-dotnet/App_Data/verification-docs`.
+
+   **Shared Supabase project: required on every developer computer**
+
+   Supabase PostgreSQL and Supabase Storage are separate services. Connecting a clone to the shared database makes users and profiles visible to everyone, but it does not give that computer permission to upload or display private files.
+
+   Every computer that runs the .NET backend must set `Supabase:Url` and `Supabase:ServiceRoleKey` using the shared project values above, then restart the backend. This applies to both the Flutter registration backend and the backend used by the React admin portal.
+
+   - Campus-ID photos are stored in the private `verification-docs` bucket under `campus-ids/`.
+   - CV PDFs are stored in the private `student-cvs` bucket under the student's user ID.
+   - Never commit the secret key, database password, or an `appsettings.Development.json` containing them. Send them privately to teammates.
+   - If a database value starts with `local://`, the file is only on the computer that uploaded it and cannot be displayed by another teammate's backend. Re-upload it after configuring Supabase Storage.
 
 3. **Install Entity Framework Core Tools:**
    ```bash
@@ -97,6 +111,9 @@ Follow these steps **in order** when setting up the project for the very first t
    dotnet ef database update
    ```
    *🎉 This command automatically creates all database tables in your PostgreSQL `SEF_Project` database!*
+
+5. **Configure CV Storage:**
+   CV uploads use the same Supabase project configured above. The backend creates the private `student-cvs` bucket on the first CV upload, provided the configured key is a Supabase secret key or legacy service-role key. The CV size limit defaults to 10 MB. A `local://` CV or ID-photo record cannot be shared between computers; configure Supabase Storage first and re-upload it. Do not put database passwords or Supabase secret keys in tracked files.
 
 ---
 
