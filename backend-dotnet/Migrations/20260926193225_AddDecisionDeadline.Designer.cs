@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using backend_dotnet.Data;
@@ -11,9 +12,11 @@ using backend_dotnet.Data;
 namespace backend_dotnet.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260926193225_AddDecisionDeadline")]
+    partial class AddDecisionDeadline
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -36,9 +39,6 @@ namespace backend_dotnet.Migrations
 
                     b.Property<DateTime?>("InterviewDate")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("InterviewStatus")
-                        .HasColumnType("integer");
 
                     b.Property<TimeSpan?>("InterviewTime")
                         .HasColumnType("interval");
@@ -178,9 +178,6 @@ namespace backend_dotnet.Migrations
 
                     b.Property<int?>("JobTitleId")
                         .HasColumnType("integer");
-
-                    b.Property<DateTime?>("LastRepostedAt")
-                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("LocationCity")
                         .IsRequired()

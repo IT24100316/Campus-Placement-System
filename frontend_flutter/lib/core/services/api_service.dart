@@ -118,6 +118,30 @@ class ApiService {
     return (jsonDecode(response.body) as List).cast<Map<String, dynamic>>();
   }
 
+  Future<void> acceptOffer(String appId) async {
+    final token = StudentSession.token;
+    if (token == null) throw Exception('Not authenticated.');
+    final response = await http.post(
+      Uri.parse('${ApiEndpoints.baseUrl}/Applications/$appId/student-accept'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      _decode(response); // Throws the error inside _decode
+    }
+  }
+
+  Future<void> declineOffer(String appId) async {
+    final token = StudentSession.token;
+    if (token == null) throw Exception('Not authenticated.');
+    final response = await http.post(
+      Uri.parse('${ApiEndpoints.baseUrl}/Applications/$appId/student-decline'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      _decode(response);
+    }
+  }
+
   Map<String, dynamic> _decode(http.Response response) {
     final data = response.body.isEmpty
         ? <String, dynamic>{}

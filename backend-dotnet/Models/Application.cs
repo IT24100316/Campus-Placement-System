@@ -10,7 +10,9 @@ public class Application
     public ApplicationStatus Status { get; set; } = ApplicationStatus.Pending;
     public DateTime? InterviewDate { get; set; }
     public TimeSpan? InterviewTime { get; set; }
+    public InterviewStatus InterviewStatus { get; set; } = InterviewStatus.NotScheduled;
     public string? CompanyMessage { get; set; }
+    public DateTime? DecisionDeadline { get; set; }
 
     // Navigation properties
     public User Student { get; set; } = null!;

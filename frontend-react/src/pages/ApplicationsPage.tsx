@@ -90,6 +90,18 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
             if (parsed.github_comprehensive_analysis) aiPoints.push({ topic: 'GitHub Analysis', content: parsed.github_comprehensive_analysis });
             if (parsed.approval_recommendation) aiPoints.push({ topic: 'Recommendation', content: parsed.approval_recommendation });
             
+            // Extract Agent 4 (Validation Agent) Data
+            if (parsed.validation) {
+              if (parsed.validation.confidence !== undefined) {
+                aiPoints.push({ topic: 'Agent 4 Confidence Score', content: `${Math.round(parsed.validation.confidence * 100)}% CV Match` });
+              }
+              if (parsed.validation.warnings && parsed.validation.warnings.length > 0) {
+                aiPoints.push({ topic: 'Agent 4 Warnings', content: parsed.validation.warnings.join(' | ') });
+              }
+              if (parsed.validation.unsupported_terms && parsed.validation.unsupported_terms.length > 0) {
+                aiPoints.push({ topic: 'Unverified Claims', content: parsed.validation.unsupported_terms.join(', ') });
+              }
+            }
           } catch (e) {
             console.error('Failed to parse AI report', e);
           }
@@ -156,9 +168,13 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
 
   const handleAction = async (id: string, action: 'approve' | 'reject') => {
     try {
-      const endpoint = action === 'approve' ? 'admin-approve' : 'admin-reject';
-      const res = await fetch(`http://localhost:5168/api/Applications/${id}/${endpoint}`, {
-        method: 'POST'
+      const res = await fetch(`http://localhost:5168/api/Applications/human-verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          AppId: id,
+          Approved: action === 'approve'
+        })
       });
       if (res.ok) {
         setCandidates(prev => prev.map(c => 
@@ -771,11 +787,11 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
                           </div>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                          <button type="button" onClick={() => window.open(`https://docs.google.com/viewer?url=${encodeURIComponent(viewingStudentFor.cvUrl)}`, '_blank')} className="p-2 rounded-lg bg-white border border-slate-200 hover:border-blue-300 shadow-sm text-slate-600 hover:text-blue-700 transition-all flex items-center gap-1.5" title="View PDF">
+                          <button type="button" onClick={() => window.open(`https://docs.google.com/viewer?url=${encodeURIComponent(viewingStudentFor.cvUrl || '')}`, '_blank')} className="p-2 rounded-lg bg-white border border-slate-200 hover:border-blue-300 shadow-sm text-slate-600 hover:text-blue-700 transition-all flex items-center gap-1.5" title="View PDF">
                             <span className="material-symbols-outlined text-[16px]">visibility</span>
                             <span className="text-xs font-bold">View</span>
                           </button>
-                          <button type="button" onClick={() => window.open(viewingStudentFor.cvUrl, '_blank')} className="p-2 rounded-lg bg-white border border-slate-200 hover:border-blue-300 shadow-sm text-slate-600 hover:text-blue-700 transition-all flex items-center gap-1.5" title="Download PDF">
+                          <button type="button" onClick={() => window.open(viewingStudentFor.cvUrl || '', '_blank')} className="p-2 rounded-lg bg-white border border-slate-200 hover:border-blue-300 shadow-sm text-slate-600 hover:text-blue-700 transition-all flex items-center gap-1.5" title="Download PDF">
                             <span className="material-symbols-outlined text-[16px]">download</span>
                           </button>
                         </div>

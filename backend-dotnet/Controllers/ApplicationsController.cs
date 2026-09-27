@@ -143,6 +143,62 @@ public class ApplicationsController : ControllerBase
             cancellationToken);
     }
 
+    public class HumanVerifyRequest
+    {
+        public Guid AppId { get; set; }
+        public bool Approved { get; set; }
+    }
+
+    /// <summary>
+    /// Bridge endpoint for React UI to approve/reject an application.
+    /// This updates the local DB and forwards the resume signal to Python AI.
+    /// </summary>
+    [HttpPost("human-verify")]
+    public async Task<IActionResult> HumanVerify(
+        [FromBody] HumanVerifyRequest request,
+        [FromServices] IHttpClientFactory httpClientFactory,
+        [FromServices] IConfiguration configuration,
+        CancellationToken cancellationToken)
+    {
+        // 1. First, process the local Admin Decision 
+        try
+        {
+            await _applicationService.AdminDecisionAsync(request.AppId, request.Approved, cancellationToken);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
+
+        // 2. Forward the decision to Python to wake up the sleeping Agent
+        var aiBaseUrl = (configuration["AiService:BaseUrl"] ?? "http://127.0.0.1:8000").TrimEnd('/');
+        var client = httpClientFactory.CreateClient();
+        
+        var body = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            thread_id = request.AppId.ToString(), // thread_id matches the application ID
+            human_approved = request.Approved
+        });
+
+        try
+        {
+            // We just fire it and don't strictly care if it fails, but we can check.
+            await client.PostAsync($"{aiBaseUrl}/resume", 
+                new StringContent(body, System.Text.Encoding.UTF8, "application/json"), cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            // Log it but don't fail the UI request
+            Console.WriteLine($"Warning: Failed to resume Python graph for thread {request.AppId}. {ex.Message}");
+        }
+
+        return Ok(new { message = "Decision processed and AI resumed." });
+    }
+
     /// <summary>
     /// Lists applications belonging to the specified student.
     /// </summary>
@@ -258,6 +314,58 @@ public class ApplicationsController : ControllerBase
                 applicationId = application.AppId,
                 status = application.Status.ToString(),
                 workflowResumed = approved
+            });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Accepts an application offer.
+    /// </summary>
+    [HttpPost("{appId:guid}/student-accept")]
+    [Authorize(Roles = "Student")]
+    public Task<IActionResult> StudentAccept(
+        Guid appId,
+        CancellationToken cancellationToken)
+    {
+        return StudentDecision(appId, true, cancellationToken);
+    }
+
+    /// <summary>
+    /// Declines an application offer.
+    /// </summary>
+    [HttpPost("{appId:guid}/student-decline")]
+    [Authorize(Roles = "Student")]
+    public Task<IActionResult> StudentDecline(
+        Guid appId,
+        CancellationToken cancellationToken)
+    {
+        return StudentDecision(appId, false, cancellationToken);
+    }
+
+    private async Task<IActionResult> StudentDecision(
+        Guid appId,
+        bool accepted,
+        CancellationToken cancellationToken)
+    {
+        var claimValue = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (User.Identity?.IsAuthenticated != true || !Guid.TryParse(claimValue, out var studentId) || studentId == Guid.Empty)
+            return Unauthorized(new { message = "An authenticated student identity is required." });
+
+        try
+        {
+            var application = await _applicationService.StudentDecisionAsync(appId, studentId, accepted, cancellationToken);
+            return Ok(new
+            {
+                applicationId = application.AppId,
+                status = application.Status.ToString()
             });
         }
         catch (KeyNotFoundException ex)

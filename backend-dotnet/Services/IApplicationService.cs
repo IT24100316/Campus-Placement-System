@@ -16,5 +16,7 @@ public interface IApplicationService
     Task HandleEvaluationWebhookAsync(WebhookEvaluationResultDto payload, CancellationToken cancellationToken = default);
     Task<IEnumerable<object>> GetPendingAdminApprovalAsync(CancellationToken cancellationToken = default);
     Task<Application> AdminDecisionAsync(Guid appId, bool approved, CancellationToken cancellationToken = default);
+    Task<Application> StudentDecisionAsync(Guid appId, Guid studentId, bool accepted, CancellationToken cancellationToken = default);
     Task<IEnumerable<object>> GetStudentApplicationsAsync(Guid studentId, CancellationToken cancellationToken = default);
+    Task<bool> ScheduleInterviewAsync(ScheduleInterviewRequestDto request);
 }

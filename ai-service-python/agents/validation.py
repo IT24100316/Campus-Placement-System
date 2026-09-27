@@ -98,3 +98,59 @@ def validate_summary_against_cv(summary: Any, cv_text: str) -> ValidationResult:
 def run_validation(summary: Any, *, cv_pdf_url: str | None = None, cv_pdf_base64: str | None = None) -> dict[str, Any]:
     pdf_text = extract_pdf_text(load_pdf(url=cv_pdf_url, encoded=cv_pdf_base64))
     return asdict(validate_summary_against_cv(summary, pdf_text))
+
+def validation_node(state: dict) -> dict:
+    """
+    Agent 4: Validation & Webhook.
+    Takes the summary, runs validation against the CV, and fires a webhook to .NET
+    to notify that the student is Ready for Review, then the graph will pause.
+    """
+    analysis_results = state.get("analysis_results", [])
+    candidates = state.get("candidates", [])
+    
+    import os
+    webhook_url = os.getenv("DOTNET_WEBHOOK_URL")
+    webhook_secret = os.getenv("WEBHOOK_SECRET")
+    
+    for result in analysis_results:
+        student_id = result.get("student_id")
+        summary = result.get("summary")
+        student_data = next((c for c in candidates if str(c.get("UserId")) == str(student_id)), {})
+        cv_url = student_data.get("CvPdfUrl", "")
+        
+        # 1. Run deterministic validation
+        try:
+            print(f"Agent 4 validating {student_id}...")
+            val_result = run_validation(summary, cv_pdf_url=cv_url)
+            result["validation"] = val_result
+        except Exception as e:
+            print(f"Agent 4 error on {student_id}: {e}")
+            result["validation"] = {"error": str(e)}
+            
+        job_id = state.get("job_id")
+        
+        # 2. Fire the Iterative Webhook to .NET
+        payload = {
+            "ApplicationId": student_id, # Can be null or match student id, backend handles it
+            "JobId": job_id,
+            "StudentId": student_id,
+            "IsSuccess": True,
+            "ResultJson": json.dumps(result)
+        }
+        
+        if webhook_url:
+            try:
+                # We use synchronous requests here because validation_node is sync. 
+                # (We could make it async if needed)
+                resp = requests.post(
+                    webhook_url,
+                    json=payload,
+                    headers={"x-webhook-secret": webhook_secret or ""},
+                    timeout=10
+                )
+                print(f"Webhook fired for {student_id}, status: {resp.status_code}")
+            except Exception as e:
+                print(f"Failed to call webhook for {student_id}: {e}")
+                
+    return {"analysis_results": analysis_results}
+
