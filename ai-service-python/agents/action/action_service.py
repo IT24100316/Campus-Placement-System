@@ -6,16 +6,19 @@ from tools.summary_tool import AdminEvaluationSummary
 from tools.cv_tool import extract_cv_text_locally
 from tools.github_tool import analyze_github_profile
 
-def evaluate_single_candidate(student_data: dict, job_data: dict, cv_url: str, cv_text: str = None, evaluation_rubric: str = "") -> dict:
+async def evaluate_single_candidate(student_data: dict, job_data: dict, cv_url: str, cv_text: str = None, evaluation_rubric: str = "") -> dict:
     # 1. Use pre-extracted CV text from Agent 1 if available
     if not cv_text:
-        cv_text = extract_cv_text_locally(cv_url)
+        cv_text = await extract_cv_text_locally(cv_url)
     
     github_summary = analyze_github_profile(cv_text)
 
     print("\n" + "="*50)
-    print("GITHUB SUMMARY GOING TO AI:")
-    print(github_summary)
+    print(f"GITHUB SUMMARY FOR [{student_data.get('FullName', 'Unknown')}] GOING TO AI:")
+    try:
+        print(github_summary)
+    except UnicodeEncodeError:
+        print(github_summary.encode('cp1252', errors='replace').decode('cp1252'))
     print("="*50 + "\n")
     
     # 2. Securely load API Key

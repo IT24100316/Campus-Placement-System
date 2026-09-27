@@ -12,13 +12,13 @@ def validation_node(state: dict) -> dict:
     analysis_results = state.get("analysis_results", [])
     candidates = state.get("candidates", [])
     
-    
-    
     for result in analysis_results:
         student_id = result.get("student_id")
         summary = result.get("summary")
         student_data = next((c for c in candidates if str(c.get("UserId")) == str(student_id)), {})
         cv_url = student_data.get("CvPdfUrl", "")
+        if cv_url and not cv_url.startswith("http"):
+            cv_url = f"https://db.hyxtmbncjolcepfvongh.supabase.co/storage/v1/object/public/student-cvs/{cv_url}"
         
         # 1. Run deterministic validation
         try:
