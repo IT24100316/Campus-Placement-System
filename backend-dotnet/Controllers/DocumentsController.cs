@@ -34,6 +34,6 @@ public class DocumentsController : ControllerBase
         var document = await _storage.OpenReadAsync(key, cancellationToken);
         return document is null
             ? NotFound(new { message = "Document not found." })
-            : File(document.Value.Content, document.Value.ContentType, document.Value.FileName, enableRangeProcessing: true);
+            : File(document.Value.Content, document.Value.ContentType, enableRangeProcessing: true);
     }
 }

@@ -24,3 +24,6 @@ htmlcov/
 .idea/
 *.swp
 *.swo
+
+# Logs
+analysis_run_log.txt

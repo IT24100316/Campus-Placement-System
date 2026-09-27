@@ -36,6 +36,11 @@ interface Candidate {
   lectureSchedule?: string;
   degreeProgram?: string;
   academicStatus?: string;
+  validationInfo?: {
+    confidence?: number;
+    warnings?: string[];
+    unsupported_terms?: string[];
+  };
 }
 
 // mockCandidates removed - fetching from real API
@@ -65,6 +70,7 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [viewingValidationFor, setViewingValidationFor] = useState<Candidate | null>(null);
   const itemsPerPage = 5;
 
   const [candidates, setCandidates] = useState<Candidate[]>([]);
@@ -81,6 +87,7 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
         let aiPoints: { topic: string; content: string }[] = [{ topic: 'Status', content: 'Awaiting detailed AI analysis...' }];
         let careerObj = 'No AI summary available.';
         
+        let valInfo: any = undefined;
         if (item.validationReport && item.validationReport !== '{}') {
           try {
             const parsed = JSON.parse(item.validationReport);
@@ -93,17 +100,8 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
             if (summary.github_comprehensive_analysis) aiPoints.push({ topic: 'GitHub Analysis', content: summary.github_comprehensive_analysis });
             if (summary.approval_recommendation) aiPoints.push({ topic: 'Recommendation', content: summary.approval_recommendation });
             
-            // Extract Agent 4 (Validation Agent) Data
             if (parsed.validation) {
-              if (parsed.validation.confidence !== undefined) {
-                aiPoints.push({ topic: 'Agent 4 Confidence Score', content: `${Math.round(parsed.validation.confidence * 100)}% CV Match` });
-              }
-              if (parsed.validation.warnings && parsed.validation.warnings.length > 0) {
-                aiPoints.push({ topic: 'Agent 4 Warnings', content: parsed.validation.warnings.join(' | ') });
-              }
-              if (parsed.validation.unsupported_terms && parsed.validation.unsupported_terms.length > 0) {
-                aiPoints.push({ topic: 'Unverified Claims', content: parsed.validation.unsupported_terms.join(', ') });
-              }
+              valInfo = parsed.validation;
             }
           } catch (e) {
             console.error('Failed to parse AI report', e);
@@ -128,6 +126,7 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
           matchScore: item.matchScore || 0,
           status,
           aiScreeningPoints: aiPoints,
+          validationInfo: valInfo,
           careerObjectives: careerObj,
           resumeFileName: 'Candidate_CV.pdf',
           resumeFileSize: 'PDF',
@@ -580,6 +579,32 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
                               </button>
                             </div>
                           </div>
+
+                          {/* AI Verification Summary */}
+                          {c.validationInfo && (
+                            <div className="pt-2">
+                              <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">AI Verification</h4>
+                              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex items-center justify-between gap-4">
+                                <div className="min-w-0">
+                                  <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5 truncate">
+                                    {(c.validationInfo.confidence || 0) >= 0.55 ? (
+                                      <><span className="material-symbols-outlined text-[16px] text-emerald-600">verified</span> Verified Match</>
+                                    ) : (
+                                      <><span className="material-symbols-outlined text-[16px] text-amber-500">warning</span> Low Confidence</>
+                                    )}
+                                  </h3>
+                                  <p className="text-xs font-medium text-slate-500 mt-1 truncate">Confidence Score: {Math.round((c.validationInfo.confidence || 0) * 100)}%</p>
+                                </div>
+                                <button 
+                                  onClick={() => setViewingValidationFor(c)}
+                                  className="shrink-0 px-3 py-1.5 bg-white border border-slate-200 text-xs font-semibold text-blue-600 rounded-lg shadow-sm hover:bg-slate-100 transition-colors flex items-center gap-1"
+                                >
+                                  <span className="material-symbols-outlined text-[14px]">fact_check</span>
+                                  View Details
+                                </button>
+                              </div>
+                            </div>
+                          )}
                           
                           {c.status === 'pending' && (
                             <div className="flex items-center gap-2 pt-4 border-t border-slate-200 mt-auto">
@@ -801,11 +826,23 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
                           </div>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                          <button type="button" onClick={() => window.open(viewingStudentFor.cvUrl || '', '_blank')} className="p-2 rounded-lg bg-white border border-slate-200 hover:border-blue-300 shadow-sm text-slate-600 hover:text-blue-700 transition-all flex items-center gap-1.5" title="View PDF">
+                          <button type="button" onClick={() => {
+                            const url = viewingStudentFor.cvUrl || '';
+                            const finalUrl = url.startsWith('http') 
+                              ? url 
+                              : `https://hyxtmbncjolcepfvongh.supabase.co/storage/v1/object/public/student-cvs/${url}`;
+                            window.open(finalUrl, '_blank');
+                          }} className="p-2 rounded-lg bg-white border border-slate-200 hover:border-blue-300 shadow-sm text-slate-600 hover:text-blue-700 transition-all flex items-center gap-1.5" title="View PDF">
                             <span className="material-symbols-outlined text-[16px]">visibility</span>
                             <span className="text-xs font-bold">View</span>
                           </button>
-                          <button type="button" onClick={() => window.open(viewingStudentFor.cvUrl || '', '_blank')} className="p-2 rounded-lg bg-white border border-slate-200 hover:border-blue-300 shadow-sm text-slate-600 hover:text-blue-700 transition-all flex items-center gap-1.5" title="Download PDF">
+                          <button type="button" onClick={() => {
+                            const url = viewingStudentFor.cvUrl || '';
+                            const finalUrl = url.startsWith('http') 
+                              ? url 
+                              : `https://hyxtmbncjolcepfvongh.supabase.co/storage/v1/object/public/student-cvs/${url}`;
+                            window.location.href = finalUrl.includes('?') ? `${finalUrl}&download=` : `${finalUrl}?download=`;
+                          }} className="p-2 rounded-lg bg-white border border-slate-200 hover:border-blue-300 shadow-sm text-slate-600 hover:text-blue-700 transition-all flex items-center gap-1.5" title="Download PDF">
                             <span className="material-symbols-outlined text-[16px]">download</span>
                           </button>
                         </div>
@@ -973,6 +1010,104 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
         </div>
       )}
       
+      {/* AI Validation Details Modal */}
+      {viewingValidationFor && viewingValidationFor.validationInfo && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-5 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                  (viewingValidationFor.validationInfo.confidence || 0) >= 0.55 ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'
+                }`}>
+                  <span className="material-symbols-outlined text-[20px]">
+                    {(viewingValidationFor.validationInfo.confidence || 0) >= 0.55 ? 'verified' : 'warning'}
+                  </span>
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900">AI Verification Details</h3>
+                  <p className="text-sm text-slate-500">Agent 4 Hallucination Check for {viewingValidationFor.name}</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setViewingValidationFor(null)}
+                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-500 transition-colors"
+              >
+                <span className="material-symbols-outlined text-[20px]">close</span>
+              </button>
+            </div>
+            
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto space-y-6">
+              
+              <div className="flex items-center justify-between bg-slate-50 p-4 rounded-xl border border-slate-100">
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900">Confidence Score</h4>
+                  <p className="text-xs text-slate-500 mt-1">Percentage of AI-generated keywords found in raw CV text</p>
+                </div>
+                <span className={`text-xl font-black ${(viewingValidationFor.validationInfo.confidence || 0) >= 0.55 ? 'text-emerald-600' : 'text-amber-600'}`}>
+                  {Math.round((viewingValidationFor.validationInfo.confidence || 0) * 100)}%
+                </span>
+              </div>
+
+              {viewingValidationFor.validationInfo.warnings && viewingValidationFor.validationInfo.warnings.length > 0 && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex gap-3 text-amber-800">
+                  <span className="material-symbols-outlined text-[20px] shrink-0 mt-0.5">warning</span>
+                  <div>
+                    <h4 className="text-sm font-bold mb-1">Warnings Triggered</h4>
+                    <ul className="list-disc list-inside text-xs space-y-1">
+                      {viewingValidationFor.validationInfo.warnings.map((w, i) => <li key={i}>{w}</li>)}
+                    </ul>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900 mb-3 flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[16px] text-emerald-600">check_circle</span>
+                    Supported Terms
+                  </h4>
+                  <p className="text-xs text-slate-500 mb-3">AI terms successfully verified in the original CV.</p>
+                  <div className="flex flex-wrap gap-2">
+                    {viewingValidationFor.validationInfo.supported_terms?.map((term, i) => (
+                      <span key={i} className="px-2 py-1 bg-emerald-50 text-emerald-700 text-xs font-medium border border-emerald-100 rounded">
+                        {term}
+                      </span>
+                    )) || <span className="text-xs text-slate-400">None found</span>}
+                  </div>
+                </div>
+                
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900 mb-3 flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[16px] text-rose-600">cancel</span>
+                    Unsupported Terms
+                  </h4>
+                  <p className="text-xs text-slate-500 mb-3">AI terms NOT found in the original CV. (Potential hallucinations)</p>
+                  <div className="flex flex-wrap gap-2">
+                    {viewingValidationFor.validationInfo.unsupported_terms?.length ? viewingValidationFor.validationInfo.unsupported_terms.map((term, i) => (
+                      <span key={i} className="px-2 py-1 bg-rose-50 text-rose-700 text-xs font-medium border border-rose-100 rounded">
+                        {term}
+                      </span>
+                    )) : <span className="text-xs text-emerald-600 font-medium flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">done_all</span> All terms verified!</span>}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-3 rounded-b-2xl">
+              <button 
+                onClick={() => setViewingValidationFor(null)}
+                className="px-5 py-2 text-sm font-semibold text-slate-700 hover:text-slate-900 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Confirmation Modal */}
       {pendingAction && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
