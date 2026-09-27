@@ -48,6 +48,7 @@ public class CompanyCandidateDto
     public string Status { get; set; } = string.Empty;
     public string StatusColor { get; set; } = string.Empty;
     public string? CvPdfUrl { get; set; }
+    public string? JobId { get; set; }
 }
 
 public class CompanyDashboardResponseDto

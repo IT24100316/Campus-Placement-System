@@ -958,4 +958,10 @@ Today's development sprint focused on kickstarting the **Flutter Mobile Applicat
 - Added a **Live Client Preview** inside the React modal that dynamically displays the email template and an embedded Calendar UI block.
 - Integrated mock optimistic UI updates so the workflow can be demonstrated.
 - Committed and pushed to Company-&-Job-Management-Engine branch.
-
+### September 27 Updates
+* **Dynamic End-to-End Email Dispatch & Scheduling Pipeline**:
+  * Removed all hardcoded UI mock data for candidates. Modified `CompanyService.cs` to execute a live EF Core query against the `Applications` table, joining `Users`, `StudentProfiles`, and `Jobs` to dynamically render `Admin_Approved` candidates for the logged-in company.
+  * Resolved a critical HTTP 400 Bad Request integration issue by ensuring the React `<input type="time" />` string (`HH:mm`) is properly formatted to `HH:mm:ss` to satisfy the strictly typed `System.TimeSpan` in the .NET `ScheduleInterviewRequestDto`.
+  * Configured Brevo SMTP integration with verified sender domains via Dependency Injection and `appsettings.Development.json`.
+  * Built a deterministic DB seeder in `Program.cs` that dynamically injects two test accounts ("Thusara" and "Dinuri") and resets their `ApplicationStatus` on server startup to facilitate seamless live demos.
+  * Successfully verified the E2E workflow: React UI -> .NET API -> DB Validation -> Brevo API -> Gmail inbox, complete with fully functional `.ics` Google Calendar smart attachments rendering properly.

@@ -263,7 +263,7 @@ public class ApplicationService : IApplicationService
         var jobTitle = application.Job.JobTitle;
 
         // 3. Set the confirmed interview dates in the entity (Not saved yet)
-        application.InterviewDate = request.InterviewDate;
+        application.InterviewDate = DateTime.SpecifyKind(request.InterviewDate, DateTimeKind.Utc);
         application.InterviewTime = request.InterviewTime;
         
         // 4. Generate .ics and Dispatch Email via SendGrid Service (with Polly resilience built-in)

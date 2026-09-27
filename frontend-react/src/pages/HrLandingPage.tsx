@@ -2268,14 +2268,16 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                     if (btn) btn.innerHTML = '<span class="animate-pulse">Scheduling...</span>';
 
                     const matchedJob = activeJobs.find(j => j.jobTitle === candidateToInvite.matchedOpening);
-                    const jobId = matchedJob ? matchedJob.jobId : "00000000-0000-0000-0000-000000000000";
-                    const studentId = "00000000-0000-0000-0000-000000000000";
+                    const jobId = candidateToInvite.jobId || (matchedJob ? matchedJob.jobId : "00000000-0000-0000-0000-000000000000");
+                    const studentId = candidateToInvite.id;
+
+                    const formattedTime = inviteTime.length === 5 ? `${inviteTime}:00` : inviteTime;
 
                     const success = await companyService.scheduleInterview(
                       studentId,
                       jobId,
                       inviteDate,
-                      inviteTime,
+                      formattedTime,
                       inviteMeetingLink
                     );
                     

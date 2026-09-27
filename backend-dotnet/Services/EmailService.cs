@@ -10,18 +10,18 @@ public interface IEmailService
     Task<bool> SendInterviewScheduledAsync(string toEmail, string studentName, string companyName, string jobTitle, DateTime interviewDate, TimeSpan interviewTime, string? meetingLink, CancellationToken cancellationToken = default);
 }
 
-public sealed class SendGridEmailService : IEmailService
+public sealed class BrevoEmailService : IEmailService
 {
     private readonly HttpClient _httpClient;
     private readonly IConfiguration _configuration;
-    private readonly ILogger<SendGridEmailService> _logger;
+    private readonly ILogger<BrevoEmailService> _logger;
 
-    public SendGridEmailService(HttpClient httpClient, IConfiguration configuration, ILogger<SendGridEmailService> logger)
+    public BrevoEmailService(HttpClient httpClient, IConfiguration configuration, ILogger<BrevoEmailService> logger)
     {
         _httpClient = httpClient;
         _configuration = configuration;
         _logger = logger;
-        _httpClient.BaseAddress = new Uri("https://api.sendgrid.com/v3/");
+        _httpClient.BaseAddress = new Uri("https://api.brevo.com/v3/");
     }
 
     public Task<bool> SendAccountDecisionAsync(string recipient, string displayName, bool approved, CancellationToken cancellationToken = default)
@@ -80,9 +80,7 @@ public sealed class SendGridEmailService : IEmailService
         var attachment = new 
         {
             content = icsBase64,
-            type = "text/calendar",
-            filename = "invite.ics",
-            disposition = "attachment"
+            name = "invite.ics"
         };
 
         return SendAsync(toEmail, studentName, subject, htmlContent, attachment, cancellationToken, isHtml: true, fromNameOverride: companyName);
@@ -90,45 +88,41 @@ public sealed class SendGridEmailService : IEmailService
 
     private async Task<bool> SendAsync(string recipient, string displayName, string subject, string body, object? attachment, CancellationToken cancellationToken, bool isHtml = false, string? fromNameOverride = null)
     {
-        // Try new config first, fallback to old config
-        var apiKey = _configuration["SendGridApi:ApiKey"] ?? _configuration["SendGrid:ApiKey"];
-        if (string.IsNullOrWhiteSpace(apiKey) || apiKey == "YOUR_SENDGRID_API_KEY_HERE")
+        var apiKey = _configuration["BrevoApi:ApiKey"];
+        if (string.IsNullOrWhiteSpace(apiKey) || apiKey == "YOUR_BREVO_API_KEY_HERE")
         {
-            _logger.LogWarning("SendGrid API Key is not configured. Email to {Recipient} was not sent.", recipient);
+            _logger.LogWarning("Brevo API Key is not configured. Email to {Recipient} was not sent.", recipient);
             return false;
         }
 
-        var fromEmail = _configuration["SendGridApi:SenderEmail"] ?? _configuration["SendGrid:FromEmail"] ?? "noreply@campusai.local";
-        // If an override is provided (like the company name), use it. Otherwise fallback to config.
-        var fromName = fromNameOverride ?? _configuration["SendGridApi:SenderName"] ?? _configuration["SendGrid:FromName"] ?? "CampusAI";
+        var fromEmail = _configuration["BrevoApi:SenderEmail"] ?? "noreply@campusai.local";
+        var fromName = fromNameOverride ?? _configuration["BrevoApi:SenderName"] ?? "CampusAI";
         
-        var contentArray = isHtml 
-            ? new[] { new { type = "text/html", value = body } } 
-            : new[] { new { type = "text/plain", value = $"Hello {displayName},\n\n{body}\n\nCampusAI Placement Office" } };
-
         var payload = new
         {
-            personalizations = new[] { new { to = new[] { new { email = recipient, name = displayName } } } },
-            from = new { email = fromEmail, name = fromName },
+            sender = new { email = fromEmail, name = fromName },
+            to = new[] { new { email = recipient, name = displayName } },
             subject,
-            content = contentArray,
-            attachments = attachment != null ? new[] { attachment } : null
+            htmlContent = isHtml ? body : null,
+            textContent = isHtml ? null : $"Hello {displayName},\n\n{body}\n\nCampusAI Placement Office",
+            attachment = attachment != null ? new[] { attachment } : null
         };
 
-        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
-        var jsonContent = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+        _httpClient.DefaultRequestHeaders.Remove("api-key");
+        _httpClient.DefaultRequestHeaders.Add("api-key", apiKey);
+        
+        var jsonContent = new StringContent(JsonSerializer.Serialize(payload, new JsonSerializerOptions { DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull }), Encoding.UTF8, "application/json");
 
         try
         {
-            // Polly handles retries automatically
-            var response = await _httpClient.PostAsync("mail/send", jsonContent, cancellationToken);
+            var response = await _httpClient.PostAsync("smtp/email", jsonContent, cancellationToken);
             if (response.IsSuccessStatusCode) return true;
-            _logger.LogError("SendGrid returned {StatusCode}: {Response}", response.StatusCode, await response.Content.ReadAsStringAsync(cancellationToken));
+            _logger.LogError("Brevo returned {StatusCode}: {Response}", response.StatusCode, await response.Content.ReadAsStringAsync(cancellationToken));
             return false;
         }
         catch (HttpRequestException ex)
         {
-            _logger.LogError(ex, "SendGrid request failed for {Recipient}.", recipient);
+            _logger.LogError(ex, "Brevo request failed for {Recipient}.", recipient);
             return false;
         }
     }
