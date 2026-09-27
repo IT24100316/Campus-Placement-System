@@ -4,7 +4,7 @@ from PyPDF2 import PdfReader
 
 import asyncio
 
-async def extract_cv_text_locally(cv_url: str) -> str:
+def extract_cv_text_locally(cv_url: str) -> str:
     """
     Downloads the PDF from the given URL (including Google Drive links) 
     and extracts all text from it.
@@ -19,7 +19,7 @@ async def extract_cv_text_locally(cv_url: str) -> str:
 
         # 2. Download the PDF file asynchronously (non-blocking)
         print(f"Downloading CV from: {download_url}")
-        response = await asyncio.to_thread(requests.get, download_url, timeout=15)
+        response = requests.get(download_url, timeout=15)
         
         if response.status_code != 200:
             return f"Error: Unable to download CV. Status code {response.status_code}"

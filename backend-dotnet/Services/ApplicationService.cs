@@ -85,8 +85,8 @@ public class ApplicationService : IApplicationService
             .Include(a => a.Student)
                 .ThenInclude(u => u.StudentProfile)
             .Where(a => 
-                (a.Student.StudentProfile.FullName != null && a.Student.StudentProfile.FullName.ToLower().Contains(lowerQuery)) ||
-                (a.Student.StudentProfile.Skills != null && a.Student.StudentProfile.Skills.Any(s => s.ToLower().Contains(lowerQuery)))
+                (a.Student.StudentProfile != null && a.Student.StudentProfile.FullName != null && a.Student.StudentProfile.FullName.ToLower().Contains(lowerQuery)) ||
+                (a.Student.StudentProfile != null && a.Student.StudentProfile.Skills != null && a.Student.StudentProfile.Skills.Any(s => s.ToLower().Contains(lowerQuery)))
             )
             .OrderByDescending(a => a.MatchScore)
             .ToListAsync();
@@ -150,12 +150,27 @@ public class ApplicationService : IApplicationService
 
     public async Task HandleEvaluationWebhookAsync(WebhookEvaluationResultDto payload, CancellationToken cancellationToken = default)
     {
+        // Look up by ApplicationId OR by JobId + StudentId
         var application = await _context.Applications
-            .FirstOrDefaultAsync(a => a.AppId == payload.ApplicationId, cancellationToken)
-            ?? throw new KeyNotFoundException("Application not found.");
-
-        if (application.Status != ApplicationStatus.Processing)
-            throw new InvalidOperationException($"Cannot apply webhook result. Expected Processing status, but got {application.Status}.");
+            .FirstOrDefaultAsync(a => a.AppId == payload.ApplicationId 
+                                   || (a.JobId == payload.JobId && a.StudentId == payload.StudentId), cancellationToken);
+                                   
+        if (application == null)
+        {
+            // Auto-Match on Publish Flow: Create a new application!
+            application = new Application
+            {
+                AppId = Guid.NewGuid(),
+                StudentId = payload.StudentId,
+                JobId = payload.JobId,
+                Status = ApplicationStatus.Processing, // Briefly processing before updated below
+                SummaryReport = "{}"
+            };
+            _context.Applications.Add(application);
+        }
+        
+        // At this point we bypass the strict "Processing" check because it might be a fresh auto-match
+        // or a re-run. We just update it.
 
         if (payload.IsSuccess)
         {
@@ -174,7 +189,7 @@ public class ApplicationService : IApplicationService
     public async Task<IEnumerable<object>> GetPendingAdminApprovalAsync(CancellationToken cancellationToken = default)
     {
         var values = await _context.Applications
-            .Where(a => a.Status == ApplicationStatus.Agent_Evaluated)
+            .Where(a => a.Status != ApplicationStatus.Pending && a.Status != ApplicationStatus.Processing)
             .Include(a => a.Student).ThenInclude(u => u.StudentProfile)
             .Include(a => a.Job).ThenInclude(j => j.Company)
             .Select(a => new
@@ -230,7 +245,7 @@ public class ApplicationService : IApplicationService
     {
         var application = await _context.Applications.FirstOrDefaultAsync(a => a.AppId == appId && a.StudentId == studentId, cancellationToken)
             ?? throw new KeyNotFoundException("Application not found or access denied.");
-        if (application.Status != ApplicationStatus.Admin_Approved && application.Status != ApplicationStatus.Company_Scheduled)
+        if (application.Status != ApplicationStatus.Admin_Approved)
             throw new InvalidOperationException("Application is not in a valid state for a student decision.");
         application.Status = accepted ? ApplicationStatus.Student_Accepted : ApplicationStatus.Rejected;
         await _context.SaveChangesAsync(cancellationToken);
@@ -255,5 +270,55 @@ public class ApplicationService : IApplicationService
                 decisionDeadline = a.DecisionDeadline
             }).ToListAsync(cancellationToken);
         return values.Cast<object>();
+    }
+
+    public async Task<bool> ScheduleInterviewAsync(ScheduleInterviewRequestDto request)
+    {
+        // 1. Strict Validation: Verify Application exists for this specific Student and Job relationship
+        var application = await _context.Applications
+            .Include(a => a.Student)
+                .ThenInclude(u => u.StudentProfile)
+            .Include(a => a.Job)
+                .ThenInclude(j => j.Company)
+            .FirstOrDefaultAsync(a => a.StudentId == request.StudentId && a.JobId == request.JobId);
+
+        if (application == null || application.Status != ApplicationStatus.Student_Accepted)
+        {
+            return false;
+        }
+
+        // 2. Extract Data Securely (Do not trust frontend for these fields)
+        var studentEmail = application.Student.Email;
+        var studentName = application.Student.StudentProfile?.FullName ?? "Student";
+        var companyName = application.Job.Company?.CompanyName ?? "Company";
+        var jobTitle = application.Job.JobTitle;
+
+        // 3. Set the confirmed interview dates in the entity (Not saved yet)
+        application.InterviewDate = DateTime.SpecifyKind(request.InterviewDate, DateTimeKind.Utc);
+        application.InterviewTime = request.InterviewTime;
+        
+        // 4. Generate .ics and Dispatch Email via SendGrid Service (with Polly resilience built-in)
+        var emailSent = await _emailService.SendInterviewScheduledAsync(
+            studentEmail,
+            studentName,
+            companyName,
+            jobTitle,
+            request.InterviewDate,
+            request.InterviewTime,
+            request.MeetingLink
+        );
+
+        if (!emailSent)
+        {
+            return false;
+        }
+
+        // 5. Database Consistency: Only save state to DB if the third-party SendGrid request succeeded
+        application.InterviewStatus = InterviewStatus.Invited;
+        application.Status = ApplicationStatus.Company_Scheduled;
+
+        await _context.SaveChangesAsync();
+
+        return true;
     }
 }

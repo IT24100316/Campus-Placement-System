@@ -61,3 +61,11 @@ When triggering a batch of 100 students for a Job, do **NOT** wait for all 100 s
 
 **Why this is amazing for the React UI:**
 Because the Admin Dashboard dynamically queries `.NET` for evaluated applications, the HR Admin doesn't have to wait 20 minutes to see results. Students will literally start popping up on the Admin Dashboard **one by one, every 10 seconds**! The Admin can begin reviewing and clicking "Approve" on Student #1 while the AI is still quietly evaluating Student #20 in the background.
+
+---
+
+## Progress Tracking
+- [x] **Phase 1 (Python Engine):** Added `MemorySaver` Checkpointer, `interrupt_before` pause logic to LangGraph, updated `AgentState`, and built the `/resume` endpoint.
+- [x] **Phase 2.1 (.NET Trigger Service):** Updated `EvaluationTriggerService.cs` to trigger batches of students by `JobId` to the Python `/analyze` endpoint (instead of calling `/validate` for single students).
+- [x] **Phase 2.2 (.NET UI Bridge Endpoint):** Created `POST /api/admin/human-verify` in `ApplicationsController.cs` which updates the .NET DB and forwards the approval to Python's `/resume` endpoint.
+- [x] **Phase 3 (React Frontend):** Updated the React Admin dashboard (`ApplicationsPage.tsx`) so that clicking Approve/Reject calls the new `.NET` bridge endpoint.

@@ -15,10 +15,14 @@ public record ApplicationResponseDto(
     TimeSpan? InterviewTime
 );
 
-public record ScheduleInterviewRequestDto(
-    DateTime InterviewDate,
-    TimeSpan InterviewTime
-);
+public class ScheduleInterviewRequestDto
+{
+    public Guid StudentId { get; set; }
+    public Guid JobId { get; set; }
+    public DateTime InterviewDate { get; set; }
+    public TimeSpan InterviewTime { get; set; }
+    public string? MeetingLink { get; set; }
+}
 
 public record UpdateStatusRequestDto(
     string NewStatus

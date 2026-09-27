@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using backend_dotnet.DTOs;
 using backend_dotnet.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 
 namespace backend_dotnet.Controllers;
 
@@ -11,10 +12,12 @@ namespace backend_dotnet.Controllers;
 public class JobsController : ControllerBase
 {
     private readonly IJobService _jobService;
+    private readonly IHttpClientFactory _httpClientFactory;
 
-    public JobsController(IJobService jobService)
+    public JobsController(IJobService jobService, IHttpClientFactory httpClientFactory)
     {
         _jobService = jobService;
+        _httpClientFactory = httpClientFactory;
     }
 
     /// <summary>
@@ -71,6 +74,24 @@ public class JobsController : ControllerBase
             });
         }
 
+        // Fire-and-forget trigger to Python AI Matchmaker
+        _ = Task.Run(async () => 
+        {
+            try 
+            {
+                var client = _httpClientFactory.CreateClient();
+                var aiUrl = "http://127.0.0.1:8000/analyze";
+                var payload = new { job_id = result.Job.JobId, student_ids = new List<string>(), evaluate_all = true };
+                var json = System.Text.Json.JsonSerializer.Serialize(payload);
+                var content = new System.Net.Http.StringContent(json, System.Text.Encoding.UTF8, "application/json");
+                await client.PostAsync(aiUrl, content);
+            }
+            catch (Exception ex)
+            {
+                System.Console.WriteLine($"Failed to trigger AI on job publish: {ex.Message}");
+            }
+        });
+
         return StatusCode(201, result.Job);
     }
 
@@ -116,5 +137,39 @@ public class JobsController : ControllerBase
         var job = await _jobService.GetJobDetailsAsync(id);
         if (job == null) return NotFound(new { message = "Job not found." });
         return Ok(job);
+    }
+
+    /// <summary>
+    /// Repost an existing job to trigger the AI matching pipeline again
+    /// </summary>
+    [HttpPost("{id}/repost")]
+    [Authorize(Roles = "Company")]
+    public async Task<ActionResult<JobCreationResultDto>> RepostJob(Guid id)
+    {
+        var result = await _jobService.RepostJobAsync(id);
+
+        if (!result.Success)
+        {
+            return BadRequest(result);
+        }
+
+        // Trigger Python AI Service (Fire and Forget)
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                using var client = _httpClientFactory.CreateClient();
+                // Send the exact same payload as CreateJob, but the JobId is the existing one
+                var aiPayload = new { job_id = result.Job?.JobId, evaluate_all = true };
+                var response = await client.PostAsJsonAsync("http://127.0.0.1:8000/analyze", aiPayload);
+                response.EnsureSuccessStatusCode();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[AI Pipeline Trigger Failed on Repost] {ex.Message}");
+            }
+        });
+
+        return Ok(result);
     }
 }

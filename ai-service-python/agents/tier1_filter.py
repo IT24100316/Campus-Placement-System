@@ -10,8 +10,11 @@ def tier1_node(state: AgentState) -> dict:
     """
     job_id = state.get("job_id")
     student_ids = state.get("initial_student_ids", [])
+    evaluate_all = state.get("evaluate_all", False)
     
-    if not job_id or not student_ids:
+    if not job_id:
+        return {"candidates": [], "job_posting": {}}
+    if not student_ids and not evaluate_all:
         return {"candidates": [], "job_posting": {}}
         
     passed_candidates = []
@@ -29,6 +32,12 @@ def tier1_node(state: AgentState) -> dict:
                 job_row = cur.fetchone()
                 if job_row:
                     job_posting = dict(job_row)
+                    
+                # If evaluate_all is True, query all students
+                if evaluate_all:
+                    cur.execute('SELECT "UserId" FROM "StudentProfiles"')
+                    all_students = cur.fetchall()
+                    student_ids = [str(r["UserId"]) for r in all_students]
                     
                 # Evaluate each student
                 for sid in student_ids:
