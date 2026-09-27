@@ -329,11 +329,24 @@ export const StaffStudentsView: React.FC = () => {
                             </div>
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
-                            <button type="button" onClick={() => window.open(selectedStudent.cvPdfUrl || '', '_blank')} className="p-2 rounded-lg bg-white border border-slate-200 hover:border-blue-300 shadow-sm text-slate-600 hover:text-blue-700 transition-all flex items-center gap-1.5" title="View PDF">
+                            <button type="button" onClick={() => {
+                              const url = selectedStudent.cvPdfUrl || '';
+                              const finalUrl = url.startsWith('http') 
+                                ? url 
+                                : `https://hyxtmbncjolcepfvongh.supabase.co/storage/v1/object/public/student-cvs/${url}`;
+                              window.open(finalUrl, '_blank');
+                            }} className="p-2 rounded-lg bg-white border border-slate-200 hover:border-blue-300 shadow-sm text-slate-600 hover:text-blue-700 transition-all flex items-center gap-1.5" title="View PDF">
                               <span className="material-symbols-outlined text-[16px]">visibility</span>
                               <span className="text-xs font-bold">View</span>
                             </button>
-                            <button type="button" onClick={() => window.open(selectedStudent.cvPdfUrl || '', '_blank')} className="p-2 rounded-lg bg-white border border-slate-200 hover:border-blue-300 shadow-sm text-slate-600 hover:text-blue-700 transition-all flex items-center gap-1.5" title="Download PDF">
+                            <button type="button" onClick={() => {
+                              const url = selectedStudent.cvPdfUrl || '';
+                              const finalUrl = url.startsWith('http') 
+                                ? url 
+                                : `https://hyxtmbncjolcepfvongh.supabase.co/storage/v1/object/public/student-cvs/${url}`;
+                              // Appending ?download= forces the browser to download the file instead of viewing it
+                              window.location.href = finalUrl.includes('?') ? `${finalUrl}&download=` : `${finalUrl}?download=`;
+                            }} className="p-2 rounded-lg bg-white border border-slate-200 hover:border-blue-300 shadow-sm text-slate-600 hover:text-blue-700 transition-all flex items-center gap-1.5" title="Download PDF">
                               <span className="material-symbols-outlined text-[16px]">download</span>
                             </button>
                           </div>
