@@ -8,5 +8,6 @@ public class WebhookEvaluationResultDto
     public Guid JobId { get; set; }
     public Guid StudentId { get; set; }
     public bool IsSuccess { get; set; }
+    public int MatchScore { get; set; }
     public string? ResultJson { get; set; }
 }

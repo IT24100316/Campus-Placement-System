@@ -85,12 +85,13 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
           try {
             const parsed = JSON.parse(item.validationReport);
             aiPoints = [];
-            if (parsed.technical_alignment) aiPoints.push({ topic: 'Technical Alignment', content: parsed.technical_alignment });
-            if (parsed.identified_gaps) aiPoints.push({ topic: 'Identified Gaps', content: parsed.identified_gaps });
-            if (parsed.project_relevance) aiPoints.push({ topic: 'Project Relevance', content: parsed.project_relevance });
-            if (parsed.cv_strategic_insights) aiPoints.push({ topic: 'Strategic Insights', content: parsed.cv_strategic_insights });
-            if (parsed.github_comprehensive_analysis) aiPoints.push({ topic: 'GitHub Analysis', content: parsed.github_comprehensive_analysis });
-            if (parsed.approval_recommendation) aiPoints.push({ topic: 'Recommendation', content: parsed.approval_recommendation });
+            const summary = parsed.summary || {};
+            if (summary.technical_alignment) aiPoints.push({ topic: 'Technical Alignment', content: summary.technical_alignment });
+            if (summary.identified_gaps) aiPoints.push({ topic: 'Identified Gaps', content: summary.identified_gaps });
+            if (summary.project_relevance) aiPoints.push({ topic: 'Project Relevance', content: summary.project_relevance });
+            if (summary.cv_strategic_insights) aiPoints.push({ topic: 'Strategic Insights', content: summary.cv_strategic_insights });
+            if (summary.github_comprehensive_analysis) aiPoints.push({ topic: 'GitHub Analysis', content: summary.github_comprehensive_analysis });
+            if (summary.approval_recommendation) aiPoints.push({ topic: 'Recommendation', content: summary.approval_recommendation });
             
             // Extract Agent 4 (Validation Agent) Data
             if (parsed.validation) {
@@ -800,7 +801,7 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
                           </div>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                          <button type="button" onClick={() => window.open(`https://docs.google.com/viewer?url=${encodeURIComponent(viewingStudentFor.cvUrl || '')}`, '_blank')} className="p-2 rounded-lg bg-white border border-slate-200 hover:border-blue-300 shadow-sm text-slate-600 hover:text-blue-700 transition-all flex items-center gap-1.5" title="View PDF">
+                          <button type="button" onClick={() => window.open(viewingStudentFor.cvUrl || '', '_blank')} className="p-2 rounded-lg bg-white border border-slate-200 hover:border-blue-300 shadow-sm text-slate-600 hover:text-blue-700 transition-all flex items-center gap-1.5" title="View PDF">
                             <span className="material-symbols-outlined text-[16px]">visibility</span>
                             <span className="text-xs font-bold">View</span>
                           </button>

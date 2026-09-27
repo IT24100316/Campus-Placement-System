@@ -156,10 +156,11 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
     if (!jobToRepost) return;
     
     try {
-      const response = await fetch(`http://localhost:5032/api/Jobs/${jobToRepost.jobId}/repost`, {
+      const response = await fetch(`http://localhost:5168/api/Jobs/${jobToRepost.jobId}/repost`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
       });
       

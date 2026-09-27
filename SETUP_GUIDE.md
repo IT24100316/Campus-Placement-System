@@ -77,7 +77,8 @@ Follow these steps **in order** when setting up the project for the very first t
 
    Keep credentials outside tracked files. You can also use .NET user secrets:
    ```bash
-   dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Host=localhost;Port=5432;Database=SEF_Project;Username=postgres;Password=YOUR_POSTGRES_PASSWORD"
+   # From Supabase Dashboard → Connect. Keep sslmode=require.
+   dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Host=db.YOUR_PROJECT_REF.supabase.co;Port=5432;Database=postgres;Username=postgres;Password=YOUR_SUPABASE_DATABASE_PASSWORD;Ssl Mode=Require"
    dotnet user-secrets set "Supabase:Url" "https://YOUR_PROJECT.supabase.co"
    dotnet user-secrets set "Supabase:ServiceRoleKey" "YOUR_SERVICE_ROLE_KEY"
    dotnet user-secrets set "SendGrid:ApiKey" "YOUR_SENDGRID_API_KEY"
@@ -99,11 +100,7 @@ Follow these steps **in order** when setting up the project for the very first t
    *🎉 This command automatically creates all database tables in your PostgreSQL `SEF_Project` database!*
 
 5. **Configure CV Storage:**
-   Set `CvStorage__RootPath` to an absolute directory outside this repository before running the API. For example, in PowerShell:
-   ```powershell
-   $env:CvStorage__RootPath = 'C:\CampusPlacementData\cv-uploads'
-   ```
-   The CV size limit defaults to 10 MB. Override it only when needed with `CvStorage__MaxFileSizeBytes`. Do not store CVs inside the source-controlled workspace or commit storage credentials.
+   CV uploads use the same Supabase project configured above. The backend creates the private `student-cvs` bucket on the first CV upload, provided the configured key is a Supabase secret key or legacy service-role key. The CV size limit defaults to 10 MB. Do not put database passwords or Supabase secret keys in tracked files.
 
 ---
 
