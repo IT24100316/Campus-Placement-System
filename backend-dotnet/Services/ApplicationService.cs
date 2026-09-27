@@ -189,7 +189,7 @@ public class ApplicationService : IApplicationService
     public async Task<IEnumerable<object>> GetPendingAdminApprovalAsync(CancellationToken cancellationToken = default)
     {
         var values = await _context.Applications
-            .Where(a => a.Status == ApplicationStatus.Agent_Evaluated)
+            .Where(a => a.Status != ApplicationStatus.Pending && a.Status != ApplicationStatus.Processing)
             .Include(a => a.Student).ThenInclude(u => u.StudentProfile)
             .Include(a => a.Job).ThenInclude(j => j.Company)
             .Select(a => new
@@ -245,7 +245,7 @@ public class ApplicationService : IApplicationService
     {
         var application = await _context.Applications.FirstOrDefaultAsync(a => a.AppId == appId && a.StudentId == studentId, cancellationToken)
             ?? throw new KeyNotFoundException("Application not found or access denied.");
-        if (application.Status != ApplicationStatus.Admin_Approved && application.Status != ApplicationStatus.Company_Scheduled)
+        if (application.Status != ApplicationStatus.Admin_Approved)
             throw new InvalidOperationException("Application is not in a valid state for a student decision.");
         application.Status = accepted ? ApplicationStatus.Student_Accepted : ApplicationStatus.Rejected;
         await _context.SaveChangesAsync(cancellationToken);
@@ -282,7 +282,7 @@ public class ApplicationService : IApplicationService
                 .ThenInclude(j => j.Company)
             .FirstOrDefaultAsync(a => a.StudentId == request.StudentId && a.JobId == request.JobId);
 
-        if (application == null)
+        if (application == null || application.Status != ApplicationStatus.Student_Accepted)
         {
             return false;
         }
