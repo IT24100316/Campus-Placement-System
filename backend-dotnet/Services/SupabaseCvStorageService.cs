@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Http;
 using System.Net.Http.Headers;
+using System.Text;
+using System.Text.Json;
 
 namespace backend_dotnet.Services;
 
@@ -26,6 +28,7 @@ public sealed class SupabaseCvStorageService : ICvStorageService
     {
         var settings = GetSettings();
         var objectKey = $"{studentId:N}/{Guid.NewGuid():N}.pdf";
+        await EnsureBucketExistsAsync(settings, cancellationToken);
         using var request = CreateRequest(HttpMethod.Post, settings, objectKey);
         request.Headers.TryAddWithoutValidation("x-upsert", "false");
         request.Content = new StreamContent(file.OpenReadStream());
@@ -87,6 +90,52 @@ public sealed class SupabaseCvStorageService : ICvStorageService
         var request = new HttpRequestMessage(method, uri);
         SupabaseStorageAuthentication.AddHeaders(request, settings.Key);
         return request;
+    }
+
+    private async Task EnsureBucketExistsAsync(
+        (string Url, string Key, string Bucket) settings,
+        CancellationToken cancellationToken)
+    {
+        using var check = new HttpRequestMessage(
+            HttpMethod.Get,
+            $"{settings.Url}/storage/v1/bucket/{Uri.EscapeDataString(settings.Bucket)}");
+        SupabaseStorageAuthentication.AddHeaders(check, settings.Key);
+
+        try
+        {
+            using var checkResponse = await _httpClient.SendAsync(check, cancellationToken);
+            if (checkResponse.IsSuccessStatusCode) return;
+
+            if (checkResponse.StatusCode != System.Net.HttpStatusCode.NotFound)
+            {
+                _logger.LogError("Supabase CV bucket check failed with HTTP {StatusCode}.", (int)checkResponse.StatusCode);
+                throw new CvStorageException("CV storage is unavailable at this time.");
+            }
+
+            using var create = new HttpRequestMessage(HttpMethod.Post, $"{settings.Url}/storage/v1/bucket");
+            SupabaseStorageAuthentication.AddHeaders(create, settings.Key);
+            create.Content = new StringContent(
+                JsonSerializer.Serialize(new { id = settings.Bucket, name = settings.Bucket, @public = false }),
+                Encoding.UTF8,
+                "application/json");
+            using var createResponse = await _httpClient.SendAsync(create, cancellationToken);
+            if (createResponse.IsSuccessStatusCode || createResponse.StatusCode == System.Net.HttpStatusCode.Conflict)
+            {
+                return;
+            }
+
+            _logger.LogError("Supabase CV bucket creation failed with HTTP {StatusCode}.", (int)createResponse.StatusCode);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (HttpRequestException)
+        {
+            _logger.LogError("Supabase CV bucket preparation request failed.");
+        }
+
+        throw new CvStorageException("CV storage is unavailable at this time.");
     }
 
     private async Task SendAsync(
