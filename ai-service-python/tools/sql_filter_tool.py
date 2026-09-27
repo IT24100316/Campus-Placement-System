@@ -5,11 +5,16 @@ from langchain_core.tools import tool
 from typing import Dict, Any
 
 def get_db_connection():
-    # Use Supabase Connection Pooler string
-    db_url = os.environ.get("DATABASE_URL")
-    if not db_url:
-        raise ValueError("DATABASE_URL environment variable is not set")
-    return psycopg2.connect(db_url, cursor_factory=RealDictCursor)
+    # Use direct connection parameters to avoid parsing issues with connection strings
+    return psycopg2.connect(
+        host="db.hyxtmbncjolcepfvongh.supabase.co",
+        port="5432",
+        dbname="postgres",
+        user="postgres",
+        password="Sef@project#123",
+        sslmode="require",
+        cursor_factory=RealDictCursor
+    )
 
 @tool
 def check_hard_filters_tool(student_id: str, job_id: str) -> Dict[str, Any]:

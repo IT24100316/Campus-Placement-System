@@ -150,12 +150,27 @@ public class ApplicationService : IApplicationService
 
     public async Task HandleEvaluationWebhookAsync(WebhookEvaluationResultDto payload, CancellationToken cancellationToken = default)
     {
+        // Look up by ApplicationId OR by JobId + StudentId
         var application = await _context.Applications
-            .FirstOrDefaultAsync(a => a.AppId == payload.ApplicationId, cancellationToken)
-            ?? throw new KeyNotFoundException("Application not found.");
-
-        if (application.Status != ApplicationStatus.Processing)
-            throw new InvalidOperationException($"Cannot apply webhook result. Expected Processing status, but got {application.Status}.");
+            .FirstOrDefaultAsync(a => a.AppId == payload.ApplicationId 
+                                   || (a.JobId == payload.JobId && a.StudentId == payload.StudentId), cancellationToken);
+                                   
+        if (application == null)
+        {
+            // Auto-Match on Publish Flow: Create a new application!
+            application = new Application
+            {
+                AppId = Guid.NewGuid(),
+                StudentId = payload.StudentId,
+                JobId = payload.JobId,
+                Status = ApplicationStatus.Processing, // Briefly processing before updated below
+                SummaryReport = "{}"
+            };
+            _context.Applications.Add(application);
+        }
+        
+        // At this point we bypass the strict "Processing" check because it might be a fresh auto-match
+        // or a re-run. We just update it.
 
         if (payload.IsSuccess)
         {

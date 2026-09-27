@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using backend_dotnet.Data;
@@ -11,9 +12,11 @@ using backend_dotnet.Data;
 namespace backend_dotnet.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260927000216_AddLastRepostedAt")]
+    partial class AddLastRepostedAt
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -36,9 +39,6 @@ namespace backend_dotnet.Migrations
 
                     b.Property<DateTime?>("InterviewDate")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("InterviewStatus")
-                        .HasColumnType("integer");
 
                     b.Property<TimeSpan?>("InterviewTime")
                         .HasColumnType("interval");

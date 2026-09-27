@@ -12,4 +12,5 @@ public interface IJobService
     Task<JobCreationResultDto> CreateJobAsync(CreateJobRequestDto request);
     Task<PaginatedResult<JobFeedDto>> GetJobFeedAsync(string? search, string? skills, string? domain, string[]? workArrangements, bool? isPaidOnly, bool? isEligible, System.Guid? studentUserId, decimal? minGpa, decimal? maxGpa, int[]? allowedYears, string? sortBy, int page, int pageSize);
     Task<JobDetailsDto?> GetJobDetailsAsync(System.Guid jobId);
+    Task<JobCreationResultDto> RepostJobAsync(System.Guid jobId);
 }

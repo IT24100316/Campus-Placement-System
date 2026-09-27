@@ -143,6 +143,62 @@ public class ApplicationsController : ControllerBase
             cancellationToken);
     }
 
+    public class HumanVerifyRequest
+    {
+        public Guid AppId { get; set; }
+        public bool Approved { get; set; }
+    }
+
+    /// <summary>
+    /// Bridge endpoint for React UI to approve/reject an application.
+    /// This updates the local DB and forwards the resume signal to Python AI.
+    /// </summary>
+    [HttpPost("human-verify")]
+    public async Task<IActionResult> HumanVerify(
+        [FromBody] HumanVerifyRequest request,
+        [FromServices] IHttpClientFactory httpClientFactory,
+        [FromServices] IConfiguration configuration,
+        CancellationToken cancellationToken)
+    {
+        // 1. First, process the local Admin Decision 
+        try
+        {
+            await _applicationService.AdminDecisionAsync(request.AppId, request.Approved, cancellationToken);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
+
+        // 2. Forward the decision to Python to wake up the sleeping Agent
+        var aiBaseUrl = (configuration["AiService:BaseUrl"] ?? "http://127.0.0.1:8000").TrimEnd('/');
+        var client = httpClientFactory.CreateClient();
+        
+        var body = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            thread_id = request.AppId.ToString(), // thread_id matches the application ID
+            human_approved = request.Approved
+        });
+
+        try
+        {
+            // We just fire it and don't strictly care if it fails, but we can check.
+            await client.PostAsync($"{aiBaseUrl}/resume", 
+                new StringContent(body, System.Text.Encoding.UTF8, "application/json"), cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            // Log it but don't fail the UI request
+            Console.WriteLine($"Warning: Failed to resume Python graph for thread {request.AppId}. {ex.Message}");
+        }
+
+        return Ok(new { message = "Decision processed and AI resumed." });
+    }
+
     /// <summary>
     /// Lists applications belonging to the specified student.
     /// </summary>

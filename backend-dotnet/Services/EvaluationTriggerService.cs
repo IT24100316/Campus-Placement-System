@@ -54,12 +54,10 @@ public class EvaluationTriggerService : BackgroundService
         using var scope = _scopeFactory.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var httpClientFactory = scope.ServiceProvider.GetRequiredService<IHttpClientFactory>();
-        var documentStorage = scope.ServiceProvider.GetRequiredService<IDocumentStorageService>();
         var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
 
         // Fetch pending applications
         var pendingApplications = await context.Applications
-            .Include(a => a.Student).ThenInclude(u => u.StudentProfile)
             .Where(a => a.Status == ApplicationStatus.Pending)
             .ToListAsync(stoppingToken);
 
@@ -68,7 +66,7 @@ public class EvaluationTriggerService : BackgroundService
             return;
         }
 
-        _logger.LogInformation($"Found {pendingApplications.Count} pending applications. Processing...");
+        _logger.LogInformation($"Found {pendingApplications.Count} pending applications. Processing as batches...");
 
         foreach (var application in pendingApplications)
         {
@@ -80,38 +78,25 @@ public class EvaluationTriggerService : BackgroundService
 
         var aiBaseUrl = (configuration["AiService:BaseUrl"] ?? "http://127.0.0.1:8000").TrimEnd('/');
 
-        foreach (var application in pendingApplications)
+        // Group by JobId for Batch Processing
+        var applicationsByJob = pendingApplications.GroupBy(a => a.JobId);
+
+        foreach (var jobGroup in applicationsByJob)
         {
+            var jobId = jobGroup.Key;
+            var studentIds = jobGroup.Select(a => a.StudentId.ToString()).ToList();
+
             try
             {
-                var cvKey = application.Student.StudentProfile?.CvPdfUrl;
-                if (string.IsNullOrWhiteSpace(cvKey))
-                {
-                    throw new InvalidOperationException("The student must upload a CV PDF before validation.");
-                }
-
-                string? cvPdfBase64 = null;
-                if (cvKey.StartsWith("local://") || cvKey.StartsWith("supabase://"))
-                {
-                    var storedCv = await documentStorage.OpenReadAsync(cvKey, stoppingToken)
-                        ?? throw new InvalidOperationException("The stored CV could not be read.");
-                    using var memory = new MemoryStream();
-                    await storedCv.Content.CopyToAsync(memory, stoppingToken);
-                    cvPdfBase64 = Convert.ToBase64String(memory.ToArray());
-                }
-
                 var body = JsonSerializer.Serialize(new
                 {
-                    application_id = application.AppId,
-                    summary = "", // Background evaluations don't take a user summary
-                    cv_pdf_url = cvPdfBase64 is null ? cvKey : null,
-                    cv_pdf_base64 = cvPdfBase64
+                    job_id = jobId.ToString(),
+                    student_ids = studentIds
                 });
 
                 var client = httpClientFactory.CreateClient();
-                // We don't await the response to finish the heavy lifting, 
-                // we just fire it and expect a 202 Accepted.
-                var response = await client.PostAsync($"{aiBaseUrl}/validate", 
+                // Send batch to Python's LangGraph Orchestrator
+                var response = await client.PostAsync($"{aiBaseUrl}/analyze", 
                     new StringContent(body, Encoding.UTF8, "application/json"), stoppingToken);
 
                 if (!response.IsSuccessStatusCode)
@@ -121,9 +106,12 @@ public class EvaluationTriggerService : BackgroundService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Failed to trigger evaluation for application {application.AppId}");
-                application.Status = ApplicationStatus.Evaluation_Failed;
-                application.SummaryReport = JsonSerializer.Serialize(new { error = ex.Message });
+                _logger.LogError(ex, $"Failed to trigger batch evaluation for Job {jobId}");
+                foreach (var app in jobGroup)
+                {
+                    app.Status = ApplicationStatus.Evaluation_Failed;
+                    app.SummaryReport = JsonSerializer.Serialize(new { error = ex.Message });
+                }
             }
         }
 

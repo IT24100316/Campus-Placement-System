@@ -18,6 +18,7 @@ class AgentState(TypedDict):
     # Inputs from HTTP request
     job_id: str
     initial_student_ids: List[str]
+    evaluate_all: NotRequired[bool]
     
     # State tracking
     job_posting: NotRequired[Dict[str, Any]]
@@ -25,3 +26,6 @@ class AgentState(TypedDict):
     
     # Outputs populated by Analysis Agent
     analysis_results: NotRequired[List[CandidateResult]]
+    
+    # HITL Control
+    human_approved: NotRequired[bool]
