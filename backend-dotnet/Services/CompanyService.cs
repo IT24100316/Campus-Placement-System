@@ -110,10 +110,8 @@ public class CompanyService : ICompanyService
             .Include(a => a.Job)
             .Where(a =>
                 a.Job.CompanyId == company.UserId &&
-                (a.Status == ApplicationStatus.Agent_Evaluated ||
-                 a.Status == ApplicationStatus.Admin_Approved  ||
-                 a.Status == ApplicationStatus.Company_Scheduled ||
-                 a.Status == ApplicationStatus.Student_Accepted))
+                (a.Status == ApplicationStatus.Student_Accepted ||
+                 a.Status == ApplicationStatus.Company_Scheduled))
             .OrderByDescending(a => a.MatchScore)
             .ToListAsync();
 
@@ -148,6 +146,7 @@ public class CompanyService : ICompanyService
                 JobId          = a.JobId.ToString(),
                 Initials       = GetInitials(profile?.FullName ?? a.Student.Email),
                 FullName       = profile?.FullName ?? a.Student.Email,
+                Email          = a.Student.Email,
                 University     = profile?.UniversityName ?? "—",
                 Degree         = profile?.DegreeProgram ?? "—",
                 Batch          = profile?.ExpectedGraduationDate.HasValue == true
