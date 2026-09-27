@@ -19,6 +19,11 @@ public class SupabaseCvStorageServiceTests
         string? requestedPath = null;
         var handler = new FakeHandler(async request =>
         {
+            if (request.Method == HttpMethod.Get)
+            {
+                Assert.Equal("/storage/v1/bucket/student-cvs", request.RequestUri!.AbsolutePath);
+                return new HttpResponseMessage(HttpStatusCode.OK);
+            }
             Assert.Equal(HttpMethod.Post, request.Method);
             requestedPath = request.RequestUri!.AbsolutePath;
             Assert.Null(request.Headers.Authorization);
@@ -34,7 +39,34 @@ public class SupabaseCvStorageServiceTests
 
         Assert.Matches($"^{StudentId:N}/[0-9a-f]{{32}}\\.pdf$", key);
         Assert.Equal($"/storage/v1/object/student-cvs/{key}", requestedPath);
-        Assert.Equal(1, handler.RequestCount);
+        Assert.Equal(2, handler.RequestCount);
+    }
+
+    [Fact]
+    public async Task StoreAsync_CreatesPrivateBucketWhenItDoesNotExist()
+    {
+        var requests = new List<HttpRequestMessage>();
+        var handler = new FakeHandler(request =>
+        {
+            requests.Add(request);
+            return Task.FromResult(requests.Count switch
+            {
+                1 => new HttpResponseMessage(HttpStatusCode.NotFound),
+                2 => new HttpResponseMessage(HttpStatusCode.Created),
+                _ => new HttpResponseMessage(HttpStatusCode.OK)
+            });
+        });
+
+        await CreateService(handler).StoreAsync(StudentId, PdfFile());
+
+        Assert.Collection(requests,
+            request => Assert.Equal("/storage/v1/bucket/student-cvs", request.RequestUri!.AbsolutePath),
+            request =>
+            {
+                Assert.Equal(HttpMethod.Post, request.Method);
+                Assert.Equal("/storage/v1/bucket", request.RequestUri!.AbsolutePath);
+            },
+            request => Assert.StartsWith("/storage/v1/object/student-cvs/", request.RequestUri!.AbsolutePath));
     }
 
     [Fact]
@@ -81,7 +113,7 @@ public class SupabaseCvStorageServiceTests
         var objectKey = await service.StoreAsync(StudentId, PdfFile());
         await service.DeleteAsync(objectKey);
 
-        Assert.Equal(2, handler.RequestCount);
+        Assert.Equal(3, handler.RequestCount);
     }
 
     [Theory]
@@ -127,8 +159,10 @@ public class SupabaseCvStorageServiceTests
     [Fact]
     public async Task StoreAsync_HidesSupabaseErrorBodyAndCredentials()
     {
-        var handler = new FakeHandler(_ => Task.FromResult(
-            new HttpResponseMessage(HttpStatusCode.Forbidden)
+        var handler = new FakeHandler(request => Task.FromResult(
+            new HttpResponseMessage(request.Method == HttpMethod.Get
+                ? HttpStatusCode.OK
+                : HttpStatusCode.Forbidden)
             {
                 Content = new StringContent($"sensitive response {Secret}")
             }));
