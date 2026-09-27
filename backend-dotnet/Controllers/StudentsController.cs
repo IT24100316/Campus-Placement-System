@@ -323,6 +323,67 @@ public class StudentsController : ControllerBase
         };
     }
 
+    [HttpGet("directory")]
+    [Authorize(Roles = "Company,Staff,Admin")]
+    public async Task<ActionResult<PaginatedResult<StudentProfileResponse>>> GetStudentDirectory(
+        [FromQuery] string? search,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10)
+    {
+        IQueryable<StudentProfile> query = _context.StudentProfiles.AsNoTracking();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var s = search.ToLower().Trim();
+            query = query.Where(sp => 
+                sp.FullName.ToLower().Contains(s) || 
+                sp.UniversityName.ToLower().Contains(s) || 
+                sp.Skills.Any(skill => skill.ToLower().Contains(s))
+            );
+        }
+
+        var totalCount = await query.CountAsync();
+
+        var students = await query
+            .OrderBy(sp => sp.FullName)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(sp => new StudentProfileResponse
+            {
+                UserId = sp.UserId,
+                FullName = sp.FullName,
+                Phone = sp.Phone,
+                CampusIdPhotoUrl = sp.CampusIdPhotoUrl,
+                PortfolioUrl = sp.PortfolioUrl,
+                UniversityName = sp.UniversityName,
+                AcademicStatus = sp.AcademicStatus,
+                DegreeProgram = sp.DegreeProgram,
+                CurrentYearOfStudy = sp.CurrentYearOfStudy,
+                GPA = sp.GPA,
+                ExpectedGraduationDate = sp.ExpectedGraduationDate,
+                DesiredJobTitle = sp.DesiredJobTitle,
+                PrimaryDomain = sp.PrimaryDomain,
+                CareerObjectivesSummary = sp.CareerObjectivesSummary,
+                Skills = sp.Skills,
+                ToolsAndTechnologies = sp.ToolsAndTechnologies,
+                InternshipType = sp.InternshipType,
+                LectureScheduleType = sp.LectureScheduleType,
+                PreferredLocations = sp.PreferredLocations,
+                CvPdfUrl = sp.CvPdfUrl
+            })
+            .ToListAsync();
+
+        var result = new PaginatedResult<StudentProfileResponse>
+        {
+            Items = students,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
+
+        return Ok(result);
+    }
+
     private bool TryGetCurrentUserId(out Guid userId)
     {
         userId = Guid.Empty;

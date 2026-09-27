@@ -6,13 +6,14 @@ import { AdminDashboardPage } from './pages/AdminDashboardPage';
 import { LoginPage } from './pages/LoginPage';
 import { HrLandingPage } from './pages/HrLandingPage';
 import { ApplicationsPage } from './pages/ApplicationsPage';
+import { StaffDashboardPage } from './pages/StaffDashboardPage';
 import { JobPostingForm } from './components/company/JobPostingForm';
 import { LoginModal } from './components/auth/LoginModal';
 
 import type { RegistrationRecord } from './types/auth';
 import { authService } from './services/authService';
 
-export type AppView = 'landing' | 'register' | 'login' | 'admin' | 'hr' | 'hr-post-job' | 'applications';
+export type AppView = 'landing' | 'register' | 'login' | 'admin' | 'hr' | 'hr-post-job' | 'applications' | 'staff';
 
 function App() {
   const [currentUser, setCurrentUser] = useState<{ email: string; role: string; companyName?: string } | null>(() => {
@@ -30,7 +31,7 @@ function App() {
       if (saved) {
         const u = JSON.parse(saved);
         if (u?.role?.toLowerCase().includes('staff')) {
-          return 'applications';
+          return 'staff';
         }
       }
     } catch {}
@@ -54,7 +55,7 @@ function App() {
         setCurrentUser(verifiedUser);
         localStorage.setItem('campusai_auth_user', JSON.stringify(verifiedUser));
         if (user.role && user.role.toLowerCase().includes('staff')) {
-          setCurrentView('applications');
+          setCurrentView('staff');
         }
       })
       .catch(() => {
@@ -81,8 +82,8 @@ function App() {
     if (normalizedRole === 'admin') {
       setCurrentView('admin');
     } else if (normalizedRole.includes('staff')) {
-      // Staff members go directly to Applications & Matching UI
-      setCurrentView('applications');
+      // Staff members go directly to the new Staff Dashboard
+      setCurrentView('staff');
     } else if (
       normalizedRole === 'company hr' ||
       normalizedRole === 'companyhr' ||
@@ -225,6 +226,13 @@ function App() {
           userRole={currentUser?.role}
           userEmail={currentUser?.email}
           onLogout={handleLogout}
+        />
+      )}
+
+      {currentView === 'staff' && (
+        <StaffDashboardPage 
+          onLogout={handleLogout}
+          userEmail={currentUser?.email}
         />
       )}
 
