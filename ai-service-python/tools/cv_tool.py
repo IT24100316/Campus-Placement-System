@@ -4,7 +4,7 @@ from PyPDF2 import PdfReader
 
 import asyncio
 
-def extract_cv_text_locally(cv_url: str) -> str:
+async def extract_cv_text_locally(cv_url: str) -> str:
     """
     Downloads the PDF from the given URL (including Google Drive links) 
     and extracts all text from it.
@@ -16,6 +16,11 @@ def extract_cv_text_locally(cv_url: str) -> str:
             download_url = f"https://drive.google.com/uc?export=download&id={file_id}"
         else:
             download_url = cv_url
+            
+            # If it's a relative Supabase storage key, prepend the Supabase Storage URL
+            if not download_url.startswith("http"):
+                supabase_url = "https://hyxtmbncjolcepfvongh.supabase.co"
+                download_url = f"{supabase_url}/storage/v1/object/public/student-cvs/{download_url}"
 
         # 2. Download the PDF file asynchronously (non-blocking)
         print(f"Downloading CV from: {download_url}")
