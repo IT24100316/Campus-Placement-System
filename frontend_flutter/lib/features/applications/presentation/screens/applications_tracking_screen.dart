@@ -428,13 +428,18 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    const Icon(Icons.timer, color: Color(0xFF93000A), size: 16),
-                    const SizedBox(width: 6),
-                    Text(deadlineText, style: const TextStyle(color: Color(0xFF93000A), fontSize: 11, fontWeight: FontWeight.bold)),
-                  ],
+                Expanded(
+                  child: Row(
+                    children: [
+                      const Icon(Icons.timer, color: Color(0xFF93000A), size: 16),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(deadlineText, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Color(0xFF93000A), fontSize: 11, fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  ),
                 ),
+                const SizedBox(width: 8),
                 Text(closesText, style: const TextStyle(color: Color(0xFF93000A), fontSize: 11, fontWeight: FontWeight.w500)),
               ],
             ),
@@ -442,154 +447,171 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
           const SizedBox(height: 16),
           Row(
             children: [
-              Expanded(
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF16A34A),
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                  onPressed: () async {
-                    bool? confirm = await showDialog<bool>(
-                      context: context,
-                      builder: (BuildContext context) {
-                        return AlertDialog(
-                          backgroundColor: Colors.white,
-                          surfaceTintColor: Colors.transparent,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                          title: Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(color: const Color(0xFFDCFCE7), borderRadius: BorderRadius.circular(8)),
-                                child: const Icon(Icons.check_circle, color: Color(0xFF16A34A)),
+              if (item['status'] == 'Admin_Approved') ...[
+                Expanded(
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF16A34A),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    onPressed: () async {
+                      bool? confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (BuildContext context) {
+                          return AlertDialog(
+                            backgroundColor: Colors.white,
+                            surfaceTintColor: Colors.transparent,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            title: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(color: const Color(0xFFDCFCE7), borderRadius: BorderRadius.circular(8)),
+                                  child: const Icon(Icons.check_circle, color: Color(0xFF16A34A)),
+                                ),
+                                const SizedBox(width: 12),
+                                const Text('Confirm Offer', style: TextStyle(color: Color(0xFF0B1C30), fontWeight: FontWeight.bold, fontSize: 18)),
+                              ],
+                            ),
+                            content: const Text('Are you sure you want to accept this offer? This will finalize your placement.', style: TextStyle(color: Color(0xFF434655))),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.of(context).pop(false),
+                                child: const Text('Cancel', style: TextStyle(color: Color(0xFF434655), fontWeight: FontWeight.w600)),
                               ),
-                              const SizedBox(width: 12),
-                              const Text('Confirm Offer', style: TextStyle(color: Color(0xFF0B1C30), fontWeight: FontWeight.bold, fontSize: 18)),
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF16A34A),
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                ),
+                                onPressed: () => Navigator.of(context).pop(true),
+                                child: const Text('Accept Offer', style: TextStyle(fontWeight: FontWeight.bold)),
+                              ),
                             ],
-                          ),
-                          content: const Text('Are you sure you want to accept this offer? This will finalize your placement.', style: TextStyle(color: Color(0xFF434655))),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.of(context).pop(false),
-                              child: const Text('Cancel', style: TextStyle(color: Color(0xFF434655), fontWeight: FontWeight.w600)),
-                            ),
-                            ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF16A34A),
-                                foregroundColor: Colors.white,
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                              ),
-                              onPressed: () => Navigator.of(context).pop(true),
-                              child: const Text('Accept Offer', style: TextStyle(fontWeight: FontWeight.bold)),
-                            ),
-                          ],
-                        );
-                      },
-                    );
-                    
-                    if (confirm != true) return;
+                          );
+                        },
+                      );
+                      
+                      if (confirm != true) return;
 
-                    try {
-                      // Optimistic UI Update
-                      setState(() {
-                        item['status'] = 'Student_Accepted';
-                      });
-                      await ApiService().acceptOffer(item['applicationId']?.toString() ?? '');
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Offer Accepted!')));
+                      try {
+                        // Optimistic UI Update
+                        setState(() {
+                          item['status'] = 'Student_Accepted';
+                        });
+                        await ApiService().acceptOffer(item['applicationId']?.toString() ?? '');
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Offer Accepted!')));
+                        }
+                        _refresh();
+                      } catch (e) {
+                        setState(() {
+                          item['status'] = 'Admin_Approved';
+                        });
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                        }
                       }
-                      _refresh();
-                    } catch (e) {
-                      setState(() {
-                        item['status'] = 'Admin_Approved';
-                      });
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
-                      }
-                    }
-                  },
-                  icon: const Icon(Icons.check_circle, size: 18),
-                  label: const Text('Accept Offer', style: TextStyle(fontWeight: FontWeight.bold)),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFFDC2626),
-                    side: const BorderSide(color: Color(0xFFDC2626)),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    },
+                    icon: const Icon(Icons.check_circle, size: 18),
+                    label: const Text('Accept Offer', style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
-                  onPressed: () async {
-                    bool? confirm = await showDialog<bool>(
-                      context: context,
-                      builder: (BuildContext context) {
-                        return AlertDialog(
-                          backgroundColor: Colors.white,
-                          surfaceTintColor: Colors.transparent,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                          title: Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(color: const Color(0xFFFEE2E2), borderRadius: BorderRadius.circular(8)),
-                                child: const Icon(Icons.warning_amber_rounded, color: Color(0xFFDC2626)),
-                              ),
-                              const SizedBox(width: 12),
-                              const Text('Decline Offer', style: TextStyle(color: Color(0xFF0B1C30), fontWeight: FontWeight.bold, fontSize: 18)),
-                            ],
-                          ),
-                          content: const Text('Are you sure you want to decline this offer? This action cannot be undone.', style: TextStyle(color: Color(0xFF434655))),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.of(context).pop(false),
-                              child: const Text('Cancel', style: TextStyle(color: Color(0xFF434655), fontWeight: FontWeight.w600)),
-                            ),
-                            ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFFDC2626),
-                                foregroundColor: Colors.white,
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                              ),
-                              onPressed: () => Navigator.of(context).pop(true),
-                              child: const Text('Decline Offer', style: TextStyle(fontWeight: FontWeight.bold)),
-                            ),
-                          ],
-                        );
-                      },
-                    );
-
-                    if (confirm != true) return;
-
-                    try {
-                      // Optimistic UI Update
-                      setState(() {
-                        item['status'] = 'Rejected';
-                      });
-                      await ApiService().declineOffer(item['applicationId']?.toString() ?? '');
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Offer Declined!')));
-                      }
-                      _refresh();
-                    } catch (e) {
-                      setState(() {
-                        item['status'] = 'Admin_Approved';
-                      });
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
-                      }
-                    }
-                  },
-                  icon: const Icon(Icons.cancel, size: 18),
-                  label: const Text('Decline', style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
-              ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFFDC2626),
+                      side: const BorderSide(color: Color(0xFFDC2626)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    onPressed: () async {
+                      bool? confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (BuildContext context) {
+                          return AlertDialog(
+                            backgroundColor: Colors.white,
+                            surfaceTintColor: Colors.transparent,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            title: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(color: const Color(0xFFFEE2E2), borderRadius: BorderRadius.circular(8)),
+                                  child: const Icon(Icons.warning_amber_rounded, color: Color(0xFFDC2626)),
+                                ),
+                                const SizedBox(width: 12),
+                                const Text('Decline Offer', style: TextStyle(color: Color(0xFF0B1C30), fontWeight: FontWeight.bold, fontSize: 18)),
+                              ],
+                            ),
+                            content: const Text('Are you sure you want to decline this offer? This action cannot be undone.', style: TextStyle(color: Color(0xFF434655))),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.of(context).pop(false),
+                                child: const Text('Cancel', style: TextStyle(color: Color(0xFF434655), fontWeight: FontWeight.w600)),
+                              ),
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFFDC2626),
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                ),
+                                onPressed: () => Navigator.of(context).pop(true),
+                                child: const Text('Decline Offer', style: TextStyle(fontWeight: FontWeight.bold)),
+                              ),
+                            ],
+                          );
+                        },
+                      );
+
+                      if (confirm != true) return;
+
+                      try {
+                        // Optimistic UI Update
+                        setState(() {
+                          item['status'] = 'Rejected';
+                        });
+                        await ApiService().declineOffer(item['applicationId']?.toString() ?? '');
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Offer Declined!')));
+                        }
+                        _refresh();
+                      } catch (e) {
+                        setState(() {
+                          item['status'] = 'Admin_Approved';
+                        });
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                        }
+                      }
+                    },
+                    icon: const Icon(Icons.cancel, size: 18),
+                    label: const Text('Decline', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ] else if (item['status'] == 'Company_Scheduled') ...[
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(color: const Color(0xFFECFDF5), borderRadius: BorderRadius.circular(8)),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.check_circle, color: Color(0xFF059669), size: 18),
+                        const SizedBox(width: 8),
+                        const Text('Interview Confirmed (Check Email)', style: TextStyle(color: Color(0xFF059669), fontWeight: FontWeight.bold, fontSize: 13)),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ],
           )
         ],
@@ -660,7 +682,7 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
                   children: [
                     Row(
                       children: [
-                        Text(company, style: TextStyle(color: onSurfaceVariant, fontSize: 11)),
+                        Flexible(child: Text(company, style: TextStyle(color: onSurfaceVariant, fontSize: 11), overflow: TextOverflow.ellipsis)),
                         const SizedBox(width: 6),
                         Container(width: 4, height: 4, decoration: const BoxDecoration(color: Color(0xFFC3C6D6), shape: BoxShape.circle)),
                         const SizedBox(width: 6),
@@ -688,7 +710,8 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(stage, style: TextStyle(color: primaryColor, fontSize: 11, fontWeight: FontWeight.bold)),
+                Expanded(child: Text(stage, style: TextStyle(color: primaryColor, fontSize: 11, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis)),
+                const SizedBox(width: 8),
                 Text('${(progress! * 100).toInt()}% Complete', style: TextStyle(color: onSurfaceVariant, fontSize: 11, fontWeight: FontWeight.bold)),
               ],
             ),
@@ -698,7 +721,8 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(checkpointTitle!, style: TextStyle(color: onSurfaceVariant, fontSize: 12)),
+                Expanded(child: Text(checkpointTitle!, style: TextStyle(color: onSurfaceVariant, fontSize: 12), overflow: TextOverflow.ellipsis)),
+                const SizedBox(width: 8),
                 Text(checkpointValue!, style: TextStyle(color: primaryColor, fontSize: 11, fontWeight: FontWeight.w600)),
               ],
             )

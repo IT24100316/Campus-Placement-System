@@ -152,17 +152,15 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
     setShowRepostConfirmation(true);
   };
 
-  const [isReposting, setIsReposting] = useState(false);
-
   const executeRepostJob = async () => {
     if (!jobToRepost) return;
     
-    setIsReposting(true);
     try {
-      const response = await fetch(`http://localhost:5032/api/Jobs/${jobToRepost.jobId}/repost`, {
+      const response = await fetch(`http://localhost:5168/api/Jobs/${jobToRepost.jobId}/repost`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
       });
       
@@ -178,8 +176,6 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
     } catch (error) {
       console.error('Error reposting job:', error);
       alert('An error occurred while connecting to the server.');
-    } finally {
-      setIsReposting(false);
     }
   };
 

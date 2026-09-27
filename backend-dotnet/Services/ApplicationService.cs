@@ -175,6 +175,7 @@ public class ApplicationService : IApplicationService
         if (payload.IsSuccess)
         {
             application.SummaryReport = payload.ResultJson ?? "{}";
+            application.MatchScore = payload.MatchScore;
             application.Status = ApplicationStatus.Agent_Evaluated;
         }
         else
@@ -189,7 +190,7 @@ public class ApplicationService : IApplicationService
     public async Task<IEnumerable<object>> GetPendingAdminApprovalAsync(CancellationToken cancellationToken = default)
     {
         var values = await _context.Applications
-            .Where(a => a.Status == ApplicationStatus.Agent_Evaluated)
+            .Where(a => a.Status != ApplicationStatus.Pending && a.Status != ApplicationStatus.Processing)
             .Include(a => a.Student).ThenInclude(u => u.StudentProfile)
             .Include(a => a.Job).ThenInclude(j => j.Company)
             .Select(a => new
@@ -207,6 +208,7 @@ public class ApplicationService : IApplicationService
                 allowedYears = a.Job.AllowedYearsOfStudy,
                 companyName = a.Job.Company.CompanyName,
                 validationReport = a.SummaryReport,
+                matchScore = a.MatchScore,
                 status = a.Status.ToString(),
                 university = a.Student.StudentProfile != null ? a.Student.StudentProfile.UniversityName : "Unknown",
                 gpa = a.Student.StudentProfile != null ? a.Student.StudentProfile.GPA : 0,
@@ -221,7 +223,6 @@ public class ApplicationService : IApplicationService
                 degreeProgram = a.Student.StudentProfile != null ? a.Student.StudentProfile.DegreeProgram : string.Empty,
                 academicStatus = a.Student.StudentProfile != null ? a.Student.StudentProfile.AcademicStatus : string.Empty,
                 careerObjectives = a.Student.StudentProfile != null ? a.Student.StudentProfile.CareerObjectivesSummary : string.Empty,
-                matchScore = a.MatchScore,
                 graduationYear = (a.Student.StudentProfile != null && a.Student.StudentProfile.ExpectedGraduationDate.HasValue) ? a.Student.StudentProfile.ExpectedGraduationDate.Value.Year.ToString() : "N/A"
             }).ToListAsync(cancellationToken);
         return values.Cast<object>();
@@ -245,7 +246,7 @@ public class ApplicationService : IApplicationService
     {
         var application = await _context.Applications.FirstOrDefaultAsync(a => a.AppId == appId && a.StudentId == studentId, cancellationToken)
             ?? throw new KeyNotFoundException("Application not found or access denied.");
-        if (application.Status != ApplicationStatus.Admin_Approved && application.Status != ApplicationStatus.Company_Scheduled)
+        if (application.Status != ApplicationStatus.Admin_Approved)
             throw new InvalidOperationException("Application is not in a valid state for a student decision.");
         application.Status = accepted ? ApplicationStatus.Student_Accepted : ApplicationStatus.Rejected;
         await _context.SaveChangesAsync(cancellationToken);
@@ -282,7 +283,7 @@ public class ApplicationService : IApplicationService
                 .ThenInclude(j => j.Company)
             .FirstOrDefaultAsync(a => a.StudentId == request.StudentId && a.JobId == request.JobId);
 
-        if (application == null)
+        if (application == null || application.Status != ApplicationStatus.Student_Accepted)
         {
             return false;
         }

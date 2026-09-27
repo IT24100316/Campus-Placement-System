@@ -5,16 +5,30 @@ from langchain_core.tools import tool
 from typing import Dict, Any
 
 def get_db_connection():
-    # Use direct connection parameters to avoid parsing issues with connection strings
-    return psycopg2.connect(
-        host="db.hyxtmbncjolcepfvongh.supabase.co",
-        port="5432",
-        dbname="postgres",
-        user="postgres",
-        password="Sef@project#123",
-        sslmode="require",
-        cursor_factory=RealDictCursor
-    )
+    db_url = os.getenv("DATABASE_URL")
+    if not db_url:
+        raise ValueError("DATABASE_URL environment variable is not set")
+    return psycopg2.connect(db_url, cursor_factory=RealDictCursor)
+
+def fetch_job_posting(job_id: str) -> dict:
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute('SELECT * FROM "Jobs" WHERE "JobId" = %s', (job_id,))
+            row = cur.fetchone()
+            return dict(row) if row else {}
+
+def fetch_all_student_ids() -> list:
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute('SELECT "UserId" FROM "StudentProfiles"')
+            return [str(r["UserId"]) for r in cur.fetchall()]
+
+def fetch_student_profile(student_id: str) -> dict:
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute('SELECT * FROM "StudentProfiles" WHERE "UserId" = %s', (student_id,))
+            row = cur.fetchone()
+            return dict(row) if row else {}
 
 @tool
 def check_hard_filters_tool(student_id: str, job_id: str) -> Dict[str, Any]:
@@ -70,20 +84,7 @@ def check_hard_filters_tool(student_id: str, job_id: str) -> Dict[str, Any]:
             if job["TargetDomain"].lower() != student["PrimaryDomain"].lower():
                 return {"passed": False, "reason": f"Domain mismatch (Student: {student['PrimaryDomain']}, Job: {job['TargetDomain']})."}
                 
-        # 5. Degree Program Check
-        if job["PreferredDegreePrograms"] and student["DegreeProgram"]:
-            job_degrees = set(d.lower() for d in job["PreferredDegreePrograms"])
-            if student["DegreeProgram"].lower() not in job_degrees:
-                return {"passed": False, "reason": f"Degree mismatch (Student: {student['DegreeProgram']})."}
-                
-        # 6. Location Check
-        if job["LocationCity"] and student["PreferredLocations"]:
-            job_loc = job["LocationCity"].lower()
-            student_locs = set(l.lower() for l in student["PreferredLocations"])
-            if job_loc not in student_locs and "any" not in student_locs:
-                return {"passed": False, "reason": f"Location mismatch (Job is in {job['LocationCity']})."}
-                
-        return {"passed": True, "reason": "All hard filters passed."}
+        return {"passed": True, "reason": "All hard filters passed (Degree Program check bypassed)."}
         
     except Exception as e:
         return {"passed": False, "reason": f"Database error during hard filter check: {str(e)}"}

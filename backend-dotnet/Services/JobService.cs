@@ -6,16 +6,23 @@ using backend_dotnet.Data;
 using backend_dotnet.DTOs;
 using backend_dotnet.Models;
 using Microsoft.EntityFrameworkCore;
+using System.Net.Http;
+using Microsoft.Extensions.Configuration;
+using System.Text.Json;
 
 namespace backend_dotnet.Services;
 
 public class JobService : IJobService
 {
     private readonly AppDbContext _context;
+    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IConfiguration _configuration;
 
-    public JobService(AppDbContext context)
+    public JobService(AppDbContext context, IHttpClientFactory httpClientFactory, IConfiguration configuration)
     {
         _context = context;
+        _httpClientFactory = httpClientFactory;
+        _configuration = configuration;
     }
 
     /// <summary>
@@ -276,6 +283,61 @@ public class JobService : IJobService
 
         _context.Jobs.Add(newJob);
         await _context.SaveChangesAsync();
+
+        // 8. Trigger Python AI pipeline for matching students
+        var minGpa = newJob.MinimumGPA;
+        var allowedYears = newJob.AllowedYearsOfStudy ?? Array.Empty<int>();
+        var preferredDegrees = newJob.PreferredDegreePrograms ?? Array.Empty<string>();
+        var jobDomain = newJob.TargetDomain?.ToLower() ?? "";
+        var jobInternshipTypes = newJob.InternshipType?.Select(t => t.ToLower()).ToList() ?? new List<string>();
+
+        var matchingStudentIds = await _context.StudentProfiles
+            .Where(sp => sp.GPA >= minGpa && sp.PrimaryDomain.ToLower() == jobDomain)
+            .Select(sp => sp.UserId)
+            .ToListAsync();
+
+        var finalStudentIds = new List<Guid>();
+        if (matchingStudentIds.Any())
+        {
+            // Perform in-memory filtering for array intersections
+            var students = await _context.StudentProfiles
+                .Where(sp => matchingStudentIds.Contains(sp.UserId))
+                .ToListAsync();
+
+            foreach (var student in students)
+            {
+                if (allowedYears.Length > 0 && !allowedYears.Contains(student.CurrentYearOfStudy)) continue;
+                if (preferredDegrees.Length > 0 && !preferredDegrees.Contains(student.DegreeProgram)) continue;
+                
+                var studentInternshipTypes = student.InternshipType?.Select(t => t.ToLower()).ToList() ?? new List<string>();
+                if (jobInternshipTypes.Any() && studentInternshipTypes.Any() && !jobInternshipTypes.Intersect(studentInternshipTypes).Any()) continue;
+
+                finalStudentIds.Add(student.UserId);
+            }
+        }
+
+        if (finalStudentIds.Any())
+        {
+            try
+            {
+                var aiBaseUrl = (_configuration["AiService:BaseUrl"] ?? "http://127.0.0.1:8000").TrimEnd('/');
+                var client = _httpClientFactory.CreateClient();
+                
+                var payload = new 
+                {
+                    job_id = newJob.JobId.ToString(),
+                    student_ids = finalStudentIds.Select(id => id.ToString()).ToList()
+                };
+
+                var body = JsonSerializer.Serialize(payload);
+                _ = client.PostAsync($"{aiBaseUrl}/analyze", 
+                    new StringContent(body, System.Text.Encoding.UTF8, "application/json"));
+            }
+            catch 
+            {
+                // Ignored to avoid blocking job creation
+            }
+        }
 
         var responseDto = new JobResponseDto
         {

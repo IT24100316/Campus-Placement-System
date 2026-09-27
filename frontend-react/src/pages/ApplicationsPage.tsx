@@ -45,6 +45,7 @@ interface ApplicationsPageProps {
   userRole?: string;
   userEmail?: string;
   onLogout?: () => void;
+  hideHeader?: boolean;
 }
 
 export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
@@ -52,6 +53,7 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
   userRole,
   userEmail,
   onLogout,
+  hideHeader = false,
 }) => {
   const savedUserStr = typeof window !== 'undefined' ? localStorage.getItem('campusai_auth_user') : null;
   const savedUser = savedUserStr ? JSON.parse(savedUserStr) : null;
@@ -83,12 +85,13 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
           try {
             const parsed = JSON.parse(item.validationReport);
             aiPoints = [];
-            if (parsed.technical_alignment) aiPoints.push({ topic: 'Technical Alignment', content: parsed.technical_alignment });
-            if (parsed.identified_gaps) aiPoints.push({ topic: 'Identified Gaps', content: parsed.identified_gaps });
-            if (parsed.project_relevance) aiPoints.push({ topic: 'Project Relevance', content: parsed.project_relevance });
-            if (parsed.cv_strategic_insights) aiPoints.push({ topic: 'Strategic Insights', content: parsed.cv_strategic_insights });
-            if (parsed.github_comprehensive_analysis) aiPoints.push({ topic: 'GitHub Analysis', content: parsed.github_comprehensive_analysis });
-            if (parsed.approval_recommendation) aiPoints.push({ topic: 'Recommendation', content: parsed.approval_recommendation });
+            const summary = parsed.summary || {};
+            if (summary.technical_alignment) aiPoints.push({ topic: 'Technical Alignment', content: summary.technical_alignment });
+            if (summary.identified_gaps) aiPoints.push({ topic: 'Identified Gaps', content: summary.identified_gaps });
+            if (summary.project_relevance) aiPoints.push({ topic: 'Project Relevance', content: summary.project_relevance });
+            if (summary.cv_strategic_insights) aiPoints.push({ topic: 'Strategic Insights', content: summary.cv_strategic_insights });
+            if (summary.github_comprehensive_analysis) aiPoints.push({ topic: 'GitHub Analysis', content: summary.github_comprehensive_analysis });
+            if (summary.approval_recommendation) aiPoints.push({ topic: 'Recommendation', content: summary.approval_recommendation });
             
             // Extract Agent 4 (Validation Agent) Data
             if (parsed.validation) {
@@ -111,8 +114,8 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
         const initials = nameParts.length > 1 ? `${nameParts[0][0]}${nameParts[1][0]}`.toUpperCase() : item.studentName.substring(0, 2).toUpperCase();
         
         let status: 'pending' | 'approved' | 'disapproved' = 'pending';
-        if (item.status === 'Approved') status = 'approved';
-        if (item.status === 'Rejected' || item.status === 'Disapproved') status = 'disapproved';
+        if (['Approved', 'Admin_Approved', 'Company_Scheduled', 'Student_Accepted'].includes(item.status)) status = 'approved';
+        if (['Rejected', 'Disapproved', 'Evaluation_Failed'].includes(item.status)) status = 'disapproved';
 
         return {
           id: item.applicationId || 'unknown',
@@ -161,6 +164,7 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
 
   const [viewingJobFor, setViewingJobFor] = useState<Candidate | null>(null);
   const [viewingStudentFor, setViewingStudentFor] = useState<Candidate | null>(null);
+  const [pendingAction, setPendingAction] = useState<{id: string, action: 'approve' | 'reject', name: string} | null>(null);
 
   useEffect(() => {
     fetchCandidates();
@@ -183,6 +187,8 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
       }
     } catch (err) {
       console.error('Action failed', err);
+    } finally {
+      setPendingAction(null);
     }
   };
 
@@ -216,8 +222,9 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 font-sans">
+    <div className={`min-h-screen flex flex-col bg-slate-50 text-slate-900 font-sans ${hideHeader ? '' : 'pt-24'}`}>
       {/* Authenticated Navigation Bar (Matched to HR-LandingPage) */}
+      {!hideHeader && (
       <header className="fixed top-0 left-0 right-0 w-full z-50 bg-white/95 backdrop-blur-xl border-b border-slate-200 shadow-[0_1px_8px_rgba(15,23,42,0.04)]">
         <div className="h-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
           {/* Brand & Portal Links */}
@@ -357,8 +364,9 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
           </div>
         </div>
       </header>
+      )}
 
-      <main className="max-w-7xl w-full mx-auto px-6 py-8 flex-1 flex flex-col gap-6 pt-24">
+      <main className={`max-w-7xl w-full mx-auto px-6 flex-1 flex flex-col gap-6 ${hideHeader ? 'py-4' : 'py-8 pt-24'}`}>
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
@@ -412,7 +420,9 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
               }`}
             >
               Pending
-              <span className={`px-1.5 py-0.5 rounded-md text-[11px] font-bold ${activeTab === 'pending' ? 'bg-blue-50 text-blue-700' : 'bg-slate-200 text-slate-500'}`}>4</span>
+              <span className={`px-1.5 py-0.5 rounded-md text-[11px] font-bold ${activeTab === 'pending' ? 'bg-blue-50 text-blue-700' : 'bg-slate-200 text-slate-500'}`}>
+                {candidates.filter(c => c.status === 'pending').length}
+              </span>
             </button>
             <button
               onClick={() => handleTabChange('approved')}
@@ -421,7 +431,9 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
               }`}
             >
               Approved
-              <span className={`px-1.5 py-0.5 rounded-md text-[11px] font-medium ${activeTab === 'approved' ? 'bg-blue-50 text-blue-700' : 'bg-slate-200 text-slate-500'}`}>0</span>
+              <span className={`px-1.5 py-0.5 rounded-md text-[11px] font-medium ${activeTab === 'approved' ? 'bg-blue-50 text-blue-700' : 'bg-slate-200 text-slate-500'}`}>
+                {candidates.filter(c => c.status === 'approved').length}
+              </span>
             </button>
             <button
               onClick={() => handleTabChange('disapproved')}
@@ -430,7 +442,9 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
               }`}
             >
               Disapproved
-              <span className={`px-1.5 py-0.5 rounded-md text-[11px] font-medium ${activeTab === 'disapproved' ? 'bg-blue-50 text-blue-700' : 'bg-slate-200 text-slate-500'}`}>0</span>
+              <span className={`px-1.5 py-0.5 rounded-md text-[11px] font-medium ${activeTab === 'disapproved' ? 'bg-blue-50 text-blue-700' : 'bg-slate-200 text-slate-500'}`}>
+                {candidates.filter(c => c.status === 'disapproved').length}
+              </span>
             </button>
           </div>
           <span className="text-xs text-slate-500 hidden sm:inline-block">
@@ -484,10 +498,10 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
                       <div className="flex items-center gap-1.5">
                         {c.status === 'pending' && (
                           <>
-                            <button type="button" onClick={(e) => { e.stopPropagation(); handleAction(c.id, 'reject'); }} className="w-8 h-8 rounded-lg border border-slate-200 hover:bg-rose-50 hover:text-rose-600 text-slate-500 flex items-center justify-center transition-colors" title="Reject">
+                            <button type="button" onClick={(e) => { e.stopPropagation(); setPendingAction({ id: c.id, action: 'reject', name: c.name }); }} className="w-8 h-8 rounded-lg border border-slate-200 hover:bg-rose-50 hover:text-rose-600 text-slate-500 flex items-center justify-center transition-colors" title="Reject">
                               <span className="material-symbols-outlined text-[16px]">close</span>
                             </button>
-                            <button type="button" onClick={(e) => { e.stopPropagation(); handleAction(c.id, 'approve'); }} className="w-8 h-8 rounded-lg border border-slate-200 hover:bg-emerald-50 hover:text-emerald-700 text-slate-500 flex items-center justify-center transition-colors" title="Approve">
+                            <button type="button" onClick={(e) => { e.stopPropagation(); setPendingAction({ id: c.id, action: 'approve', name: c.name }); }} className="w-8 h-8 rounded-lg border border-slate-200 hover:bg-emerald-50 hover:text-emerald-700 text-slate-500 flex items-center justify-center transition-colors" title="Approve">
                               <span className="material-symbols-outlined text-[16px]">check</span>
                             </button>
                           </>
@@ -569,12 +583,12 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
                           
                           {c.status === 'pending' && (
                             <div className="flex items-center gap-2 pt-4 border-t border-slate-200 mt-auto">
-                              <button type="button" onClick={() => handleAction(c.id, 'reject')} className="flex-1 py-2.5 px-3 text-xs font-bold text-rose-600 bg-white border border-rose-200 rounded-lg hover:bg-rose-50 transition-colors text-center shadow-sm">
+                              <button type="button" onClick={() => setPendingAction({ id: c.id, action: 'reject', name: c.name })} className="flex-1 py-2.5 px-3 text-xs font-bold text-rose-600 bg-white border border-rose-200 rounded-lg hover:bg-rose-50 transition-colors text-center shadow-sm">
                                 Reject
                               </button>
                               <button 
                                 type="button" 
-                                onClick={() => handleAction(c.id, 'approve')}
+                                onClick={() => setPendingAction({ id: c.id, action: 'approve', name: c.name })}
                                 className="flex-[2] inline-flex items-center justify-center gap-1.5 py-2.5 px-3 text-xs font-bold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors shadow-sm text-center"
                               >
                                 <span className="material-symbols-outlined text-[16px]">check_circle</span>
@@ -787,7 +801,7 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
                           </div>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                          <button type="button" onClick={() => window.open(`https://docs.google.com/viewer?url=${encodeURIComponent(viewingStudentFor.cvUrl || '')}`, '_blank')} className="p-2 rounded-lg bg-white border border-slate-200 hover:border-blue-300 shadow-sm text-slate-600 hover:text-blue-700 transition-all flex items-center gap-1.5" title="View PDF">
+                          <button type="button" onClick={() => window.open(viewingStudentFor.cvUrl || '', '_blank')} className="p-2 rounded-lg bg-white border border-slate-200 hover:border-blue-300 shadow-sm text-slate-600 hover:text-blue-700 transition-all flex items-center gap-1.5" title="View PDF">
                             <span className="material-symbols-outlined text-[16px]">visibility</span>
                             <span className="text-xs font-bold">View</span>
                           </button>
@@ -959,7 +973,44 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
         </div>
       )}
       
-      <Footer />
+      {/* Confirmation Modal */}
+      {pendingAction && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl p-6 text-center">
+            <div className={`mx-auto w-12 h-12 rounded-full flex items-center justify-center mb-4 ${pendingAction.action === 'approve' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
+              <span className="material-symbols-outlined text-2xl">
+                {pendingAction.action === 'approve' ? 'check_circle' : 'cancel'}
+              </span>
+            </div>
+            <h3 className="text-xl font-bold text-slate-900 mb-2">
+              Confirm {pendingAction.action === 'approve' ? 'Approval' : 'Rejection'}
+            </h3>
+            <p className="text-sm text-slate-500 mb-6">
+              Are you sure you want to {pendingAction.action} the application for <strong>{pendingAction.name}</strong>?
+            </p>
+            <div className="flex gap-3">
+              <button 
+                onClick={() => setPendingAction(null)}
+                className="flex-1 py-2.5 px-4 rounded-xl border border-slate-200 text-slate-700 font-semibold hover:bg-slate-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={() => handleAction(pendingAction.id, pendingAction.action)}
+                className={`flex-1 py-2.5 px-4 rounded-xl font-semibold text-white transition-colors ${
+                  pendingAction.action === 'approve' 
+                    ? 'bg-emerald-600 hover:bg-emerald-700' 
+                    : 'bg-rose-600 hover:bg-rose-700'
+                }`}
+              >
+                Yes, {pendingAction.action}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!hideHeader && <Footer />}
     </div>
   );
 };
