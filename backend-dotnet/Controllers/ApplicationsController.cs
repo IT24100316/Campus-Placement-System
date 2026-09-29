@@ -208,14 +208,26 @@ public class ApplicationsController : ControllerBase
 
         try
         {
-            // We just fire it and don't strictly care if it fails, but we can check.
-            await client.PostAsync($"{aiBaseUrl}/resume", 
-                new StringContent(body, System.Text.Encoding.UTF8, "application/json"), cancellationToken);
+            using var resume = new HttpRequestMessage(HttpMethod.Post, $"{aiBaseUrl}/resume")
+            {
+                Content = new StringContent(body, System.Text.Encoding.UTF8, "application/json")
+            };
+            var secret = configuration["Webhook:Secret"];
+            if (string.IsNullOrWhiteSpace(secret))
+                return StatusCode(503, new { message = "Decision saved; workflow credential is not configured.", workflowResumed = false });
+            resume.Headers.Add("x-webhook-secret", secret);
+            using var response = await client.SendAsync(resume, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+                return StatusCode(502, new { message = "Decision saved; the AI workflow could not resume.", workflowResumed = false });
+            using var result = await System.Text.Json.JsonDocument.ParseAsync(
+                await response.Content.ReadAsStreamAsync(cancellationToken), cancellationToken: cancellationToken);
+            if (!result.RootElement.TryGetProperty("email_sent", out var emailSent) || emailSent.ValueKind != System.Text.Json.JsonValueKind.True)
+                return StatusCode(502, new { message = "Decision saved; the final notification was not confirmed.", workflowResumed = false });
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
         {
-            // Log it but don't fail the UI request
-            Console.WriteLine($"Warning: Failed to resume Python graph for thread {request.AppId}. {ex.Message}");
+            Console.WriteLine($"Warning: Failed to resume Python graph for job {jobId}, student {studentId}. {ex.Message}");
+            return StatusCode(502, new { message = "Decision saved; the AI workflow could not resume.", workflowResumed = false });
         }
 
         return Ok(new { message = "Decision processed and AI resumed." });
