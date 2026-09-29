@@ -100,6 +100,7 @@ public class ApplicationsController : ControllerBase
     }
 
     // Fetches all the applications that the AI has processed and are now waiting for human university admin approval.
+    [Authorize(Roles = "Admin")]
     [HttpGet("pending-admin-approval")]
     public async Task<IActionResult> PendingAdminApproval(
         CancellationToken cancellationToken)
@@ -111,30 +112,6 @@ public class ApplicationsController : ControllerBase
         return Ok(applications);
     }
 
-    // Simply approves the application from the admin's side.
-    [HttpPost("{appId:guid}/admin-approve")]
-    public Task<IActionResult> AdminApprove(
-        Guid appId,
-        CancellationToken cancellationToken)
-    {
-        return AdminDecision(
-            appId,
-            approved: true,
-            cancellationToken);
-    }
-
-    // Rejects the application from the admin's side.
-    [HttpPost("{appId:guid}/admin-reject")]
-    public Task<IActionResult> AdminReject(
-        Guid appId,
-        CancellationToken cancellationToken)
-    {
-        return AdminDecision(
-            appId,
-            approved: false,
-            cancellationToken);
-    }
-
     public class HumanVerifyRequest
     {
         public Guid AppId { get; set; }
@@ -143,6 +120,7 @@ public class ApplicationsController : ControllerBase
 
     // This is the bridge endpoint used by the React UI for admins to approve/reject an application.
     // After saving the decision, it pings the Python AI to wake it up and resume the background workflow!
+    [Authorize(Roles = "Admin")]
     [HttpPost("human-verify")]
     public async Task<IActionResult> HumanVerify(
         [FromBody] HumanVerifyRequest request,
