@@ -125,7 +125,8 @@ public class AdminRegisterEmployeeDto
     [EmailAddress]
     public string Email { get; set; } = string.Empty;
 
-    public string? Password { get; set; }
+    [Required, MinLength(8)]
+    public string Password { get; set; } = string.Empty;
 
     public Guid? CompanyId { get; set; }
 
@@ -183,4 +184,3 @@ public class ResetPasswordDto
     [Required, MinLength(8)]
     public string NewPassword { get; set; } = string.Empty;
 }
-
