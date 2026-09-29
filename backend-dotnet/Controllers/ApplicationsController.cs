@@ -140,6 +140,12 @@ public class ApplicationsController : ControllerBase
             }
         }
 
+        var applicationIds = await dbContext.Applications
+            .Where(a => a.AppId == request.AppId)
+            .Select(a => new { a.JobId, a.StudentId })
+            .FirstOrDefaultAsync(cancellationToken);
+        if (applicationIds == null) return NotFound(new { message = "Application not found." });
+
         // 1. First, process the local Admin Decision 
         try
         {
@@ -154,14 +160,50 @@ public class ApplicationsController : ControllerBase
             return Conflict(new { message = ex.Message });
         }
 
-        // 2. Forward the decision to Python to wake up the sleeping Agent
+        return await ResumeWorkflowAsync(applicationIds.JobId, applicationIds.StudentId, request.Approved,
+            httpClientFactory, configuration, cancellationToken);
+    }
+
+    /// <summary>Retries the AI continuation after an administrator decision was saved but delivery failed.</summary>
+    [Authorize(Roles = "Admin")]
+    [HttpPost("{appId:guid}/retry-workflow-resume")]
+    public async Task<IActionResult> RetryWorkflowResume(
+        Guid appId,
+        [FromServices] IHttpClientFactory httpClientFactory,
+        [FromServices] IConfiguration configuration,
+        [FromServices] backend_dotnet.Data.AppDbContext dbContext,
+        CancellationToken cancellationToken)
+    {
+        var application = await dbContext.Applications
+            .Where(a => a.AppId == appId)
+            .Select(a => new { a.JobId, a.StudentId, a.Status })
+            .FirstOrDefaultAsync(cancellationToken);
+        if (application == null) return NotFound(new { message = "Application not found." });
+        if (application.Status is not (backend_dotnet.Models.ApplicationStatus.Admin_Approved or backend_dotnet.Models.ApplicationStatus.Rejected))
+            return Conflict(new { message = "No saved administrator decision can be resumed." });
+        return await ResumeWorkflowAsync(application.JobId, application.StudentId,
+            application.Status == backend_dotnet.Models.ApplicationStatus.Admin_Approved,
+            httpClientFactory, configuration, cancellationToken);
+    }
+
+    private async Task<IActionResult> ResumeWorkflowAsync(
+        Guid jobId, Guid studentId, bool approved,
+        IHttpClientFactory httpClientFactory, IConfiguration configuration,
+        CancellationToken cancellationToken)
+    {
+        // Forward the saved decision to the one-candidate paused workflow.
+        var reviewerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(reviewerId))
+            return Unauthorized(new { message = "An administrator identity is required." });
         var aiBaseUrl = (configuration["AiService:BaseUrl"] ?? "http://127.0.0.1:8000").TrimEnd('/');
         var client = httpClientFactory.CreateClient();
         
         var body = System.Text.Json.JsonSerializer.Serialize(new
         {
-            thread_id = request.AppId.ToString(), // thread_id matches the application ID
-            human_approved = request.Approved
+            thread_id = $"{jobId}:{studentId}",
+            human_approved = approved,
+            approved_by = reviewerId,
+            decision_at = DateTime.UtcNow.ToString("O")
         });
 
         try
