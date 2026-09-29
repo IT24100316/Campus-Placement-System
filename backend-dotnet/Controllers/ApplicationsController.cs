@@ -230,7 +230,7 @@ public class ApplicationsController : ControllerBase
             return StatusCode(502, new { message = "Decision saved; the AI workflow could not resume.", workflowResumed = false });
         }
 
-        return Ok(new { message = "Decision processed and AI resumed." });
+        return Ok(new { message = "Decision saved and AI workflow resumed.", workflowResumed = true });
     }
 
     // Gets all applications for a given student ID. Useful for admin or staff views.
@@ -330,37 +330,6 @@ public class ApplicationsController : ControllerBase
         catch (KeyNotFoundException ex)
         {
             return NotFound(new { message = ex.Message });
-        }
-    }
-
-    // A private helper that actually talks to the service layer to save an admin's approve/reject decision.
-    private async Task<IActionResult> AdminDecision(
-        Guid appId,
-        bool approved,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            var application =
-                await _applicationService.AdminDecisionAsync(
-                    appId,
-                    approved,
-                    cancellationToken);
-
-            return Ok(new
-            {
-                applicationId = application.AppId,
-                status = application.Status.ToString(),
-                workflowResumed = approved
-            });
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new { message = ex.Message });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return Conflict(new { message = ex.Message });
         }
     }
 
