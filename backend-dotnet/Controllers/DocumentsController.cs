@@ -1,4 +1,5 @@
 using backend_dotnet.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace backend_dotnet.Controllers;
@@ -28,6 +29,7 @@ public class DocumentsController : ControllerBase
     }
 
     /// <summary>Streams a private verification document through the API.</summary>
+    [Authorize(Roles = "Admin")]
     [HttpGet("view")]
     public async Task<IActionResult> View([FromQuery] string key, CancellationToken cancellationToken)
     {
