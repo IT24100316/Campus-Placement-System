@@ -325,7 +325,7 @@ public class ApplicationService : IApplicationService
         application.InterviewDate = DateTime.SpecifyKind(request.InterviewDate, DateTimeKind.Utc);
         application.InterviewTime = request.InterviewTime;
         
-        // 4. Generate .ics and Dispatch Email via SendGrid Service (with Polly resilience built-in)
+        // 4. Generate the calendar invitation and request email delivery through Brevo.
         var emailSent = await _emailService.SendInterviewScheduledAsync(
             studentEmail,
             studentName,
