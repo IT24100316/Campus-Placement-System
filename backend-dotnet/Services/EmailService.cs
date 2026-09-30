@@ -124,8 +124,8 @@ public sealed class BrevoEmailService : IEmailService
         var apiKey = _configuration["BrevoApi:ApiKey"];
         if (string.IsNullOrWhiteSpace(apiKey) || apiKey == "YOUR_BREVO_API_KEY_HERE")
         {
-            _logger.LogWarning("Brevo API Key is not configured. Email to {Recipient} was mocked as sent.", recipient);
-            return true; // Mock success
+            _logger.LogWarning("Brevo API key is not configured; no email was sent to {Recipient}.", recipient);
+            return false;
         }
 
         var fromEmail = _configuration["BrevoApi:SenderEmail"] ?? "noreply@campusai.local";
@@ -156,6 +156,11 @@ public sealed class BrevoEmailService : IEmailService
         catch (HttpRequestException ex)
         {
             _logger.LogError(ex, "Brevo request failed for {Recipient}.", recipient);
+            return false;
+        }
+        catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogError(ex, "Brevo request timed out for {Recipient}.", recipient);
             return false;
         }
     }
