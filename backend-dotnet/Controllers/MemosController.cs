@@ -41,6 +41,18 @@ public class MemosController : ControllerBase
         return Ok(memos);
     }
 
+    [HttpGet("pending-summary")]
+    public async Task<IActionResult> GetPendingMemosSummary()
+    {
+        var appIds = await _context.Memos
+            .Where(m => m.Status == "Pending")
+            .Select(m => m.ApplicationId)
+            .Distinct()
+            .ToListAsync();
+        
+        return Ok(appIds);
+    }
+
     [HttpPost]
     public async Task<IActionResult> CreateMemo([FromBody] CreateMemoDto dto)
     {

@@ -139,7 +139,7 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
               color: primaryColor,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(Icons.hub, color: Colors.white, size: 20),
+            child: const Icon(Icons.layers, color: Colors.white, size: 20),
           ),
           const SizedBox(width: 12),
           Column(
@@ -166,19 +166,23 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
       ),
       actions: [
         IconButton(
-          icon: const Badge(child: Icon(Icons.notifications_none)),
+          icon: const Badge(
+            backgroundColor: Colors.red,
+            child: Icon(Icons.notifications_none),
+          ),
           color: onSurfaceVariant,
           onPressed: () {},
         ),
         Container(
           margin: const EdgeInsets.only(right: 16, left: 4),
+          alignment: Alignment.center,
           child: Stack(
             clipBehavior: Clip.none,
             children: [
-              CircleAvatar(
+              const CircleAvatar(
                 radius: 16,
-                backgroundColor: primaryColor,
-                child: const Icon(Icons.person, color: Colors.white, size: 18),
+                backgroundColor: AppColors.primary,
+                child: Icon(Icons.person, color: Colors.white, size: 18),
               ),
               Positioned(
                 bottom: -2,
@@ -188,7 +192,7 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
                     color: Colors.white,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.verified, color: Colors.blue, size: 14),
+                  child: const Icon(Icons.verified, color: AppColors.primary, size: 14),
                 ),
               )
             ],
