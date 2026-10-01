@@ -132,14 +132,6 @@ workflow.add_edge("validation", "email")
 workflow.add_edge("email", END)
 
 
-memory = MemorySaver()
-
-# Compile Graph with HITL Pause
-app_graph = workflow.compile(
-    checkpointer=memory,
-    interrupt_after=["validation"]
-)
-
 # ==========================================
 # API ENDPOINTS
 # ==========================================
@@ -149,34 +141,31 @@ class AnalyzeRequest(BaseModel):
     evaluate_all: bool = False
 
 @app.post("/analyze")
-async def run_orchestration(request: AnalyzeRequest):
+async def run_orchestration(request: AnalyzeRequest, http_request: Request):
     """
     Triggers the entire AI multi-agent orchestration workflow!
     It spins up the agents to match students with jobs, then pauses for human review.
     """
-    thread_id = str(uuid.uuid4())
-    config = {"configurable": {"thread_id": thread_id}}
-    
-    initial_state = {
-        "job_id": request.job_id,
-        "initial_student_ids": request.student_ids,
-        "evaluate_all": request.evaluate_all
-    }
-    
-    # Invoke the LangGraph (it will run until 'validation' node and pause)
-    final_state = await app_graph.ainvoke(initial_state, config=config)
-    
-    # We return the thread_id so the backend can resume it later
-    try:
-        with open("scratch/output.json", "w") as f:
-            f.write(json.dumps(final_state, default=str))
-    except Exception as e:
-        print("Could not dump final state:", e)
+    student_ids = fetch_all_student_ids() if request.evaluate_all else request.student_ids
+    results = []
+    thread_ids = {}
+    # A separate paused workflow is required for each application. Resuming one
+    # candidate must never send a decision email to every candidate in a job batch.
+    for student_id in dict.fromkeys(str(value) for value in student_ids):
+        thread_id = f"{request.job_id}:{student_id}"
+        config = {"configurable": {"thread_id": thread_id}}
+        final_state = await http_request.app.state.graph.ainvoke({
+            "job_id": request.job_id,
+            "initial_student_ids": [student_id],
+            "evaluate_all": False,
+        }, config=config)
+        results.extend(final_state.get("analysis_results", []))
+        thread_ids[student_id] = thread_id
 
     return {
         "status": "paused_for_human_review",
-        "thread_id": thread_id,
-        "results": final_state.get("analysis_results", [])
+        "thread_ids": thread_ids,
+        "results": results
     }
 
 class ResumeRequest(BaseModel):
