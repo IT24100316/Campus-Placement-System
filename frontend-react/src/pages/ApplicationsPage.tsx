@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Footer } from '../components/layout/Footer';
+import InternalMemosPanel from '../components/admin/InternalMemosPanel';
 import { Building2, PlusCircle, Users, CheckCircle2, Bell, LogOut, Loader2 } from 'lucide-react';
 
 interface Candidate {
@@ -75,6 +76,7 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
 
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasPendingMemos, setHasPendingMemos] = useState(false);
 
   const fetchCandidates = async () => {
     try {
@@ -607,18 +609,25 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
                           )}
                           
                           {c.status === 'pending' && (
-                            <div className="flex items-center gap-2 pt-4 border-t border-slate-200 mt-auto">
-                              <button type="button" onClick={() => setPendingAction({ id: c.id, action: 'reject', name: c.name })} className="flex-1 py-2.5 px-3 text-xs font-bold text-rose-600 bg-white border border-rose-200 rounded-lg hover:bg-rose-50 transition-colors text-center shadow-sm">
-                                Reject
-                              </button>
-                              <button 
-                                type="button" 
-                                onClick={() => setPendingAction({ id: c.id, action: 'approve', name: c.name })}
-                                className="flex-[2] inline-flex items-center justify-center gap-1.5 py-2.5 px-3 text-xs font-bold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors shadow-sm text-center"
-                              >
-                                <span className="material-symbols-outlined text-[16px]">check_circle</span>
-                                Approve Candidate
-                              </button>
+                            <div className="pt-4 border-t border-slate-200 mt-auto">
+                              <InternalMemosPanel 
+                                applicationId={c.id} 
+                                onPendingMemosChange={setHasPendingMemos} 
+                              />
+                              <div className="flex items-center gap-2 mt-4">
+                                <button type="button" onClick={() => setPendingAction({ id: c.id, action: 'reject', name: c.name })} className="flex-1 py-2.5 px-3 text-xs font-bold text-rose-600 bg-white border border-rose-200 rounded-lg hover:bg-rose-50 transition-colors text-center shadow-sm">
+                                  Reject
+                                </button>
+                                <button 
+                                  type="button" 
+                                  disabled={hasPendingMemos}
+                                  onClick={() => setPendingAction({ id: c.id, action: 'approve', name: c.name })}
+                                  className={`flex-[2] inline-flex items-center justify-center gap-1.5 py-2.5 px-3 text-xs font-bold text-white rounded-lg transition-colors shadow-sm text-center ${hasPendingMemos ? 'bg-slate-400 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-700'}`}
+                                >
+                                  <span className="material-symbols-outlined text-[16px]">{hasPendingMemos ? 'lock' : 'check_circle'}</span>
+                                  {hasPendingMemos ? 'Resolve Memos to Approve' : 'Approve Candidate'}
+                                </button>
+                              </div>
                             </div>
                           )}
                         </div>
