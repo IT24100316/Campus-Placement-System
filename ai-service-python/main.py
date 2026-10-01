@@ -82,6 +82,14 @@ def email_node(state: dict) -> dict:
         student_id = result.get("student_id")
         student_data = next((c for c in candidates if str(c.get("UserId")) == str(student_id)), {})
         email = student_data.get("Email")
+        if not email:
+            with get_db_connection() as connection:
+                with connection.cursor() as cursor:
+                    cursor.execute('SELECT "Email" FROM "Users" WHERE "Id" = %s', (student_id,))
+                    row = cursor.fetchone()
+                    email = row["Email"] if row else None
+        if not email:
+            raise RuntimeError("Student email address is unavailable; notification was not sent.")
         
         if email:
             if human_approved:
@@ -93,11 +101,13 @@ def email_node(state: dict) -> dict:
                 
             try:
                 print(f"Sending email to {email}...")
-                send_email(email, subject, message)
+                if not send_email(email, subject, message):
+                    raise RuntimeError("Brevo did not accept the notification.")
             except Exception as e:
                 print(f"Failed to send email to {email}: {e}")
+                raise
                 
-    return {}
+    return {"email_sent": True}
 
 # ==========================================
 # ORCHESTRATION GRAPH
