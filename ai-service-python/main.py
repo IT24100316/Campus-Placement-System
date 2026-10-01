@@ -171,14 +171,24 @@ async def run_orchestration(request: AnalyzeRequest, http_request: Request):
 class ResumeRequest(BaseModel):
     thread_id: str
     human_approved: bool
+    approved_by: str = Field(min_length=1)
+    decision_at: str
 
 @app.post("/resume")
-async def resume_orchestration(request: ResumeRequest):
+async def resume_orchestration(request: ResumeRequest, http_request: Request, x_webhook_secret: str | None = Header(default=None)):
     """
     Wakes up the sleeping LangGraph after a human Admin approves or rejects the AI's matches.
     It then continues the workflow (like sending emails).
     """
+    configured_secret = os.getenv("WEBHOOK_SECRET")
+    if not configured_secret or not x_webhook_secret or not hmac.compare_digest(configured_secret, x_webhook_secret):
+        raise HTTPException(status_code=401, detail="Internal workflow credential is invalid.")
     config = {"configurable": {"thread_id": request.thread_id}}
+    snapshot = await http_request.app.state.graph.aget_state(config)
+    if not snapshot.values or "email" not in snapshot.next:
+        raise HTTPException(status_code=409, detail="Workflow is not paused for approval.")
+    if len(snapshot.values.get("analysis_results", [])) != 1:
+        raise HTTPException(status_code=409, detail="Approval must target one candidate workflow.")
     
     # Update the graph state with human's decision
     await app_graph.aupdate_state(config, {"human_approved": request.human_approved})
