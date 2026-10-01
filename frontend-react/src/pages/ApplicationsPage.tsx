@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Footer } from '../components/layout/Footer';
+// @ts-ignore
 import InternalMemosPanel from '../components/admin/InternalMemosPanel';
 import { Building2, PlusCircle, Users, CheckCircle2, Bell, LogOut, Loader2 } from 'lucide-react';
 
@@ -40,6 +41,7 @@ interface Candidate {
   validationInfo?: {
     confidence?: number;
     warnings?: string[];
+    supported_terms?: string[];
     unsupported_terms?: string[];
   };
 }
@@ -166,10 +168,26 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
   const [viewingJobFor, setViewingJobFor] = useState<Candidate | null>(null);
   const [viewingStudentFor, setViewingStudentFor] = useState<Candidate | null>(null);
   const [pendingAction, setPendingAction] = useState<{id: string, action: 'approve' | 'reject', name: string} | null>(null);
+  const [globalPendingMemos, setGlobalPendingMemos] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     fetchCandidates();
+    fetchPendingMemosSummary();
   }, []);
+
+  const fetchPendingMemosSummary = async () => {
+    try {
+      const response = await fetch(`http://localhost:5168/api/memos/pending-summary`);
+      if (response.ok) {
+        const appIds: string[] = await response.json();
+        const map: Record<string, boolean> = {};
+        appIds.forEach(id => { map[id] = true; });
+        setGlobalPendingMemos(map);
+      }
+    } catch (e) {
+      console.error('Failed to fetch pending memos summary', e);
+    }
+  };
 
   const handleAction = async (id: string, action: 'approve' | 'reject') => {
     try {
@@ -499,10 +517,22 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
                       <div className="flex items-center gap-1.5">
                         {c.status === 'pending' && (
                           <>
-                            <button type="button" onClick={(e) => { e.stopPropagation(); setPendingAction({ id: c.id, action: 'reject', name: c.name }); }} className="w-8 h-8 rounded-lg border border-slate-200 hover:bg-rose-50 hover:text-rose-600 text-slate-500 flex items-center justify-center transition-colors" title="Reject">
+                            <button 
+                              type="button" 
+                              disabled={globalPendingMemos[c.id]}
+                              onClick={(e) => { e.stopPropagation(); setPendingAction({ id: c.id, action: 'reject', name: c.name }); }} 
+                              className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-colors ${globalPendingMemos[c.id] ? 'border-slate-100 text-slate-300 cursor-not-allowed' : 'border-slate-200 hover:bg-rose-50 hover:text-rose-600 text-slate-500'}`} 
+                              title={globalPendingMemos[c.id] ? "Resolve Memos First" : "Reject"}
+                            >
                               <span className="material-symbols-outlined text-[16px]">close</span>
                             </button>
-                            <button type="button" onClick={(e) => { e.stopPropagation(); setPendingAction({ id: c.id, action: 'approve', name: c.name }); }} className="w-8 h-8 rounded-lg border border-slate-200 hover:bg-emerald-50 hover:text-emerald-700 text-slate-500 flex items-center justify-center transition-colors" title="Approve">
+                            <button 
+                              type="button" 
+                              disabled={globalPendingMemos[c.id]}
+                              onClick={(e) => { e.stopPropagation(); setPendingAction({ id: c.id, action: 'approve', name: c.name }); }} 
+                              className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-colors ${globalPendingMemos[c.id] ? 'border-slate-100 text-slate-300 cursor-not-allowed' : 'border-slate-200 hover:bg-emerald-50 hover:text-emerald-700 text-slate-500'}`} 
+                              title={globalPendingMemos[c.id] ? "Resolve Memos First" : "Approve"}
+                            >
                               <span className="material-symbols-outlined text-[16px]">check</span>
                             </button>
                           </>
@@ -612,20 +642,25 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
                             <div className="pt-4 border-t border-slate-200 mt-auto">
                               <InternalMemosPanel 
                                 applicationId={c.id} 
-                                onPendingMemosChange={setHasPendingMemos} 
+                                onPendingMemosChange={(hasPending) => setGlobalPendingMemos(prev => ({ ...prev, [c.id]: hasPending }))} 
                               />
                               <div className="flex items-center gap-2 mt-4">
-                                <button type="button" onClick={() => setPendingAction({ id: c.id, action: 'reject', name: c.name })} className="flex-1 py-2.5 px-3 text-xs font-bold text-rose-600 bg-white border border-rose-200 rounded-lg hover:bg-rose-50 transition-colors text-center shadow-sm">
+                                <button 
+                                  type="button" 
+                                  disabled={globalPendingMemos[c.id]}
+                                  onClick={() => setPendingAction({ id: c.id, action: 'reject', name: c.name })} 
+                                  className={`flex-1 py-2.5 px-3 text-xs font-bold bg-white border rounded-lg transition-colors text-center shadow-sm ${globalPendingMemos[c.id] ? 'border-slate-200 text-slate-400 cursor-not-allowed' : 'border-rose-200 text-rose-600 hover:bg-rose-50'}`}
+                                >
                                   Reject
                                 </button>
                                 <button 
                                   type="button" 
-                                  disabled={hasPendingMemos}
+                                  disabled={globalPendingMemos[c.id]}
                                   onClick={() => setPendingAction({ id: c.id, action: 'approve', name: c.name })}
-                                  className={`flex-[2] inline-flex items-center justify-center gap-1.5 py-2.5 px-3 text-xs font-bold text-white rounded-lg transition-colors shadow-sm text-center ${hasPendingMemos ? 'bg-slate-400 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-700'}`}
+                                  className={`flex-[2] inline-flex items-center justify-center gap-1.5 py-2.5 px-3 text-xs font-bold text-white rounded-lg transition-colors shadow-sm text-center ${globalPendingMemos[c.id] ? 'bg-slate-400 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-700'}`}
                                 >
-                                  <span className="material-symbols-outlined text-[16px]">{hasPendingMemos ? 'lock' : 'check_circle'}</span>
-                                  {hasPendingMemos ? 'Resolve Memos to Approve' : 'Approve Candidate'}
+                                  <span className="material-symbols-outlined text-[16px]">{globalPendingMemos[c.id] ? 'lock' : 'check_circle'}</span>
+                                  {globalPendingMemos[c.id] ? 'Resolve Memos to Approve' : 'Approve Candidate'}
                                 </button>
                               </div>
                             </div>
