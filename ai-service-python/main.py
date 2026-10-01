@@ -22,13 +22,29 @@ from agents.tier1 import tier1_node
 from agents.analysis import analysis_node
 from agents.action import action_node
 from agents.validation import validation_node, run_validation
+from tools.sql_filter_tool import fetch_all_student_ids, get_db_connection
 from tools.brevo_tool import send_email
 
 # Load environment variables from .env file
 load_dotenv()
 
+@asynccontextmanager
+async def lifespan(application: FastAPI):
+    database_url = os.getenv("DATABASE_URL")
+    if not database_url:
+        raise RuntimeError("DATABASE_URL is required for durable approval checkpoints.")
+    os.environ.setdefault("LANGGRAPH_STRICT_MSGPACK", "true")
+    async with AsyncPostgresSaver.from_conn_string(database_url) as checkpointer:
+        await checkpointer.setup()
+        application.state.graph = workflow.compile(
+            checkpointer=checkpointer,
+            interrupt_after=["validation"],
+        )
+        yield
+
+
 # Initialize FastAPI app
-app = FastAPI(title="Agent 3 - Evaluation Engine", version="1.0")
+app = FastAPI(title="Agent 3 - Evaluation Engine", version="1.0", lifespan=lifespan)
 
 # Add CORS Middleware
 app.add_middleware(
@@ -58,7 +74,9 @@ def email_node(state: dict) -> dict:
     
     if human_approved is None:
         print("No human approval recorded, skipping email.")
-        return {}
+        raise RuntimeError("A recorded human decision is required before notification.")
+    if len(analysis_results) != 1:
+        raise RuntimeError("Notification requires exactly one reviewed candidate.")
         
     for result in analysis_results:
         student_id = result.get("student_id")
