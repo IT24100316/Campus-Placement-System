@@ -169,6 +169,7 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
   const [viewingStudentFor, setViewingStudentFor] = useState<Candidate | null>(null);
   const [pendingAction, setPendingAction] = useState<{id: string, action: 'approve' | 'reject', name: string} | null>(null);
   const [globalPendingMemos, setGlobalPendingMemos] = useState<Record<string, boolean>>({});
+  const [memoFilter, setMemoFilter] = useState<'all' | 'action_required' | 'no_action_required'>('all');
 
   useEffect(() => {
     fetchCandidates();
@@ -218,16 +219,32 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
   };
 
   const filteredCandidates = useMemo(() => {
-    return candidates.filter(c => {
+    let result = candidates.filter(c => {
       const matchesTab = c.status === activeTab;
       const q = searchQuery.toLowerCase();
       const matchesSearch =
         c.name.toLowerCase().includes(q) ||
         c.university.toLowerCase().includes(q) ||
         c.skills.some(s => s.toLowerCase().includes(q));
-      return matchesTab && matchesSearch;
+      
+      const matchesAction = 
+        memoFilter === 'action_required' ? globalPendingMemos[c.id] :
+        memoFilter === 'no_action_required' ? !globalPendingMemos[c.id] :
+        true;
+      
+      return matchesTab && matchesSearch && matchesAction;
     });
-  }, [candidates, activeTab, searchQuery]);
+
+    if (activeTab === 'pending') {
+      result.sort((a, b) => {
+        const aPending = globalPendingMemos[a.id] ? 1 : 0;
+        const bPending = globalPendingMemos[b.id] ? 1 : 0;
+        return bPending - aPending; // Pending memos (1) go before non-pending (0)
+      });
+    }
+
+    return result;
+  }, [candidates, activeTab, searchQuery, memoFilter, globalPendingMemos]);
 
   const paginatedCandidates = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
@@ -413,18 +430,14 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
             />
           </div>
           <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
-            <select className="px-3 py-2 text-sm bg-slate-50 border-0 rounded-lg font-medium focus:ring-2 focus:ring-blue-600/20 outline-none cursor-pointer">
-              <option value="">All Roles</option>
-              <option value="hardware">Hardware Systems Intern</option>
-              <option value="data">Data Platform Engineer</option>
-              <option value="robotics">Autonomous Systems</option>
-            </select>
-            <select className="px-3 py-2 text-sm bg-slate-50 border-0 rounded-lg font-medium focus:ring-2 focus:ring-blue-600/20 outline-none cursor-pointer">
-              <option value="">All Universities</option>
-              <option value="cmu">Carnegie Mellon</option>
-              <option value="gatech">Georgia Tech</option>
-              <option value="berkeley">UC Berkeley</option>
-              <option value="purdue">Purdue University</option>
+            <select
+              value={memoFilter}
+              onChange={(e) => setMemoFilter(e.target.value as any)}
+              className="px-3 py-2 text-sm bg-slate-50 border-0 rounded-lg font-medium text-slate-700 focus:ring-2 focus:ring-blue-600/20 outline-none cursor-pointer transition-all hover:bg-slate-100"
+            >
+              <option value="all">All Candidates</option>
+              <option value="action_required">Action Required (Memos)</option>
+              <option value="no_action_required">Clear (No Memos)</option>
             </select>
           </div>
         </div>
@@ -486,7 +499,7 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
             paginatedCandidates.map(c => {
               const isExpanded = expandedId === c.id;
               return (
-                <div key={c.id} className={`bg-white rounded-xl border transition-all ${isExpanded ? 'border-slate-300 shadow-md' : 'border-slate-200 shadow-sm hover:border-slate-300'}`}>
+                <div key={c.id} className={`rounded-xl border transition-all ${globalPendingMemos[c.id] ? (isExpanded ? 'bg-rose-50/50 border-rose-300 shadow-md' : 'bg-rose-50 border-rose-200 shadow-sm hover:border-rose-300') : (isExpanded ? 'bg-white border-slate-300 shadow-md' : 'bg-white border-slate-200 shadow-sm hover:border-slate-300')}`}>
                   {/* Card Header / Collapsed Trigger */}
                   <div className="p-5 cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-4 select-none" onClick={(e) => toggleAccordion(c.id, e)}>
                     <div className="flex items-center gap-4 min-w-0">
