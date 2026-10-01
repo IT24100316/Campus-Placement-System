@@ -41,9 +41,32 @@ def extract_pdf_text(pdf_bytes: bytes) -> str:
 def load_pdf(*, url: str | None = None, encoded: str | None = None) -> bytes:
     if encoded:
         try:
-            return base64.b64decode(encoded, validate=True)
+            pdf_bytes = base64.b64decode(encoded, validate=True)
         except ValueError as exc:
             raise ValueError("cv_pdf_base64 is invalid.") from exc
+        if len(pdf_bytes) > 10 * 1024 * 1024:
+            raise ValueError("CV PDF exceeds the 10 MB validation limit.")
+        return pdf_bytes
+    if url and url.startswith("supabase://"):
+        bucket_and_path = url[len("supabase://"):]
+        bucket, separator, object_path = bucket_and_path.partition("/")
+        if not separator or bucket != "student-cvs" or not object_path or ".." in object_path.split("/"):
+            raise ValueError("Invalid private CV storage key.")
+        base_url = os.getenv("SUPABASE_URL", "").rstrip("/")
+        service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+        if not base_url.startswith("https://") or not service_key:
+            raise ValueError("Private CV storage is not configured.")
+        storage_url = f"{base_url}/storage/v1/object/{bucket}/{quote(object_path, safe='/')}"
+        response = requests.get(
+            storage_url,
+            headers={"Authorization": f"Bearer {service_key}", "apikey": service_key},
+            timeout=15,
+            allow_redirects=False,
+        )
+        response.raise_for_status()
+        if len(response.content) > 10 * 1024 * 1024:
+            raise ValueError("CV PDF exceeds the 10 MB validation limit.")
+        return response.content
     if not url or not url.lower().startswith(("http://", "https://")):
         raise ValueError("Provide an HTTP(S) CV URL or base64-encoded PDF.")
     response = requests.get(url, timeout=15, allow_redirects=True)
