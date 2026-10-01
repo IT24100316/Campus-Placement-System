@@ -3,6 +3,8 @@ import io
 import json
 import re
 import difflib
+import os
+from urllib.parse import quote
 from dataclasses import asdict
 from typing import Any
 import requests
@@ -18,6 +20,13 @@ STOP_WORDS = {
     "using", "used", "built", "created", "designed", "implemented", "managed", "led", 
     "team", "project", "work", "experience", "highly", "skilled", "various", "multiple",
     "technologies", "tools", "frameworks", "languages", "environments", "applications"
+}
+
+# Concrete qualifications must be supported even if surrounding prose has high overlap.
+MATERIAL_TERMS = {
+    "python", "java", "javascript", "typescript", "c#", "c++", "rust", "go",
+    "postgresql", "mysql", "mongodb", "kubernetes", "docker", "react",
+    "flutter", "fastapi", "pytorch", "tensorflow", "aws", "azure",
 }
 
 def extract_pdf_text(pdf_bytes: bytes) -> str:
