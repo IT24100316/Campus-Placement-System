@@ -109,6 +109,8 @@ def validate_summary_against_cv(summary: Any, cv_text: str) -> ValidationResult:
     for term in summary_terms:
         if term in cv_terms:
             supported.append(term)
+        elif term in MATERIAL_TERMS:
+            unsupported.append(term)
         else:
             matches = difflib.get_close_matches(term, cv_terms_list, n=1, cutoff=0.8)
             if matches:
@@ -124,7 +126,26 @@ def validate_summary_against_cv(summary: Any, cv_text: str) -> ValidationResult:
         warnings.append("Some summary terms were not found in the CV and require administrator review.")
     if confidence < 0.55:
         warnings.append("Low evidence overlap: do not approve automatically.")
-    return ValidationResult(confidence >= 0.55, confidence, supported, unsupported, warnings)
+    unsupported_claims = sorted(set(unsupported) & MATERIAL_TERMS)
+    summary_text = _flatten_summary(summary).lower()
+    cv_text_lower = cv_text.lower()
+    for match in re.finditer(r"\bgpa\s*(?:of|:|=)?\s*([0-4]\.\d{1,2})\b", summary_text):
+        claim = f"GPA {match.group(1)}"
+        if not re.search(r"\bgpa\s*(?:of|:|=)?\s*" + re.escape(match.group(1)) + r"\b", cv_text_lower):
+            unsupported_claims.append(claim)
+    if unsupported_claims:
+        warnings.append("Material qualification claims lack CV evidence and require revision or explicit administrator review.")
+    cv_lines = [line.strip() for line in cv_text.splitlines() if line.strip()]
+    evidence = {
+        term: next((line[:240] for line in cv_lines if re.search(r"(?<!\w)" + re.escape(term) + r"(?!\w)", line.lower())), "")
+        for term in sorted(set(supported) & MATERIAL_TERMS)
+    }
+    return ValidationResult(
+        confidence >= 0.55 and not unsupported_claims,
+        confidence, supported, unsupported, warnings,
+        unsupported_claims=unsupported_claims,
+        evidence=evidence,
+    )
 
 def run_validation(summary: Any, *, cv_pdf_url: str | None = None, cv_pdf_base64: str | None = None) -> dict[str, Any]:
     pdf_text = extract_pdf_text(load_pdf(url=cv_pdf_url, encoded=cv_pdf_base64))
