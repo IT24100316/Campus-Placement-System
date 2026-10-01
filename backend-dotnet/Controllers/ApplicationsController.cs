@@ -158,8 +158,20 @@ public class ApplicationsController : ControllerBase
         [FromBody] HumanVerifyRequest request,
         [FromServices] IHttpClientFactory httpClientFactory,
         [FromServices] IConfiguration configuration,
+        [FromServices] backend_dotnet.Data.AppDbContext dbContext,
         CancellationToken cancellationToken)
     {
+        // 0. Guard against pending memos (Approval Blocker)
+        if (request.Approved)
+        {
+            var hasPendingMemos = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.AnyAsync(
+                dbContext.Memos, m => m.ApplicationId == request.AppId && m.Status == "Pending", cancellationToken);
+            if (hasPendingMemos)
+            {
+                return BadRequest(new { message = "Cannot approve. Please resolve all internal memos first." });
+            }
+        }
+
         // 1. First, process the local Admin Decision 
         try
         {
