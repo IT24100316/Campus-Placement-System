@@ -33,3 +33,6 @@ class AgentState(TypedDict):
     
     # HITL Control
     human_approved: NotRequired[bool]
+    approved_by: NotRequired[str]
+    decision_at: NotRequired[str]
+    email_sent: NotRequired[bool]
