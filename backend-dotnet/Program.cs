@@ -302,7 +302,9 @@ if (builder.Configuration.GetValue("SeedAdminOnStartup", true))
 
     // ── Student 1: Thusara Abey ──────────────────────────────────────────────
     var thusaraId = Guid.Parse("11111111-1111-1111-1111-111111111111");
-    if (!dbContext.Users.Any(u => u.Id == thusaraId || u.Email == "thusaraabey16645@gmail.com"))
+    // A prior registration may use the demo email with a different ID. Check both
+    // identifiers so startup seeding remains safe to run against an existing database.
+    if (!dbContext.Users.Any(u => u.Id == thusaraId || u.Email.ToLower() == "thusaraabey16645@gmail.com"))
     {
         var thusara = new User { Id = thusaraId, Email = "thusaraabey16645@gmail.com", Role = UserRole.Student, Status = AccountStatus.Approved, CreatedAt = DateTime.UtcNow };
         thusara.PasswordHash = hasher2.HashPassword(thusara, "DemoPass123!");
@@ -325,7 +327,7 @@ if (builder.Configuration.GetValue("SeedAdminOnStartup", true))
 
     // ── Student 2: Dinuri ────────────────────────────────────────────────────
     var dinuriId = Guid.Parse("55555555-5555-5555-5555-555555555555");
-    if (!dbContext.Users.Any(u => u.Id == dinuriId || u.Email == "thusaraabeyrathna@gmail.com"))
+    if (!dbContext.Users.Any(u => u.Id == dinuriId || u.Email.ToLower() == "thusaraabeyrathna@gmail.com"))
     {
         var dinuri = new User { Id = dinuriId, Email = "thusaraabeyrathna@gmail.com", Role = UserRole.Student, Status = AccountStatus.Approved, CreatedAt = DateTime.UtcNow };
         dinuri.PasswordHash = hasher2.HashPassword(dinuri, "DemoPass123!");

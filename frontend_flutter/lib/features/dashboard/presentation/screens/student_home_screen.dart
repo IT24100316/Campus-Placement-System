@@ -174,49 +174,52 @@ class _ApplicationStatusPanelState extends State<_ApplicationStatusPanel> {
           : LayoutBuilder(
               builder: (context, constraints) {
                 final useColumn = constraints.maxWidth < 420;
-                final children = [
-                  _ApplicationCountButton(
-                    label: 'Action Required',
-                    count: _counts.actionRequired,
-                    onTap: () => widget.onOpenApplications(0),
-                  ),
-                  _ApplicationCountButton(
-                    label: 'Pending',
-                    count: _counts.pending,
-                    onTap: () => widget.onOpenApplications(1),
-                  ),
-                  _ApplicationCountButton(
-                    label: 'History',
-                    count: _counts.history,
-                    onTap: () => widget.onOpenApplications(2),
-                  ),
+                final countButtons = [
+                  if (_counts.actionRequired > 0)
+                    _ApplicationCountButton(
+                      label: 'Action Required',
+                      count: _counts.actionRequired,
+                      onTap: () => widget.onOpenApplications(0),
+                    ),
+                  if (_counts.pending > 0)
+                    _ApplicationCountButton(
+                      label: 'Pending',
+                      count: _counts.pending,
+                      onTap: () => widget.onOpenApplications(1),
+                    ),
+                  if (_counts.history > 0)
+                    _ApplicationCountButton(
+                      label: 'History',
+                      count: _counts.history,
+                      onTap: () => widget.onOpenApplications(2),
+                    ),
                 ];
 
                 if (useColumn) {
                   return Column(
                     children: [
-                      children[0],
-                      const Divider(height: 1, color: AppColors.borderLight),
-                      children[1],
-                      const Divider(height: 1, color: AppColors.borderLight),
-                      children[2],
+                      for (var index = 0; index < countButtons.length; index++) ...[
+                        countButtons[index],
+                        if (index < countButtons.length - 1)
+                          const Divider(height: 1, color: AppColors.borderLight),
+                      ],
                     ],
                   );
                 }
 
                 return Row(
                   children: [
-                    Expanded(child: children[0]),
-                    const SizedBox(
-                      height: 44,
-                      child: VerticalDivider(width: 1, color: AppColors.borderLight),
-                    ),
-                    Expanded(child: children[1]),
-                    const SizedBox(
-                      height: 44,
-                      child: VerticalDivider(width: 1, color: AppColors.borderLight),
-                    ),
-                    Expanded(child: children[2]),
+                    for (var index = 0; index < countButtons.length; index++) ...[
+                      Expanded(child: countButtons[index]),
+                      if (index < countButtons.length - 1)
+                        const SizedBox(
+                          height: 44,
+                          child: VerticalDivider(
+                            width: 1,
+                            color: AppColors.borderLight,
+                          ),
+                        ),
+                    ],
                   ],
                 );
               },
