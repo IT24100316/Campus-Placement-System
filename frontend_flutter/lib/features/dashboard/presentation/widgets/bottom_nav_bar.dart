@@ -36,9 +36,9 @@ class BottomNavBar extends StatelessWidget {
         unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal, fontSize: 12),
         items: const [
           BottomNavigationBarItem(
-            icon: Icon(Icons.work_outline),
-            activeIcon: Icon(Icons.work),
-            label: 'Job Feed',
+            icon: Icon(Icons.home_outlined),
+            activeIcon: Icon(Icons.home),
+            label: 'Home',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.description_outlined),
