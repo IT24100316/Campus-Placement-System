@@ -13,10 +13,12 @@ def send_validation_webhook(student_id: str, job_id: str, match_score: int, resu
         return False
         
     payload = {
-        "ApplicationId": student_id,
+        # The backend resolves the existing application using JobId + StudentId.
+        # A student ID is never an application ID.
+        "ApplicationId": "00000000-0000-0000-0000-000000000000",
         "JobId": job_id,
         "StudentId": student_id,
-        "IsSuccess": True,
+        "IsSuccess": not bool(result.get("validation", {}).get("error")),
         "MatchScore": match_score,
         "ResultJson": __import__('json').dumps(result)
     }
