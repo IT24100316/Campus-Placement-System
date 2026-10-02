@@ -55,11 +55,36 @@ export const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
     });
   }, []);
 
+  useEffect(() => {
+    const sourceUrl = selectedRecord?.role === 'student'
+      ? selectedRecord.campusIdPhotoUrl
+      : selectedRecord?.documentUrl;
+    setDocumentPreviewUrl(null);
+    setDocumentError('');
+    if (!sourceUrl) return;
+    let cancelled = false;
+    let blobUrl: string | null = null;
+    authService.getProtectedDocumentUrl(sourceUrl).then((url) => {
+      if (cancelled) URL.revokeObjectURL(url);
+      else {
+        blobUrl = url;
+        setDocumentPreviewUrl(url);
+      }
+    }).catch((error) => {
+      if (!cancelled) setDocumentError(error instanceof Error ? error.message : 'Document unavailable.');
+    });
+    return () => {
+      cancelled = true;
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
+    };
+  }, [selectedRecord]);
+
   const handleAction = async (id: string, newStatus: 'Approved' | 'Rejected') => {
     setActionError('');
     try {
       const updated = await authService.updateStatus(id, newStatus);
-      setRecords([...updated]);
+      setRecords([...updated.records]);
+      if (!updated.emailSent) setActionError('Account status saved, but the decision email was not sent.');
       if (selectedRecord && selectedRecord.id === id) setSelectedRecord({ ...selectedRecord, status: newStatus });
     } catch (error) {
       setActionError(error instanceof Error ? error.message : 'The account status could not be updated.');
@@ -346,17 +371,9 @@ export const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
                           className="group inline-flex items-center gap-2 rounded-lg border border-violet-200 bg-violet-50 p-1.5 pr-2.5 text-violet-700 hover:bg-violet-100 transition-colors cursor-pointer"
                           title="View campus ID image"
                         >
-                          {item.campusIdPhotoUrl ? (
-                            <img
-                              src={item.campusIdPhotoUrl}
-                              alt={`${item.fullName}'s campus ID`}
-                              className="h-10 w-14 rounded object-cover border border-violet-200 bg-white"
-                            />
-                          ) : (
-                            <span className="flex h-10 w-14 items-center justify-center rounded border border-violet-200 bg-white">
-                              <ImageIcon className="h-5 w-5" />
-                            </span>
-                          )}
+                          <span className="flex h-10 w-14 items-center justify-center rounded border border-violet-200 bg-white">
+                            <ImageIcon className="h-5 w-5" />
+                          </span>
                           <span className="font-semibold text-[11px]">View ID</span>
                         </button>
                       ) : item.role === 'hr' ? (
