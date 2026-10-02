@@ -191,14 +191,19 @@ async def resume_orchestration(request: ResumeRequest, http_request: Request, x_
         raise HTTPException(status_code=409, detail="Approval must target one candidate workflow.")
     
     # Update the graph state with human's decision
-    await app_graph.aupdate_state(config, {"human_approved": request.human_approved})
+    await http_request.app.state.graph.aupdate_state(config, {
+        "human_approved": request.human_approved,
+        "approved_by": request.approved_by,
+        "decision_at": request.decision_at,
+    })
     
     # Resume the graph from where it paused (validation node)
-    final_state = await app_graph.ainvoke(None, config=config)
+    final_state = await http_request.app.state.graph.ainvoke(None, config=config)
     
     return {
         "status": "completed",
         "human_approved": request.human_approved,
+        "email_sent": final_state.get("email_sent", False),
         "results": final_state.get("analysis_results", [])
     }
 
@@ -274,4 +279,4 @@ def email_notification(request: EmailRequest):
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except Exception as exc:
-        raise HTTPException(status_code=502, detail="SendGrid delivery failed.") from exc
+        raise HTTPException(status_code=502, detail="Brevo delivery failed.") from exc
