@@ -157,7 +157,7 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
               color: primaryColor,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(Icons.hub, color: Colors.white, size: 20),
+            child: const Icon(Icons.layers, color: Colors.white, size: 20),
           ),
           const SizedBox(width: 12),
           Column(
@@ -184,19 +184,23 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
       ),
       actions: [
         IconButton(
-          icon: const Badge(child: Icon(Icons.notifications_none)),
+          icon: const Badge(
+            backgroundColor: Colors.red,
+            child: Icon(Icons.notifications_none),
+          ),
           color: onSurfaceVariant,
           onPressed: () {},
         ),
         Container(
           margin: const EdgeInsets.only(right: 16, left: 4),
+          alignment: Alignment.center,
           child: Stack(
             clipBehavior: Clip.none,
             children: [
-              CircleAvatar(
+              const CircleAvatar(
                 radius: 16,
-                backgroundColor: primaryColor,
-                child: const Icon(Icons.person, color: Colors.white, size: 18),
+                backgroundColor: AppColors.primary,
+                child: Icon(Icons.person, color: Colors.white, size: 18),
               ),
               Positioned(
                 bottom: -2,
@@ -206,7 +210,7 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
                     color: Colors.white,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.verified, color: Colors.blue, size: 14),
+                  child: const Icon(Icons.verified, color: AppColors.primary, size: 14),
                 ),
               )
             ],
@@ -662,10 +666,9 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
               title: title,
               subtitle: 'Software Engineering',
               badge: 'Pending: $status',
-              stage: 'Stage 2 of 5: Technical Resume Parse',
-              progress: 0.4,
-              checkpointTitle: 'Next checkpoint: AI Rank Verification',
-              checkpointValue: 'Est. Oct 26',
+              statusDescription: status == 'Agent_Evaluated' 
+                  ? 'Your profile has been evaluated by AI. Awaiting HR review.' 
+                  : 'Currently being reviewed by the AI matching system.',
             ),
           ),
         );
@@ -676,7 +679,7 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
   Widget _buildPendingCard({
     required IconData icon, required String company, required String date,
     required String title, required String subtitle, required String badge,
-    String? stage, double? progress, String? checkpointTitle, String? checkpointValue,
+    String? statusDescription,
     bool isQuiz = false, bool isHourglass = false,
   }) {
     return Container(
@@ -724,25 +727,18 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
             ),
           ),
           const SizedBox(height: 12),
-          if (stage != null) ...[
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(child: Text(stage, style: TextStyle(color: primaryColor, fontSize: 11, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis)),
-                const SizedBox(width: 8),
-                Text('${(progress! * 100).toInt()}% Complete', style: TextStyle(color: onSurfaceVariant, fontSize: 11, fontWeight: FontWeight.bold)),
-              ],
-            ),
-            const SizedBox(height: 6),
-            LinearProgressIndicator(value: progress, backgroundColor: const Color(0xFFE6EEFF), valueColor: AlwaysStoppedAnimation<Color>(primaryColor), borderRadius: BorderRadius.circular(4)),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(child: Text(checkpointTitle!, style: TextStyle(color: onSurfaceVariant, fontSize: 12), overflow: TextOverflow.ellipsis)),
-                const SizedBox(width: 8),
-                Text(checkpointValue!, style: TextStyle(color: primaryColor, fontSize: 11, fontWeight: FontWeight.w600)),
-              ],
+          if (statusDescription != null) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(color: const Color(0xFFF8F9FF), borderRadius: BorderRadius.circular(8), border: Border.all(color: const Color(0xFFE6EEFF))),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, size: 16, color: primaryColor),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text(statusDescription, style: TextStyle(color: onSurfaceVariant, fontSize: 12, fontWeight: FontWeight.w500))),
+                ],
+              ),
             )
           ],
         ],

@@ -18,6 +18,7 @@ public class AppDbContext : DbContext
     public DbSet<TargetDomain> TargetDomains => Set<TargetDomain>();
     public DbSet<JobTitleReference> JobTitles => Set<JobTitleReference>();
     public DbSet<SkillEquivalence> SkillEquivalences => Set<SkillEquivalence>();
+    public DbSet<ApplicationMemo> Memos => Set<ApplicationMemo>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -283,6 +284,24 @@ public class AppDbContext : DbContext
             
             entity.Property(e => e.Source).HasDefaultValue("llm");
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+        });
+
+        // -------------------------------------------------------------
+        // 7. ApplicationMemo Entity Configuration
+        // -------------------------------------------------------------
+        modelBuilder.Entity<ApplicationMemo>(entity =>
+        {
+            entity.HasKey(m => m.MemoId);
+            
+            entity.HasOne(m => m.Application)
+                .WithMany()
+                .HasForeignKey(m => m.ApplicationId)
+                .OnDelete(DeleteBehavior.Cascade);
+                
+            entity.HasOne(m => m.Staff)
+                .WithMany()
+                .HasForeignKey(m => m.StaffId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
     }
 }

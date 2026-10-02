@@ -1,5 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Footer } from '../components/layout/Footer';
+// @ts-ignore
+import InternalMemosPanel from '../components/admin/InternalMemosPanel';
 import { Building2, PlusCircle, Users, CheckCircle2, Bell, LogOut, Loader2 } from 'lucide-react';
 
 interface Candidate {
@@ -39,6 +41,7 @@ interface Candidate {
   validationInfo?: {
     confidence?: number;
     warnings?: string[];
+    supported_terms?: string[];
     unsupported_terms?: string[];
   };
 }
@@ -75,6 +78,7 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
 
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasPendingMemos, setHasPendingMemos] = useState(false);
 
   const fetchCandidates = async () => {
     try {
@@ -164,10 +168,27 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
   const [viewingJobFor, setViewingJobFor] = useState<Candidate | null>(null);
   const [viewingStudentFor, setViewingStudentFor] = useState<Candidate | null>(null);
   const [pendingAction, setPendingAction] = useState<{id: string, action: 'approve' | 'reject', name: string} | null>(null);
+  const [globalPendingMemos, setGlobalPendingMemos] = useState<Record<string, boolean>>({});
+  const [memoFilter, setMemoFilter] = useState<'all' | 'action_required' | 'no_action_required'>('all');
 
   useEffect(() => {
     fetchCandidates();
+    fetchPendingMemosSummary();
   }, []);
+
+  const fetchPendingMemosSummary = async () => {
+    try {
+      const response = await fetch(`http://localhost:5168/api/memos/pending-summary`);
+      if (response.ok) {
+        const appIds: string[] = await response.json();
+        const map: Record<string, boolean> = {};
+        appIds.forEach(id => { map[id] = true; });
+        setGlobalPendingMemos(map);
+      }
+    } catch (e) {
+      console.error('Failed to fetch pending memos summary', e);
+    }
+  };
 
   const handleAction = async (id: string, action: 'approve' | 'reject') => {
     try {
@@ -198,16 +219,32 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
   };
 
   const filteredCandidates = useMemo(() => {
-    return candidates.filter(c => {
+    let result = candidates.filter(c => {
       const matchesTab = c.status === activeTab;
       const q = searchQuery.toLowerCase();
       const matchesSearch =
         c.name.toLowerCase().includes(q) ||
         c.university.toLowerCase().includes(q) ||
         c.skills.some(s => s.toLowerCase().includes(q));
-      return matchesTab && matchesSearch;
+      
+      const matchesAction = 
+        memoFilter === 'action_required' ? globalPendingMemos[c.id] :
+        memoFilter === 'no_action_required' ? !globalPendingMemos[c.id] :
+        true;
+      
+      return matchesTab && matchesSearch && matchesAction;
     });
-  }, [candidates, activeTab, searchQuery]);
+
+    if (activeTab === 'pending') {
+      result.sort((a, b) => {
+        const aPending = globalPendingMemos[a.id] ? 1 : 0;
+        const bPending = globalPendingMemos[b.id] ? 1 : 0;
+        return bPending - aPending; // Pending memos (1) go before non-pending (0)
+      });
+    }
+
+    return result;
+  }, [candidates, activeTab, searchQuery, memoFilter, globalPendingMemos]);
 
   const paginatedCandidates = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
@@ -393,18 +430,14 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
             />
           </div>
           <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
-            <select className="px-3 py-2 text-sm bg-slate-50 border-0 rounded-lg font-medium focus:ring-2 focus:ring-blue-600/20 outline-none cursor-pointer">
-              <option value="">All Roles</option>
-              <option value="hardware">Hardware Systems Intern</option>
-              <option value="data">Data Platform Engineer</option>
-              <option value="robotics">Autonomous Systems</option>
-            </select>
-            <select className="px-3 py-2 text-sm bg-slate-50 border-0 rounded-lg font-medium focus:ring-2 focus:ring-blue-600/20 outline-none cursor-pointer">
-              <option value="">All Universities</option>
-              <option value="cmu">Carnegie Mellon</option>
-              <option value="gatech">Georgia Tech</option>
-              <option value="berkeley">UC Berkeley</option>
-              <option value="purdue">Purdue University</option>
+            <select
+              value={memoFilter}
+              onChange={(e) => setMemoFilter(e.target.value as any)}
+              className="px-3 py-2 text-sm bg-slate-50 border-0 rounded-lg font-medium text-slate-700 focus:ring-2 focus:ring-blue-600/20 outline-none cursor-pointer transition-all hover:bg-slate-100"
+            >
+              <option value="all">All Candidates</option>
+              <option value="action_required">Action Required (Memos)</option>
+              <option value="no_action_required">Clear (No Memos)</option>
             </select>
           </div>
         </div>
@@ -466,7 +499,7 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
             paginatedCandidates.map(c => {
               const isExpanded = expandedId === c.id;
               return (
-                <div key={c.id} className={`bg-white rounded-xl border transition-all ${isExpanded ? 'border-slate-300 shadow-md' : 'border-slate-200 shadow-sm hover:border-slate-300'}`}>
+                <div key={c.id} className={`rounded-xl border transition-all ${globalPendingMemos[c.id] ? (isExpanded ? 'bg-rose-50/50 border-rose-300 shadow-md' : 'bg-rose-50 border-rose-200 shadow-sm hover:border-rose-300') : (isExpanded ? 'bg-white border-slate-300 shadow-md' : 'bg-white border-slate-200 shadow-sm hover:border-slate-300')}`}>
                   {/* Card Header / Collapsed Trigger */}
                   <div className="p-5 cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-4 select-none" onClick={(e) => toggleAccordion(c.id, e)}>
                     <div className="flex items-center gap-4 min-w-0">
@@ -497,10 +530,22 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
                       <div className="flex items-center gap-1.5">
                         {c.status === 'pending' && (
                           <>
-                            <button type="button" onClick={(e) => { e.stopPropagation(); setPendingAction({ id: c.id, action: 'reject', name: c.name }); }} className="w-8 h-8 rounded-lg border border-slate-200 hover:bg-rose-50 hover:text-rose-600 text-slate-500 flex items-center justify-center transition-colors" title="Reject">
+                            <button 
+                              type="button" 
+                              disabled={globalPendingMemos[c.id]}
+                              onClick={(e) => { e.stopPropagation(); setPendingAction({ id: c.id, action: 'reject', name: c.name }); }} 
+                              className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-colors ${globalPendingMemos[c.id] ? 'border-slate-100 text-slate-300 cursor-not-allowed' : 'border-slate-200 hover:bg-rose-50 hover:text-rose-600 text-slate-500'}`} 
+                              title={globalPendingMemos[c.id] ? "Resolve Memos First" : "Reject"}
+                            >
                               <span className="material-symbols-outlined text-[16px]">close</span>
                             </button>
-                            <button type="button" onClick={(e) => { e.stopPropagation(); setPendingAction({ id: c.id, action: 'approve', name: c.name }); }} className="w-8 h-8 rounded-lg border border-slate-200 hover:bg-emerald-50 hover:text-emerald-700 text-slate-500 flex items-center justify-center transition-colors" title="Approve">
+                            <button 
+                              type="button" 
+                              disabled={globalPendingMemos[c.id]}
+                              onClick={(e) => { e.stopPropagation(); setPendingAction({ id: c.id, action: 'approve', name: c.name }); }} 
+                              className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-colors ${globalPendingMemos[c.id] ? 'border-slate-100 text-slate-300 cursor-not-allowed' : 'border-slate-200 hover:bg-emerald-50 hover:text-emerald-700 text-slate-500'}`} 
+                              title={globalPendingMemos[c.id] ? "Resolve Memos First" : "Approve"}
+                            >
                               <span className="material-symbols-outlined text-[16px]">check</span>
                             </button>
                           </>
@@ -607,18 +652,30 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
                           )}
                           
                           {c.status === 'pending' && (
-                            <div className="flex items-center gap-2 pt-4 border-t border-slate-200 mt-auto">
-                              <button type="button" onClick={() => setPendingAction({ id: c.id, action: 'reject', name: c.name })} className="flex-1 py-2.5 px-3 text-xs font-bold text-rose-600 bg-white border border-rose-200 rounded-lg hover:bg-rose-50 transition-colors text-center shadow-sm">
-                                Reject
-                              </button>
-                              <button 
-                                type="button" 
-                                onClick={() => setPendingAction({ id: c.id, action: 'approve', name: c.name })}
-                                className="flex-[2] inline-flex items-center justify-center gap-1.5 py-2.5 px-3 text-xs font-bold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors shadow-sm text-center"
-                              >
-                                <span className="material-symbols-outlined text-[16px]">check_circle</span>
-                                Approve Candidate
-                              </button>
+                            <div className="pt-4 border-t border-slate-200 mt-auto">
+                              <InternalMemosPanel 
+                                applicationId={c.id} 
+                                onPendingMemosChange={(hasPending) => setGlobalPendingMemos(prev => ({ ...prev, [c.id]: hasPending }))} 
+                              />
+                              <div className="flex items-center gap-2 mt-4">
+                                <button 
+                                  type="button" 
+                                  disabled={globalPendingMemos[c.id]}
+                                  onClick={() => setPendingAction({ id: c.id, action: 'reject', name: c.name })} 
+                                  className={`flex-1 py-2.5 px-3 text-xs font-bold bg-white border rounded-lg transition-colors text-center shadow-sm ${globalPendingMemos[c.id] ? 'border-slate-200 text-slate-400 cursor-not-allowed' : 'border-rose-200 text-rose-600 hover:bg-rose-50'}`}
+                                >
+                                  Reject
+                                </button>
+                                <button 
+                                  type="button" 
+                                  disabled={globalPendingMemos[c.id]}
+                                  onClick={() => setPendingAction({ id: c.id, action: 'approve', name: c.name })}
+                                  className={`flex-[2] inline-flex items-center justify-center gap-1.5 py-2.5 px-3 text-xs font-bold text-white rounded-lg transition-colors shadow-sm text-center ${globalPendingMemos[c.id] ? 'bg-slate-400 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-700'}`}
+                                >
+                                  <span className="material-symbols-outlined text-[16px]">{globalPendingMemos[c.id] ? 'lock' : 'check_circle'}</span>
+                                  {globalPendingMemos[c.id] ? 'Resolve Memos to Approve' : 'Approve Candidate'}
+                                </button>
+                              </div>
                             </div>
                           )}
                         </div>
