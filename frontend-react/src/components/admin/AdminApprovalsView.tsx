@@ -536,10 +536,10 @@ export const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
                         </p>
                       </div>
                     </div>
-                    {selectedRecord.documentUrl ? (
-                      <a href={selectedRecord.documentUrl} target="_blank" rel="noreferrer" className="px-2 py-1 bg-blue-50 text-primary font-semibold text-[11px] rounded hover:bg-blue-100">Open Document</a>
+                    {documentPreviewUrl ? (
+                      <a href={documentPreviewUrl} target="_blank" rel="noreferrer" className="px-2 py-1 bg-blue-50 text-primary font-semibold text-[11px] rounded hover:bg-blue-100">Open Document</a>
                     ) : (
-                      <span className="px-2 py-0.5 bg-slate-100 text-slate-500 font-semibold text-[11px] rounded">No upload</span>
+                      <span className="px-2 py-0.5 bg-slate-100 text-slate-500 font-semibold text-[11px] rounded">{documentError || (selectedRecord.documentUrl ? 'Loading document...' : 'No upload')}</span>
                     )}
                   </div>
                 </div>
@@ -553,10 +553,10 @@ export const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
                       <ImageIcon className="w-3.5 h-3.5" /> Identity evidence
                     </span>
                   </div>
-                  {selectedRecord.campusIdPhotoUrl ? (
-                    <a href={selectedRecord.campusIdPhotoUrl} target="_blank" rel="noreferrer" className="block">
+                  {documentPreviewUrl ? (
+                    <a href={documentPreviewUrl} target="_blank" rel="noreferrer" className="block">
                       <img
-                        src={selectedRecord.campusIdPhotoUrl}
+                        src={documentPreviewUrl}
                         alt={`${selectedRecord.fullName}'s campus ID document`}
                         className="max-h-80 w-full rounded-xl border border-slate-200 bg-white object-contain shadow-sm"
                       />
