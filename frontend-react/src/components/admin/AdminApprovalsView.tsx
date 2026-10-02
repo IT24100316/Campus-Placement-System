@@ -566,7 +566,7 @@ export const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
                     </a>
                   ) : (
                     <div className="rounded-lg border border-dashed border-violet-300 bg-white px-4 py-8 text-center text-slate-500">
-                      Campus ID image is unavailable.
+                      {documentError || (selectedRecord.campusIdPhotoUrl ? 'Loading campus ID...' : 'Campus ID image is unavailable.')}
                     </div>
                   )}
                 </div>
@@ -647,8 +647,8 @@ export const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
             <form
               onSubmit={async (e) => {
                 e.preventDefault();
-                if (!newStaffName.trim() || !newStaffEmail.trim() || !newStaffId.trim()) {
-                  setNewStaffError('Please provide employee full name, work email, and employee ID.');
+                if (!newStaffName.trim() || !newStaffEmail.trim() || !newStaffId.trim() || newStaffPassword.trim().length < 8) {
+                  setNewStaffError('Provide a name, work email, employee ID, and password of at least 8 characters.');
                   return;
                 }
                 setIsSubmittingStaff(true);
@@ -658,7 +658,7 @@ export const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
                 const res = await authService.registerEmployeeByAdmin({
                   fullName: newStaffName.trim(),
                   email: newStaffEmail.trim().toLowerCase(),
-                  password: newStaffPassword.trim() || 'StaffPass@2025!',
+                  password: newStaffPassword.trim(),
                   companyName: 'CampusAI',
                   staffId: newStaffId.trim(),
                   jobPosition: newStaffJobPosition.trim() || 'Platform Operations Officer',
