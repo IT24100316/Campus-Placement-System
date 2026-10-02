@@ -8,8 +8,8 @@ import requests
 def send_email(to_email: str, subject: str, plain_text: str) -> bool:
     api_key = os.getenv("BREVO_API_KEY")
     if not api_key:
-        print("Warning: BREVO_API_KEY is not configured. Email mocked as sent.")
-        return True
+        print("Warning: BREVO_API_KEY is not configured. No email was sent.")
+        return False
     
     from_email = os.getenv("BREVO_SENDER_EMAIL", "noreply@campusai.local")
     from_name = os.getenv("BREVO_SENDER_NAME", "CampusAI")
@@ -27,7 +27,7 @@ def send_email(to_email: str, subject: str, plain_text: str) -> bool:
     }
     
     try:
-        response = requests.post("https://api.brevo.com/v3/smtp/email", json=payload, headers=headers)
+        response = requests.post("https://api.brevo.com/v3/smtp/email", json=payload, headers=headers, timeout=10)
         if 200 <= response.status_code < 300:
             return True
         else:
