@@ -31,12 +31,14 @@ export const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
   const [filter, setFilter] = useState<'all' | 'hr' | 'staff' | 'student' | 'pending'>('pending');
   const [selectedRecord, setSelectedRecord] = useState<RegistrationRecord | null>(null);
   const [actionError, setActionError] = useState('');
+  const [documentPreviewUrl, setDocumentPreviewUrl] = useState<string | null>(null);
+  const [documentError, setDocumentError] = useState('');
 
   // Register Employee Modal State
   const [isAddStaffOpen, setIsAddStaffOpen] = useState(false);
   const [newStaffName, setNewStaffName] = useState('');
   const [newStaffEmail, setNewStaffEmail] = useState('');
-  const [newStaffPassword, setNewStaffPassword] = useState('StaffPass@2025!');
+  const [newStaffPassword, setNewStaffPassword] = useState('');
   const [newStaffId, setNewStaffId] = useState('');
   const [newStaffJobPosition, setNewStaffJobPosition] = useState('Platform Operations Officer');
   const [newStaffError, setNewStaffError] = useState('');
@@ -44,11 +46,12 @@ export const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
   const [isSubmittingStaff, setIsSubmittingStaff] = useState(false);
 
   useEffect(() => {
-    setRecords(authService.getRegistrations());
-
     // Sync live from PostgreSQL database
     authService.syncRegistrationsFromBackend().then((synced) => {
       setRecords([...synced]);
+    }).catch((error) => {
+      setRecords([]);
+      setActionError(error instanceof Error ? error.message : 'Could not load the verification queue.');
     });
   }, []);
 
