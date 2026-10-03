@@ -45,6 +45,8 @@ interface Candidate {
     warnings?: string[];
     supported_terms?: string[];
     unsupported_terms?: string[];
+    unsupported_claims?: string[];
+    evidence?: Record<string, string>;
   };
 }
 
@@ -82,6 +84,7 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
 
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loading, setLoading] = useState(true);
+  const [decisionError, setDecisionError] = useState('');
 
   const [memoFilter, setMemoFilter] = useState<'all' | 'action_required' | 'no_action_required'>('all');
 
@@ -95,7 +98,9 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
   const fetchCandidates = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${API_BASE}/Applications/pending-admin-approval`);
+      const res = await fetch(`${API_BASE}/Applications/pending-admin-approval`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
+      });
       if (!res.ok) throw new Error('Failed to fetch');
       const data = await res.json();
       
