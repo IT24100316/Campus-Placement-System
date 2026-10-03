@@ -4,6 +4,9 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/services/api_service.dart';
 import '../../../profile/data/student_profile_models.dart';
 import '../../../profile/data/student_profile_service.dart';
+import '../../../jobs/data/models/job_feed_model.dart';
+import '../../../jobs/data/repositories/job_repository.dart';
+import '../../../jobs/presentation/screens/job_details_screen.dart';
 import '../widgets/dashboard_components.dart';
 
 class StudentHomeScreen extends StatefulWidget {
@@ -28,33 +31,37 @@ class _StudentHomeScreenState extends State<StudentHomeScreen>
     with WidgetsBindingObserver {
   final StudentProfileService _profileService = StudentProfileService();
   final ApiService _apiService = ApiService();
+  final JobRepository _jobRepository = JobRepository();
 
   StudentProfileResponse? _profile;
   List<Map<String, dynamic>> _applications = const [];
+  List<JobFeedModel> _latestJobs = const [];
   bool _isLoadingProfile = true;
   bool _isLoadingApplications = true;
+  bool _isLoadingJobs = true;
   String? _profileError;
   String? _applicationsError;
+  String? _jobsError;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _loadDashboardData();
+    _refreshHomeData();
   }
 
   @override
   void didUpdateWidget(covariant StudentHomeScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (!oldWidget.isActive && widget.isActive) {
-      _loadDashboardData();
+      _refreshHomeData();
     }
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed && widget.isActive) {
-      _loadDashboardData();
+      _refreshHomeData();
     }
   }
 
@@ -66,6 +73,11 @@ class _StudentHomeScreenState extends State<StudentHomeScreen>
 
   Future<void> _loadDashboardData() async {
     await Future.wait([_loadProfile(), _loadApplications()]);
+  }
+
+  void _refreshHomeData() {
+    _loadDashboardData();
+    _loadLatestJobs();
   }
 
   Future<void> _loadProfile() async {
@@ -134,6 +146,48 @@ class _StudentHomeScreenState extends State<StudentHomeScreen>
     }
   }
 
+  Future<void> _loadLatestJobs() async {
+    setState(() {
+      _isLoadingJobs = true;
+      _jobsError = null;
+    });
+
+    try {
+      final result = await _jobRepository.fetchJobFeed(
+        page: 1,
+        pageSize: 50,
+        sortBy: 'recent',
+      );
+      final now = DateTime.now();
+      final openJobs = result.items
+          .where(
+            (job) =>
+                job.jobId.trim().isNotEmpty &&
+                job.jobTitle.trim().isNotEmpty &&
+                job.companyName.trim().isNotEmpty &&
+                job.applicationDeadline.toLocal().isAfter(now),
+          )
+          .toList()
+        ..sort(
+          (left, right) => right.createdAt.toLocal().compareTo(left.createdAt.toLocal()),
+        );
+
+      if (mounted) {
+        setState(() {
+          _latestJobs = openJobs.take(5).toList();
+          _isLoadingJobs = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _jobsError = 'Unable to load opportunities. Please try again.';
+          _isLoadingJobs = false;
+        });
+      }
+    }
+  }
+
   String get _headerGreeting {
     final profileName = _profile?.fullName.trim() ?? '';
     final sessionName = StudentSession.fullName?.trim() ?? '';
@@ -186,8 +240,8 @@ class _StudentHomeScreenState extends State<StudentHomeScreen>
                       isLoading: _isLoadingProfile || _isLoadingApplications,
                       errorMessage: _profileError ?? _applicationsError,
                       onRetry: _loadDashboardData,
-                      onCompleteProfile: () => widget.onNavigate(1),
-                      onManageCv: () => widget.onNavigate(1),
+                      onCompleteProfile: () => widget.onNavigate(2),
+                      onManageCv: () => widget.onNavigate(2),
                       onExploreJobs: widget.onExploreJobs,
                       onViewApplications: () => widget.onOpenApplications(0),
                     ),
@@ -221,7 +275,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen>
                       applicationsError: _applicationsError,
                       onBrowseOpportunities: widget.onExploreJobs,
                       onViewApplications: () => widget.onOpenApplications(0),
-                      onOpenProfile: () => widget.onNavigate(1),
+                      onOpenProfile: () => widget.onNavigate(2),
                     ),
                     const SizedBox(height: 28),
                     DashboardSectionTitle(
@@ -238,16 +292,25 @@ class _StudentHomeScreenState extends State<StudentHomeScreen>
                       onOpenApplications: widget.onOpenApplications,
                     ),
                     const SizedBox(height: 28),
-                    const DashboardSectionTitle(title: 'Recent activity'),
+                    DashboardSectionTitle(
+                      title: 'Opportunity spotlight',
+                      actionLabel: 'Browse all jobs',
+                      onAction: widget.onExploreJobs,
+                    ),
                     const SizedBox(height: 12),
-                    _SurfaceCard(
-                      child: const Column(
-                        children: [
-                          DashboardActivityItem(icon: Icons.star_rounded, message: 'You were shortlisted by ABC Tech', time: '35 minutes ago', iconColor: Color(0xFFF59E0B)),
-                          DashboardActivityItem(icon: Icons.check_circle_outline_rounded, message: 'Your profile was updated successfully', time: 'Yesterday', iconColor: Color(0xFF10B981)),
-                          DashboardActivityItem(icon: Icons.calendar_month_outlined, message: 'New interview schedule received', time: '2 days ago', iconColor: Color(0xFF2563EB), isLast: true),
-                        ],
-                      ),
+                    _OpportunitySpotlightPanel(
+                      jobs: _latestJobs,
+                      isLoading: _isLoadingJobs,
+                      errorMessage: _jobsError,
+                      onRetry: _loadLatestJobs,
+                      onBrowseAll: widget.onExploreJobs,
+                      onOpenJob: (job) {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => JobDetailsScreen(jobId: job.jobId),
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -505,6 +568,374 @@ class _ExplorationIcon extends StatelessWidget {
       child: Icon(icon, color: AppColors.primary, size: 18),
     );
   }
+}
+
+class _OpportunitySpotlightPanel extends StatefulWidget {
+  const _OpportunitySpotlightPanel({
+    required this.jobs,
+    required this.isLoading,
+    required this.errorMessage,
+    required this.onRetry,
+    required this.onBrowseAll,
+    required this.onOpenJob,
+  });
+
+  final List<JobFeedModel> jobs;
+  final bool isLoading;
+  final String? errorMessage;
+  final VoidCallback onRetry;
+  final VoidCallback onBrowseAll;
+  final ValueChanged<JobFeedModel> onOpenJob;
+
+  @override
+  State<_OpportunitySpotlightPanel> createState() =>
+      _OpportunitySpotlightPanelState();
+}
+
+class _OpportunitySpotlightPanelState
+    extends State<_OpportunitySpotlightPanel> {
+  late final PageController _pageController;
+  int _currentPage = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(viewportFraction: 0.96);
+  }
+
+  @override
+  void didUpdateWidget(covariant _OpportunitySpotlightPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (_currentPage >= widget.jobs.length && widget.jobs.isNotEmpty) {
+      _currentPage = 0;
+      if (_pageController.hasClients) {
+        _pageController.jumpToPage(0);
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.isLoading) {
+      return const _SurfaceCard(
+        child: SizedBox(
+          height: 168,
+          child: Center(
+            child: SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+        ),
+      );
+    }
+    if (widget.errorMessage != null) {
+      return _SurfaceCard(
+        child: _DashboardLoadError(
+          message: widget.errorMessage!,
+          onRetry: widget.onRetry,
+        ),
+      );
+    }
+    if (widget.jobs.isEmpty) {
+      return _SurfaceCard(
+        child: _OpportunitySpotlightEmptyState(onBrowseAll: widget.onBrowseAll),
+      );
+    }
+
+    return Column(
+      children: [
+        SizedBox(
+          height: 204,
+          child: PageView.builder(
+            controller: _pageController,
+            itemCount: widget.jobs.length,
+            onPageChanged: (index) => setState(() => _currentPage = index),
+            itemBuilder: (context, index) => Padding(
+              padding: EdgeInsets.only(
+                right: index == widget.jobs.length - 1 ? 0 : 8,
+              ),
+              child: _OpportunitySpotlightCard(
+                job: widget.jobs[index],
+                onTap: () => widget.onOpenJob(widget.jobs[index]),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          '${_currentPage + 1} / ${widget.jobs.length}',
+          style: const TextStyle(
+            color: AppColors.textSecondaryLight,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _OpportunitySpotlightCard extends StatelessWidget {
+  const _OpportunitySpotlightCard({
+    required this.job,
+    required this.onTap,
+  });
+
+  final JobFeedModel job;
+  final VoidCallback onTap;
+
+  String get _companyDetails {
+    final details = <String>[job.companyName.trim()];
+    final location = job.locationCity.trim();
+    final workTypes = job.internshipType
+        .map((type) => type.trim())
+        .where((type) => type.isNotEmpty);
+    if (location.isNotEmpty) {
+      details.add(location);
+    }
+    if (workTypes.isNotEmpty) {
+      details.add(workTypes.first);
+    }
+    return details.join(' \u2022 ');
+  }
+
+  bool get _isClosingSoon {
+    final deadline = job.applicationDeadline.toLocal();
+    return deadline.difference(DateTime.now()).inDays <= 2;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            border: Border.all(color: AppColors.primary.withValues(alpha: 0.24)),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x06111827),
+                blurRadius: 8,
+                offset: Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(
+                      Icons.business_center_outlined,
+                      color: AppColors.primary,
+                      size: 19,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  const Text(
+                    'OPEN ROLE',
+                    style: TextStyle(
+                      color: AppColors.primary,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                job.jobTitle,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: AppColors.textPrimaryLight,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  height: 1.15,
+                  letterSpacing: -0.3,
+                ),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                _companyDetails,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: AppColors.textSecondaryLight,
+                  fontSize: 13,
+                ),
+              ),
+              const Spacer(),
+              Row(
+                children: [
+                  _DeadlineChip(
+                    text: _formatClosingDeadline(job.applicationDeadline),
+                    isClosingSoon: _isClosingSoon,
+                  ),
+                  const Spacer(),
+                  const Text(
+                    'View role',
+                    style: TextStyle(
+                      color: AppColors.primary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  const Icon(
+                    Icons.arrow_forward_rounded,
+                    color: AppColors.primary,
+                    size: 18,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DeadlineChip extends StatelessWidget {
+  const _DeadlineChip({
+    required this.text,
+    required this.isClosingSoon,
+  });
+
+  final String text;
+  final bool isClosingSoon;
+
+  @override
+  Widget build(BuildContext context) {
+    final backgroundColor = isClosingSoon
+        ? const Color(0xFFFFF7E6)
+        : AppColors.primary.withValues(alpha: 0.08);
+    final foregroundColor = isClosingSoon
+        ? const Color(0xFFB45309)
+        : AppColors.primary;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: foregroundColor,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
+class _OpportunitySpotlightEmptyState extends StatelessWidget {
+  const _OpportunitySpotlightEmptyState({required this.onBrowseAll});
+
+  final VoidCallback onBrowseAll;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 14),
+      child: Column(
+        children: [
+          const Text(
+            'No opportunities available right now',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: AppColors.textPrimaryLight,
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Check back soon for new internship openings.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: AppColors.textSecondaryLight,
+              fontSize: 13,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 10),
+          TextButton.icon(
+            onPressed: onBrowseAll,
+            icon: const Icon(Icons.work_outline_rounded, size: 18),
+            label: const Text('Browse all jobs'),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.primary,
+              textStyle: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String _formatClosingDeadline(DateTime deadline) {
+  final localDeadline = deadline.toLocal();
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  final deadlineDay = DateTime(
+    localDeadline.year,
+    localDeadline.month,
+    localDeadline.day,
+  );
+  final daysUntilDeadline = deadlineDay.difference(today).inDays;
+
+  if (daysUntilDeadline == 0) {
+    return 'Closes today';
+  }
+  if (daysUntilDeadline == 1) {
+    return 'Closes tomorrow';
+  }
+  if (daysUntilDeadline <= 7) {
+    return 'Closes in $daysUntilDeadline days';
+  }
+
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+  final year = localDeadline.year == now.year ? '' : ', ${localDeadline.year}';
+  return 'Closes ${months[localDeadline.month - 1]} ${localDeadline.day}$year';
 }
 
 class _UpcomingEventsPanel extends StatelessWidget {

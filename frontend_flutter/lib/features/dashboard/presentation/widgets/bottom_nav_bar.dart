@@ -32,8 +32,8 @@ class BottomNavBar extends StatelessWidget {
         elevation: 0,
         selectedItemColor: AppColors.primary,
         unselectedItemColor: Colors.grey.shade600,
-        selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-        unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal, fontSize: 12),
+        selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+        unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal, fontSize: 11),
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.home_outlined),
@@ -41,9 +41,14 @@ class BottomNavBar extends StatelessWidget {
             label: 'Home',
           ),
           BottomNavigationBarItem(
+            icon: Icon(Icons.work_outline_rounded),
+            activeIcon: Icon(Icons.work_rounded),
+            label: 'Jobs',
+          ),
+          BottomNavigationBarItem(
             icon: Icon(Icons.description_outlined),
             activeIcon: Icon(Icons.description),
-            label: 'My Resume',
+            label: 'Resume',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.assignment_turned_in_outlined),

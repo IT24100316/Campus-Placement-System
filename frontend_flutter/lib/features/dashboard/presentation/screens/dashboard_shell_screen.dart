@@ -25,9 +25,10 @@ class _DashboardShellScreenState extends State<DashboardShellScreen> {
       StudentHomeScreen(
         onNavigate: _setCurrentIndex,
         onOpenApplications: _openApplications,
-        onExploreJobs: _openJobFeed,
+        onExploreJobs: _openJobsTab,
         isActive: _currentIndex == 0,
       ),
+      const JobFeedScreen(),
       ProfileScreen(),
       ApplicationsTrackingScreen(
         initialTab: _applicationsInitialTab,
@@ -58,13 +59,11 @@ class _DashboardShellScreenState extends State<DashboardShellScreen> {
     setState(() {
       _applicationsInitialTab = tab;
       _applicationsSelectionRequest++;
-      _currentIndex = 2;
+      _currentIndex = 3;
     });
   }
 
-  void _openJobFeed() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const JobFeedScreen()),
-    );
+  void _openJobsTab() {
+    setState(() => _currentIndex = 1);
   }
 }
