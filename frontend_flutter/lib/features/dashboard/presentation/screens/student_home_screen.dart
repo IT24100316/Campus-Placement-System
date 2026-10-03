@@ -12,17 +12,20 @@ class StudentHomeScreen extends StatefulWidget {
     required this.onNavigate,
     required this.onOpenApplications,
     required this.onExploreJobs,
+    required this.isActive,
   });
 
   final ValueChanged<int> onNavigate;
   final ValueChanged<int> onOpenApplications;
   final VoidCallback onExploreJobs;
+  final bool isActive;
 
   @override
   State<StudentHomeScreen> createState() => _StudentHomeScreenState();
 }
 
-class _StudentHomeScreenState extends State<StudentHomeScreen> {
+class _StudentHomeScreenState extends State<StudentHomeScreen>
+    with WidgetsBindingObserver {
   final StudentProfileService _profileService = StudentProfileService();
   final ApiService _apiService = ApiService();
 
@@ -36,7 +39,29 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadDashboardData();
+  }
+
+  @override
+  void didUpdateWidget(covariant StudentHomeScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!oldWidget.isActive && widget.isActive) {
+      _loadDashboardData();
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && widget.isActive) {
+      _loadDashboardData();
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   Future<void> _loadDashboardData() async {
@@ -143,16 +168,18 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
+            SliverToBoxAdapter(
+              child: _Header(
+                greeting: _headerGreeting,
+                onNotificationsTap: () =>
+                    _showPlaceholder(context, 'Notifications'),
+              ),
+            ),
             SliverPadding(
-              padding: EdgeInsets.fromLTRB(pagePadding, 18, pagePadding, 32),
+              padding: EdgeInsets.fromLTRB(pagePadding, 20, pagePadding, 32),
               sliver: SliverList(
                 delegate: SliverChildListDelegate(
                   [
-                    _Header(
-                      greeting: _headerGreeting,
-                      onNotificationsTap: () => _showPlaceholder(context, 'Notifications'),
-                    ),
-                    const SizedBox(height: 24),
                     _NextStepCard(
                       profile: _profile,
                       applicationCount: _applications.length,
@@ -449,31 +476,67 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    final isCompact = MediaQuery.sizeOf(context).width < 360;
+    final horizontalPadding = isCompact ? 16.0 : 20.0;
+    final displayStyle = Theme.of(context).textTheme.displaySmall?.copyWith(
+          fontSize: isCompact ? 24 : 26,
+          height: 1.15,
+          color: AppColors.textPrimaryLight,
+          letterSpacing: -0.7,
+        ) ??
+        TextStyle(
+          fontSize: isCompact ? 24 : 26,
+          height: 1.15,
+          color: AppColors.textPrimaryLight,
+          letterSpacing: -0.7,
+        );
+    final greetingSeparator = greeting.indexOf(',');
+    final hasName = greetingSeparator > 0 &&
+        greetingSeparator < greeting.length - 1;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(horizontalPadding, 18, horizontalPadding, 0),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text.rich(
+              TextSpan(
+                style: displayStyle,
+                children: hasName
+                    ? [
+                        TextSpan(
+                          text: greeting.substring(0, greetingSeparator + 1),
+                          style: const TextStyle(fontWeight: FontWeight.w500),
+                        ),
+                        TextSpan(
+                          text: greeting.substring(greetingSeparator + 1),
+                          style: const TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                      ]
+                    : [
+                        TextSpan(
+                          text: greeting,
+                          style: const TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                      ],
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Stack(
+            clipBehavior: Clip.none,
             children: [
-              Text(greeting, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800, color: AppColors.textPrimaryLight, letterSpacing: -0.6)),
-              const SizedBox(height: 4),
-              const Text("Here's your placement overview", style: TextStyle(color: AppColors.textSecondaryLight, fontSize: 14)),
+              IconButton(
+                onPressed: onNotificationsTap,
+                style: IconButton.styleFrom(fixedSize: const Size(44, 44)),
+                icon: const Icon(Icons.notifications_none_rounded, color: AppColors.textPrimaryLight),
+              ),
+              Positioned(right: 8, top: 7, child: Container(width: 8, height: 8, decoration: const BoxDecoration(color: Color(0xFFEF4444), shape: BoxShape.circle))),
             ],
           ),
-        ),
-        const SizedBox(width: 12),
-        Stack(
-          clipBehavior: Clip.none,
-          children: [
-            IconButton(
-              onPressed: onNotificationsTap,
-              style: IconButton.styleFrom(backgroundColor: Colors.white, fixedSize: const Size(44, 44)),
-              icon: const Icon(Icons.notifications_none_rounded, color: AppColors.textPrimaryLight),
-            ),
-            Positioned(right: 8, top: 7, child: Container(width: 8, height: 8, decoration: const BoxDecoration(color: Color(0xFFEF4444), shape: BoxShape.circle))),
-          ],
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -508,65 +571,39 @@ class _NextStepCard extends StatelessWidget {
       applicationCount: applicationCount,
     );
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF1E1B4B), AppColors.primaryDark, Color(0xFF5B21B6)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          border: Border.all(color: const Color(0x667C8CFF)),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Stack(
-          children: [
-            Positioned(
-              top: -46,
-              right: -30,
-              child: Container(
-                width: 142,
-                height: 142,
-                decoration: const BoxDecoration(
-                  color: Color(0x14FFFFFF),
-                  shape: BoxShape.circle,
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.primaryDark,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: isLoading
+          ? const SizedBox(
+              height: 116,
+              child: Center(
+                child: SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
                 ),
               ),
+            )
+          : errorMessage != null
+          ? _DashboardLoadError(
+              message: errorMessage!,
+              onRetry: onRetry,
+              isDark: true,
+            )
+          : _NextStepContent(
+              readiness: readiness,
+              onCompleteProfile: onCompleteProfile,
+              onManageCv: onManageCv,
+              onExploreJobs: onExploreJobs,
+              onViewApplications: onViewApplications,
             ),
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: isLoading
-                  ? const SizedBox(
-                      height: 132,
-                      child: Center(
-                        child: SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    )
-                  : errorMessage != null
-                  ? _DashboardLoadError(
-                      message: errorMessage!,
-                      onRetry: onRetry,
-                      isDark: true,
-                    )
-                  : _NextStepContent(
-                      readiness: readiness,
-                      onCompleteProfile: onCompleteProfile,
-                      onManageCv: onManageCv,
-                      onExploreJobs: onExploreJobs,
-                      onViewApplications: onViewApplications,
-                    ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
@@ -598,163 +635,77 @@ class _NextStepContent extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.14),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(
-                Icons.track_changes_rounded,
-                color: Color(0xFFE0E7FF),
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 10),
-            const Expanded(
-              child: Padding(
-                padding: EdgeInsets.only(top: 3),
-                child: Text(
-                  'Your next step',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  '${readiness.overallProgress}%',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 28,
-                    fontWeight: FontWeight.w800,
-                    height: 0.95,
-                  ),
-                ),
-                const Text(
-                  'READY',
-                  style: TextStyle(
-                    color: Color(0xFFC7D2FE),
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.8,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
         Text(
-          nextStep.message,
+          nextStep.title,
           style: const TextStyle(
-            color: Color(0xFFE0E7FF),
+            color: Colors.white,
+            fontSize: 21,
+            fontWeight: FontWeight.w800,
+            height: 1.12,
+            letterSpacing: -0.45,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          nextStep.explanation,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: Color(0xFFDDE5FF),
             fontSize: 13,
             height: 1.35,
           ),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                nextStep.progressLabel,
+                style: const TextStyle(
+                  color: Color(0xFFE0E7FF),
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              '${readiness.overallProgress}%',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 7),
         ClipRRect(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(4),
           child: LinearProgressIndicator(
             value: readiness.overallProgress / 100,
-            minHeight: 6,
+            minHeight: 4,
             backgroundColor: const Color(0x3DFFFFFF),
             valueColor: const AlwaysStoppedAnimation(Color(0xFFC7D2FE)),
           ),
         ),
         const SizedBox(height: 16),
-        _ProgressRow(
-          label: 'Profile completion',
-          value: '${readiness.completedProfileFields} of ${_ReadinessSnapshot.requiredProfileFieldCount} required fields',
-          isComplete: readiness.isProfileComplete,
-        ),
-        const SizedBox(height: 8),
-        _ProgressRow(
-          label: 'CV status',
-          value: readiness.hasCv ? 'CV available' : 'CV not uploaded',
-          isComplete: readiness.hasCv,
-        ),
-        const SizedBox(height: 8),
-        _ProgressRow(
-          label: 'Applications submitted',
-          value: '${readiness.applicationCount} submitted',
-          isComplete: readiness.applicationCount > 0,
-        ),
-        const SizedBox(height: 18),
-        SizedBox(
-          width: double.infinity,
-          child: FilledButton(
-            onPressed: nextStep.onPressed,
-            style: FilledButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: AppColors.primaryDark,
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(vertical: 13),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: Text(
-              nextStep.actionLabel,
-              style: const TextStyle(fontWeight: FontWeight.w800),
+        FilledButton(
+          onPressed: nextStep.onPressed,
+          style: FilledButton.styleFrom(
+            backgroundColor: Colors.white,
+            foregroundColor: AppColors.primaryDark,
+            elevation: 0,
+            minimumSize: const Size(0, 42),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
             ),
           ),
-        ),
-      ],
-    );
-  }
-}
-
-class _ProgressRow extends StatelessWidget {
-  const _ProgressRow({
-    required this.label,
-    required this.value,
-    required this.isComplete,
-  });
-
-  final String label;
-  final String value;
-  final bool isComplete;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(
-          isComplete ? Icons.check_circle_outline_rounded : Icons.info_outline_rounded,
-          color: isComplete ? const Color(0xFFBBF7D0) : const Color(0xFFC7D2FE),
-          size: 18,
-        ),
-        const SizedBox(width: 8),
-        Expanded(
           child: Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Flexible(
-          child: Text(
-            value,
-            textAlign: TextAlign.end,
-            style: const TextStyle(
-              color: Color(0xFFDDE5FF),
-              fontSize: 12,
-            ),
+            nextStep.actionLabel,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
           ),
         ),
       ],
@@ -838,27 +789,35 @@ class _ReadinessSnapshot {
   }) {
     if (!isProfileComplete) {
       return _NextStep(
-        message: 'Complete your profile to unlock CV upload and placement registration.',
+        title: 'Complete your profile',
+        explanation: 'Add the remaining required details to continue.',
+        progressLabel: '$completedProfileFields of $requiredProfileFieldCount required fields completed',
         actionLabel: 'Complete profile',
         onPressed: onCompleteProfile,
       );
     }
     if (!hasCv) {
       return _NextStep(
-        message: 'Upload your CV to complete your placement readiness.',
-        actionLabel: 'Manage CV',
+        title: 'Your profile is ready',
+        explanation: 'Upload your CV to complete your internship registration.',
+        progressLabel: 'Profile complete \u2022 CV remaining',
+        actionLabel: 'Upload CV',
         onPressed: onManageCv,
       );
     }
     if (applicationCount == 0) {
       return _NextStep(
-        message: 'Your profile and CV are ready. Explore available opportunities.',
+        title: 'Ready to explore',
+        explanation: 'Your internship profile is complete. Find a role that suits you.',
+        progressLabel: 'Profile and CV complete',
         actionLabel: 'Explore jobs',
         onPressed: onExploreJobs,
       );
     }
     return _NextStep(
-      message: 'You are ready and have $applicationCount application${applicationCount == 1 ? '' : 's'} submitted.',
+      title: 'Keep your applications moving',
+      explanation: 'You have $applicationCount application${applicationCount == 1 ? '' : 's'} in progress.',
+      progressLabel: 'Profile, CV and applications complete',
       actionLabel: 'View applications',
       onPressed: onViewApplications,
     );
@@ -869,12 +828,16 @@ class _ReadinessSnapshot {
 
 class _NextStep {
   const _NextStep({
-    required this.message,
+    required this.title,
+    required this.explanation,
+    required this.progressLabel,
     required this.actionLabel,
     required this.onPressed,
   });
 
-  final String message;
+  final String title;
+  final String explanation;
+  final String progressLabel;
   final String actionLabel;
   final VoidCallback onPressed;
 }

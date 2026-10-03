@@ -26,6 +26,7 @@ class _DashboardShellScreenState extends State<DashboardShellScreen> {
         onNavigate: _setCurrentIndex,
         onOpenApplications: _openApplications,
         onExploreJobs: _openJobFeed,
+        isActive: _currentIndex == 0,
       ),
       ProfileScreen(),
       ApplicationsTrackingScreen(
