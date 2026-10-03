@@ -33,4 +33,17 @@ public class InterviewsController : ControllerBase
 
         return Ok(new { message = "Interview confirmed and calendar invitation dispatched successfully." });
     }
+
+    [HttpPost("reject")]
+    public async Task<IActionResult> RejectCandidate([FromBody] RejectCandidateRequestDto request)
+    {
+        var success = await _applicationService.RejectCandidateAsync(request);
+
+        if (!success)
+        {
+            return StatusCode(500, new { message = "Failed to dispatch email or reject the candidate." });
+        }
+
+        return Ok(new { message = "Candidate rejected successfully and notified." });
+    }
 }

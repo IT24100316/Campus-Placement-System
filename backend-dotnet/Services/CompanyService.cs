@@ -111,7 +111,8 @@ public class CompanyService : ICompanyService
             .Where(a =>
                 a.Job.CompanyId == company.UserId &&
                 (a.Status == ApplicationStatus.Student_Accepted ||
-                 a.Status == ApplicationStatus.Company_Scheduled))
+                 a.Status == ApplicationStatus.Company_Scheduled ||
+                 a.Status == ApplicationStatus.Rejected))
             .OrderByDescending(a => a.MatchScore)
             .ToListAsync();
 
@@ -129,6 +130,7 @@ public class CompanyService : ICompanyService
             ApplicationStatus.Admin_Approved    => ("Shortlisted",          "blue"),
             ApplicationStatus.Company_Scheduled => ("Interview Confirmed",  "purple"),
             ApplicationStatus.Student_Accepted  => ("Accepted",             "green"),
+            ApplicationStatus.Rejected          => ("Rejected",             "rose"),
             _                                   => ("In Review",            "gray")
         };
 
@@ -158,7 +160,10 @@ public class CompanyService : ICompanyService
                 Competencies   = skills.Take(5).ToArray(),
                 Status         = statusLabel,
                 StatusColor    = statusColor,
-                CvPdfUrl       = profile?.CvPdfUrl
+                CvPdfUrl       = profile?.CvPdfUrl,
+                CompanyMessage = a.CompanyMessage,
+                InterviewDate  = a.InterviewDate,
+                InterviewTime  = a.InterviewTime
             };
         }).ToList();
 

@@ -80,6 +80,20 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
   const [inviteTime, setInviteTime] = useState('');
   const [inviteMeetingLink, setInviteMeetingLink] = useState('https://meet.google.com/xyz-abcd-efg');
 
+  // --- Reject Modal State ---
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [candidateToReject, setCandidateToReject] = useState<any>(null);
+  const [rejectReason, setRejectReason] = useState('');
+
+  // --- Details Modal State ---
+  const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+  const [candidateDetails, setCandidateDetails] = useState<any>(null);
+
+  const openDetailsModal = (candidate: any) => {
+    setCandidateDetails(candidate);
+    setDetailsModalOpen(true);
+  };
+
   // --- Profile Panel State ---
   const [profilePanelOpen, setProfilePanelOpen] = useState(false);
   const [profileEditMode, setProfileEditMode] = useState(false);
@@ -93,6 +107,27 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileMsg, setProfileMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [showDeleteProfileConfirm, setShowDeleteProfileConfirm] = useState(false);
+
+  // --- Notifications State ---
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const notificationGroups = useMemo(() => {
+    const activeCandidates = dashboardData?.shortlistedCandidates || [];
+    if (activeCandidates.length === 0) return [];
+    
+    // Group candidates by job
+    const grouped = activeCandidates.reduce((acc: any, c) => {
+      acc[c.matchedOpening] = (acc[c.matchedOpening] || 0) + 1;
+      return acc;
+    }, {});
+    
+    return Object.entries(grouped).map(([job, count]) => ({
+      jobTitle: job,
+      count: count as number,
+    }));
+  }, [dashboardData?.shortlistedCandidates]);
+
+  // --- Navbar Active Tab State ---
+  const [activeNavTab, setActiveNavTab] = useState<'overview' | 'drives' | 'candidates'>('overview');
 
   const JOBS_PER_PAGE = 6;
 
@@ -253,6 +288,23 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
     setInviteModalOpen(true);
   };
 
+  const handleReject = (id: string) => {
+    if (dashboardData) {
+      setDashboardData({
+        ...dashboardData,
+        shortlistedCandidates: dashboardData.shortlistedCandidates.map(c => 
+          c.id === id ? { ...c, status: 'Rejected' } : c
+        )
+      });
+    }
+  };
+
+  const openRejectModal = (candidate: any) => {
+    setCandidateToReject(candidate);
+    setRejectReason('');
+    setRejectModalOpen(true);
+  };
+
   const handleExportDossier = () => {
     setExportNotice('Exporting candidate dossier with verified credentials...');
     setTimeout(() => {
@@ -353,7 +405,7 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
   const filteredCandidates = useMemo(() => {
     const filtered = candidates.filter((c) => {
       const isInvited = interviewInvited[c.id];
-      const effectiveStatus = isInvited ? 'Interview Invited' : c.status;
+      const effectiveStatus = isInvited ? 'Interview Confirmed' : c.status;
 
       if (candidatesSearchQuery.trim()) {
         const q = candidatesSearchQuery.toLowerCase();
@@ -402,6 +454,10 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
 
       if (candidatesStatusFilter !== 'all') {
         if (effectiveStatus.toLowerCase() !== candidatesStatusFilter.toLowerCase()) {
+          return false;
+        }
+      } else {
+        if (effectiveStatus === 'Rejected') {
           return false;
         }
       }
@@ -573,8 +629,43 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
               </div>
             </button>
 
-            {/* Desktop Navigation removed as per user request */}
-            <nav className="hidden xl:flex items-center gap-1.5">
+            {/* Desktop Navigation - Styled to match Staff Dashboard */}
+            <nav className="hidden xl:flex items-center gap-1.5 ml-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveNavTab('overview');
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${activeNavTab === 'overview' ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'}`}
+              >
+                <Briefcase className={`w-4 h-4 ${activeNavTab === 'overview' ? 'text-blue-700' : 'text-slate-500'}`} />
+                <span>Overview</span>
+              </button>
+              
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveNavTab('drives');
+                  document.getElementById('jobs-section')?.scrollIntoView({ behavior: 'smooth' });
+                }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${activeNavTab === 'drives' ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'}`}
+              >
+                <Building2 className={`w-4 h-4 ${activeNavTab === 'drives' ? 'text-blue-700' : 'text-slate-500'}`} />
+                <span>Active Drives</span>
+              </button>
+              
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveNavTab('candidates');
+                  document.getElementById('candidates-section')?.scrollIntoView({ behavior: 'smooth' });
+                }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${activeNavTab === 'candidates' ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'}`}
+              >
+                <Sparkles className={`w-4 h-4 ${activeNavTab === 'candidates' ? 'text-blue-700' : 'text-slate-500'}`} />
+                <span>AI Candidates</span>
+              </button>
             </nav>
           </div>
 
@@ -599,14 +690,65 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
             </div>
 
             {/* Notification Bell */}
-            <button
-              type="button"
-              className="relative w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
-              title="Placement Notifications"
-            >
-              <Bell className="w-4 h-4" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-primary ring-2 ring-white"></span>
-            </button>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setNotificationsOpen(!notificationsOpen)}
+                className="relative w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer focus:outline-none"
+                title="Placement Notifications"
+              >
+                <Bell className="w-4 h-4" />
+                {notificationGroups.length > 0 && (
+                  <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-primary ring-2 ring-white"></span>
+                )}
+              </button>
+
+              {/* Notification Dropdown */}
+              {notificationsOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setNotificationsOpen(false)}></div>
+                  <div className="absolute right-0 mt-2 w-80 bg-white border border-slate-200 shadow-xl rounded-xl z-50 overflow-hidden flex flex-col">
+                    <div className="px-4 py-3 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+                      <h3 className="text-sm font-bold text-slate-800">Recruitment Alerts</h3>
+                      <span className="text-[10px] font-semibold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                        {notificationGroups.length} Updates
+                      </span>
+                    </div>
+                    
+                    <div className="max-h-[300px] overflow-y-auto">
+                      {notificationGroups.length === 0 ? (
+                        <div className="p-6 text-center text-slate-500 text-sm">
+                          No new notifications at this time.
+                        </div>
+                      ) : (
+                        notificationGroups.map((group, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => {
+                              setNotificationsOpen(false);
+                              setCandidatesOpeningFilter(group.jobTitle);
+                              document.getElementById('candidates-section')?.scrollIntoView({ behavior: 'smooth' });
+                            }}
+                            className="w-full text-left px-4 py-3 border-b border-slate-50 hover:bg-slate-50 transition-colors cursor-pointer flex items-start gap-3"
+                          >
+                            <div className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5">
+                              <Sparkles className="w-4 h-4" />
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-xs text-slate-600 leading-snug">
+                                <span className="font-bold text-slate-900">{group.count} new student{group.count !== 1 ? 's' : ''}</span> matched for <span className="font-medium text-primary">{group.jobTitle}</span>.
+                              </p>
+                              <p className="text-[10px] text-slate-400 mt-1">Click to review candidates</p>
+                            </div>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
 
             {/* My Profile Button */}
             <button
@@ -780,10 +922,12 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                       <div className="w-12 h-12 rounded-xl bg-blue-50 text-primary flex items-center justify-center">
                         <Users className="w-6 h-6 text-primary" />
                       </div>
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 text-xs font-semibold border border-emerald-200">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                        38 New Matches Ready
-                      </span>
+                      {stats.prescreenedStudents > 0 && (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 text-xs font-semibold border border-emerald-200">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                          {stats.prescreenedStudents} Matches Ready
+                        </span>
+                      )}
                     </div>
                     <div>
                       <h2 className="font-display text-xl sm:text-2xl font-bold text-slate-900">
@@ -797,13 +941,13 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                   <div className="pt-6 flex items-center justify-between">
                     <button
                       type="button"
-                      onClick={() => {}}
+                      onClick={() => document.getElementById('candidates-section')?.scrollIntoView({ behavior: 'smooth' })}
                       className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-white font-semibold text-xs sm:text-sm hover:bg-blue-700 transition-all shadow-sm cursor-pointer"
                     >
                       <span>Review Shortlisted Pool</span>
                       <CheckCircle2 className="w-4 h-4" />
                     </button>
-                    <span className="text-xs text-slate-500 font-medium">Min GPA ≥ 3.5 Verified</span>
+                    <span className="text-xs text-slate-500 font-medium">100% Verified Credentials</span>
                   </div>
                 </div>
               </div>
@@ -822,7 +966,11 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                   </div>
                 </div>
 
-                <div className="bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-xs flex items-center gap-4">
+                <button 
+                  type="button"
+                  onClick={() => document.getElementById('candidates-section')?.scrollIntoView({ behavior: 'smooth' })}
+                  className="bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-xs flex items-center gap-4 hover:-translate-y-1 hover:shadow-md transition-all text-left cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50"
+                >
                   <div className="w-11 h-11 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600 shrink-0">
                     <CheckCircle2 className="w-5 h-5 text-emerald-600" />
                   </div>
@@ -832,7 +980,7 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                     </span>
                     <span className="text-xs text-slate-500 font-medium mt-1">Pre-screened Students</span>
                   </div>
-                </div>
+                </button>
 
                 <div className="bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-xs flex items-center gap-4">
                   <div className="w-11 h-11 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600 shrink-0">
@@ -864,7 +1012,7 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
           {/* -------------------------------------------------------------
               3. Active Placement Drives / Current Openings Section
              ------------------------------------------------------------- */}
-          <section className="w-full py-6 px-4 sm:px-6 lg:px-8">
+          <section id="jobs-section" className="w-full py-6 px-4 sm:px-6 lg:px-8">
             <div className="max-w-7xl mx-auto flex flex-col gap-4">
               {/* Header with Title & Live Drives Count */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -1516,7 +1664,7 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                         <option value="Shortlisted">Shortlisted</option>
                         <option value="Pre-screen Cleared">Pre-screen Cleared</option>
                         <option value="Interview Confirmed">Interview Confirmed</option>
-                        <option value="Interview Invited">Interview Invited</option>
+                        <option value="Rejected">Rejected</option>
                       </select>
                     </div>
 
@@ -1676,19 +1824,52 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
 
                               {/* Action */}
                               <td className="py-3.5 px-4 text-right">
-                                {isInvited ? (
-                                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700">
-                                    <CheckCircle2 className="w-3.5 h-3.5" />
-                                    <span>Invited</span>
-                                  </span>
+                                {c.status === "Rejected" ? (
+                                  <div className="flex items-center justify-end gap-2">
+                                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-rose-700">
+                                      <X className="w-3.5 h-3.5" />
+                                      <span>Rejected</span>
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => openDetailsModal(c)}
+                                      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 text-[11px] font-semibold transition-colors shadow-xs"
+                                    >
+                                      <span>View Feedback</span>
+                                    </button>
+                                  </div>
+                                ) : isInvited || c.status === "Interview Confirmed" ? (
+                                  <div className="flex items-center justify-end gap-2">
+                                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700">
+                                      <CheckCircle2 className="w-3.5 h-3.5" />
+                                      <span>Confirmed</span>
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => openDetailsModal(c)}
+                                      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 text-[11px] font-semibold transition-colors shadow-xs"
+                                    >
+                                      <span>View Details</span>
+                                    </button>
+                                  </div>
                                 ) : (
-                                  <button
-                                    type="button"
-                                    onClick={() => openInviteModal(c)}
-                                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary hover:bg-blue-700 text-white text-xs font-semibold transition-all shadow-xs cursor-pointer"
-                                  >
-                                    <span>Invite to Interview</span>
-                                  </button>
+                                  <div className="flex items-center justify-end gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => openRejectModal(c)}
+                                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-semibold transition-all shadow-xs cursor-pointer border border-rose-200"
+                                    >
+                                      <X className="w-3.5 h-3.5" />
+                                      <span>Reject</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => openInviteModal(c)}
+                                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary hover:bg-blue-700 text-white text-xs font-semibold transition-all shadow-xs cursor-pointer"
+                                    >
+                                      <span>Invite</span>
+                                    </button>
+                                  </div>
                                 )}
                               </td>
                             </tr>
@@ -2653,6 +2834,147 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                   Edit Profile
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* -------------------------------------------------------------
+          Reject Candidate Modal
+         ------------------------------------------------------------- */}
+      {rejectModalOpen && candidateToReject && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col">
+            <div className="p-6 border-b border-slate-100 flex items-center gap-3 bg-white">
+              <div className="w-10 h-10 rounded-full bg-rose-100 flex items-center justify-center flex-shrink-0">
+                <X className="w-5 h-5 text-rose-600" />
+              </div>
+              <h3 className="text-base font-bold text-slate-900">Reject Candidate</h3>
+            </div>
+            
+            <div className="p-6 bg-slate-50/50 flex flex-col gap-4">
+              <p className="text-sm font-medium text-slate-700">
+                You are about to reject <strong>{candidateToReject.name || candidateToReject.fullName}</strong> for the <strong>{candidateToReject.matchedOpening}</strong> position.
+              </p>
+              
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-slate-700">Feedback / Reason (Optional)</label>
+                <textarea 
+                  value={rejectReason}
+                  onChange={(e) => setRejectReason(e.target.value)}
+                  placeholder="e.g. Not enough experience with React, went with another candidate..."
+                  className="w-full h-24 px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-rose-500 outline-none resize-none"
+                />
+                <span className="text-[10px] text-slate-500">This feedback will be securely sent to the candidate.</span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 p-4 border-t border-slate-100 bg-white">
+              <button
+                type="button"
+                onClick={() => {
+                  setRejectModalOpen(false);
+                  setCandidateToReject(null);
+                  setRejectReason('');
+                }}
+                className="px-4 py-2 rounded-lg text-slate-700 text-sm font-bold hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                id="btn-reject-candidate"
+                onClick={async () => {
+                  const btn = document.getElementById('btn-reject-candidate');
+                  if (btn) btn.innerHTML = '<span class="animate-pulse">Rejecting...</span>';
+
+                  const matchedJob = activeJobs.find((j: any) => j.jobTitle === candidateToReject.matchedOpening);
+                  const jobId = candidateToReject.jobId || (matchedJob ? matchedJob.jobId : "00000000-0000-0000-0000-000000000000");
+                  const studentId = candidateToReject.id;
+
+                  const success = await companyService.rejectCandidate(studentId, jobId, rejectReason);
+                  
+                  if (success) {
+                    handleReject(candidateToReject.id);
+                    alert('Candidate rejected successfully and notified.');
+                  } else {
+                    handleReject(candidateToReject.id);
+                    alert(`Mock Mode: UI updated to 'Rejected', but DB dispatch failed.`);
+                  }
+                  
+                  setRejectModalOpen(false);
+                  setCandidateToReject(null);
+                  setRejectReason('');
+                }}
+                className="px-4 py-2 rounded-lg bg-rose-600 text-white text-sm font-bold hover:bg-rose-700 transition-colors shadow-md cursor-pointer flex items-center gap-1.5"
+              >
+                <X className="w-4 h-4" />
+                Confirm Rejection
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* -------------------------------------------------------------
+          Candidate Details Modal (For Confirmed & Rejected)
+         ------------------------------------------------------------- */}
+      {detailsModalOpen && candidateDetails && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col">
+            <div className="p-6 border-b border-slate-100 flex items-center gap-3 bg-white">
+              <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center flex-shrink-0">
+                <Eye className="w-5 h-5 text-slate-600" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900">{candidateDetails.name || candidateDetails.fullName}</h3>
+                <p className="text-[11px] font-medium text-slate-500">{candidateDetails.matchedOpening}</p>
+              </div>
+            </div>
+            
+            <div className="p-6 bg-slate-50/50 flex flex-col gap-5">
+              {candidateDetails.status === "Rejected" ? (
+                <div className="flex flex-col gap-2">
+                  <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider text-rose-600">Rejection Feedback</h4>
+                  <div className="bg-white p-4 rounded-xl border border-rose-100 shadow-xs">
+                    <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">
+                      {candidateDetails.companyMessage || "No feedback was provided during rejection."}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider text-emerald-600">Interview Schedule</h4>
+                  <div className="bg-white p-4 rounded-xl border border-emerald-100 shadow-xs grid grid-cols-2 gap-4">
+                    <div>
+                      <span className="block text-[10px] font-semibold text-slate-500 mb-1">Date</span>
+                      <span className="text-sm font-medium text-slate-900">
+                        {candidateDetails.interviewDate ? new Date(candidateDetails.interviewDate).toLocaleDateString() : 'N/A'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="block text-[10px] font-semibold text-slate-500 mb-1">Time</span>
+                      <span className="text-sm font-medium text-slate-900">
+                        {candidateDetails.interviewTime || 'N/A'}
+                      </span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-2 text-center">Calendar invitation was automatically dispatched to the candidate's email.</p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-3 p-4 border-t border-slate-100 bg-white">
+              <button
+                type="button"
+                onClick={() => {
+                  setDetailsModalOpen(false);
+                  setCandidateDetails(null);
+                }}
+                className="px-6 py-2 rounded-lg bg-slate-100 text-slate-700 text-sm font-bold hover:bg-slate-200 transition-colors shadow-xs cursor-pointer"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>
