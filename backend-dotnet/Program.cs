@@ -320,8 +320,6 @@ if (builder.Configuration.GetValue("SeedAdminOnStartup", true))
             ToolsAndTechnologies = new[] { "Kubernetes", "Redis", "gRPC" },
             PrimaryDomain = "Software Engineering"
         });
-        if (coopJob != null)
-            dbContext.Applications.Add(new Application { AppId = Guid.NewGuid(), StudentId = thusaraId, JobId = coopJob.JobId, Status = ApplicationStatus.Admin_Approved, MatchScore = 98, SummaryReport = "{}" });
         dbContext.SaveChanges();
     }
 
@@ -343,24 +341,8 @@ if (builder.Configuration.GetValue("SeedAdminOnStartup", true))
             ToolsAndTechnologies = new[] { "CUDA", "LangChain", "Docker" },
             PrimaryDomain = "Artificial Intelligence & Machine Learning"
         });
-        var targetJob = mlJob ?? coopJob;
-        if (targetJob != null)
-            dbContext.Applications.Add(new Application { AppId = Guid.NewGuid(), StudentId = dinuriId, JobId = targetJob.JobId, Status = ApplicationStatus.Admin_Approved, MatchScore = 94, SummaryReport = "{}" });
         dbContext.SaveChanges();
     }
-
-    // ── Reset demo application statuses to Admin_Approved on every startup ──
-    // This ensures a clean, re-demonstrable state every time the server restarts
-    var demoStudentIds = new[] { thusaraId, dinuriId };
-    var demoApps = dbContext.Applications.Where(a => demoStudentIds.Contains(a.StudentId)).ToList();
-    foreach (var demoApp in demoApps)
-    {
-        demoApp.Status = ApplicationStatus.Admin_Approved;
-        demoApp.InterviewStatus = InterviewStatus.NotScheduled;
-        demoApp.InterviewDate = null;
-        demoApp.InterviewTime = null;
-    }
-    dbContext.SaveChanges();
 }
 
 // Configure HTTP request pipeline

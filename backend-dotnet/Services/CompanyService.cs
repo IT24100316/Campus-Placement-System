@@ -111,7 +111,8 @@ public class CompanyService : ICompanyService
             .Where(a =>
                 a.Job.CompanyId == company.UserId &&
                 (a.Status == ApplicationStatus.Student_Accepted ||
-                 a.Status == ApplicationStatus.Company_Scheduled))
+                 a.Status == ApplicationStatus.Company_Scheduled ||
+                 a.Status == ApplicationStatus.Rejected))
             .OrderByDescending(a => a.MatchScore)
             .ToListAsync();
 
@@ -129,6 +130,7 @@ public class CompanyService : ICompanyService
             ApplicationStatus.Admin_Approved    => ("Shortlisted",          "blue"),
             ApplicationStatus.Company_Scheduled => ("Interview Confirmed",  "purple"),
             ApplicationStatus.Student_Accepted  => ("Accepted",             "green"),
+            ApplicationStatus.Rejected          => ("Rejected",             "rose"),
             _                                   => ("In Review",            "gray")
         };
 
@@ -158,7 +160,10 @@ public class CompanyService : ICompanyService
                 Competencies   = skills.Take(5).ToArray(),
                 Status         = statusLabel,
                 StatusColor    = statusColor,
-                CvPdfUrl       = profile?.CvPdfUrl
+                CvPdfUrl       = profile?.CvPdfUrl,
+                CompanyMessage = a.CompanyMessage,
+                InterviewDate  = a.InterviewDate,
+                InterviewTime  = a.InterviewTime
             };
         }).ToList();
 
@@ -214,6 +219,45 @@ public class CompanyService : ICompanyService
         job.ApplicationDeadline = dto.ApplicationDeadline.ToUniversalTime();
 
         _context.Jobs.Update(job);
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<bool> UpdateProfileAsync(Guid companyUserId, UpdateCompanyProfileDto dto)
+    {
+        var company = await _context.CompanyProfiles
+            .FirstOrDefaultAsync(c => c.UserId == companyUserId);
+        if (company == null) return false;
+
+        company.CompanyName = dto.CompanyName.Trim();
+        company.Industry = dto.Industry.Trim();
+        company.ContactPersonName = dto.ContactPersonName.Trim();
+        company.ContactPersonEmail = dto.ContactPersonEmail.Trim().ToLower();
+        company.Phone = dto.Phone.Trim();
+
+        _context.CompanyProfiles.Update(company);
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<bool> DeleteProfileAsync(Guid companyUserId)
+    {
+        var company = await _context.CompanyProfiles
+            .Include(c => c.Jobs)
+            .FirstOrDefaultAsync(c => c.UserId == companyUserId);
+        if (company == null) return false;
+
+        // Remove all jobs first
+        _context.Jobs.RemoveRange(company.Jobs);
+
+        // Remove company profile
+        _context.CompanyProfiles.Remove(company);
+
+        // Remove the linked user account
+        var user = await _context.Users.FindAsync(companyUserId);
+        if (user != null)
+            _context.Users.Remove(user);
+
         await _context.SaveChangesAsync();
         return true;
     }

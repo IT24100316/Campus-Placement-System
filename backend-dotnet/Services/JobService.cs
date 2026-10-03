@@ -545,25 +545,7 @@ public class JobService : IJobService
             };
         }
 
-        if (job.CreatedAt.Date == today)
-        {
-            return new JobCreationResultDto
-            {
-                Success = false,
-                ErrorTitle = "Invalid Action",
-                ErrorMessage = "Cannot repost a job on the same day it was created."
-            };
-        }
-
-        if (job.LastRepostedAt.HasValue && job.LastRepostedAt.Value.Date == today)
-        {
-            return new JobCreationResultDto
-            {
-                Success = false,
-                ErrorTitle = "Daily Limit Reached",
-                ErrorMessage = "You have already reposted this job today. Limit: 1 per day."
-            };
-        }
+        // Removed same-day repost limitations for testing
 
         // Pass validation, update the timestamp
         job.LastRepostedAt = DateTime.UtcNow;
