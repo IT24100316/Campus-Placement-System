@@ -232,6 +232,14 @@ public class StudentsController : ControllerBase
 
         ApplyProfileUpdates(profile, request);
 
+        if (!request.IsDraft && !IsValidForInternshipRegistration(profile))
+        {
+            return BadRequest(new
+            {
+                message = "Complete all required internship registration fields with valid values before submitting."
+            });
+        }
+
         if (isNewProfile)
         {
             _context.StudentProfiles.Add(profile);
@@ -261,24 +269,43 @@ public class StudentsController : ControllerBase
 
     private static void ApplyProfileUpdates(StudentProfile profile, StudentProfileUpsertRequest request)
     {
-        profile.FullName = request.FullName.Trim();
-        profile.Phone = request.Phone.Trim();
-        profile.CampusIdPhotoUrl = request.CampusIdPhotoUrl.Trim();
+        profile.FullName = request.FullName?.Trim() ?? string.Empty;
+        profile.Phone = request.Phone?.Trim() ?? string.Empty;
+        profile.CampusIdPhotoUrl = request.CampusIdPhotoUrl?.Trim() ?? string.Empty;
         profile.PortfolioUrl = request.PortfolioUrl?.Trim();
-        profile.UniversityName = request.UniversityName.Trim();
-        profile.AcademicStatus = request.AcademicStatus.Trim();
-        profile.DegreeProgram = request.DegreeProgram.Trim();
-        profile.CurrentYearOfStudy = request.CurrentYearOfStudy;
-        profile.GPA = request.GPA;
+        profile.UniversityName = request.UniversityName?.Trim() ?? string.Empty;
+        profile.AcademicStatus = request.AcademicStatus?.Trim() ?? string.Empty;
+        profile.DegreeProgram = request.DegreeProgram?.Trim() ?? string.Empty;
+        profile.CurrentYearOfStudy = request.CurrentYearOfStudy ?? 0;
+        profile.GPA = request.GPA ?? 0;
         profile.ExpectedGraduationDate = request.ExpectedGraduationDate;
-        profile.DesiredJobTitle = request.DesiredJobTitle.Trim();
-        profile.PrimaryDomain = request.PrimaryDomain.Trim();
-        profile.CareerObjectivesSummary = request.CareerObjectivesSummary.Trim();
+        profile.DesiredJobTitle = request.DesiredJobTitle?.Trim() ?? string.Empty;
+        profile.PrimaryDomain = request.PrimaryDomain?.Trim() ?? string.Empty;
+        profile.CareerObjectivesSummary = request.CareerObjectivesSummary?.Trim() ?? string.Empty;
         profile.Skills = CleanItems(request.Skills);
         profile.ToolsAndTechnologies = CleanItems(request.ToolsAndTechnologies);
         profile.InternshipType = CleanItems(request.InternshipType);
-        profile.LectureScheduleType = request.LectureScheduleType.Trim();
+        profile.LectureScheduleType = request.LectureScheduleType?.Trim() ?? string.Empty;
         profile.PreferredLocations = CleanItems(request.PreferredLocations);
+    }
+
+    private static bool IsValidForInternshipRegistration(StudentProfile profile)
+    {
+        return IsCompleteForInternshipRegistration(profile)
+            && profile.FullName.Length <= 255
+            && profile.Phone.Length is >= 7 and <= 25
+            && System.Text.RegularExpressions.Regex.IsMatch(
+                profile.Phone,
+                @"^\+?[0-9][0-9\s\-()]{6,24}$")
+            && profile.CampusIdPhotoUrl.Length <= 2048
+            && (profile.PortfolioUrl == null || profile.PortfolioUrl.Length <= 2048)
+            && profile.UniversityName.Length <= 255
+            && profile.AcademicStatus.Length <= 100
+            && profile.DegreeProgram.Length <= 255
+            && profile.DesiredJobTitle.Length <= 255
+            && profile.PrimaryDomain.Length <= 150
+            && profile.CareerObjectivesSummary.Length <= 1000
+            && profile.LectureScheduleType.Length <= 100;
     }
 
     private static bool IsCompleteForInternshipRegistration(StudentProfile profile)
@@ -301,9 +328,9 @@ public class StudentsController : ControllerBase
             && profile.PreferredLocations.Any(location => !string.IsNullOrWhiteSpace(location));
     }
 
-    private static string[] CleanItems(IEnumerable<string> items)
+    private static string[] CleanItems(IEnumerable<string>? items)
     {
-        return items
+        return (items ?? Array.Empty<string>())
             .Select(item => item.Trim())
             .Where(item => !string.IsNullOrWhiteSpace(item))
             .ToArray();

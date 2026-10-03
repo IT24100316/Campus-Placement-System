@@ -1,4 +1,3 @@
-using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 using backend_dotnet.Controllers;
 using backend_dotnet.Data;
@@ -68,24 +67,57 @@ public class StudentProfileControllerTests
     }
 
     [Fact]
-    public void StudentProfileRequest_RejectsInvalidGpaAndPastGraduationDate()
+    public async Task SaveProfile_AcceptsPartialDraftForAuthenticatedStudent()
     {
+        var studentId = Guid.NewGuid();
+        await using var context = CreateContext();
+        context.Users.Add(new User
+        {
+            Id = studentId,
+            Email = "student@example.edu",
+            PasswordHash = "not-used-by-this-test",
+            Role = UserRole.Student,
+            Status = AccountStatus.Approved
+        });
+        await context.SaveChangesAsync();
+
+        var result = await CreateController(context, studentId).SaveProfile(new StudentProfileUpsertRequest
+        {
+            FullName = "Draft Student",
+            IsDraft = true
+        });
+
+        Assert.IsType<CreatedAtActionResult>(result);
+        var savedProfile = await context.StudentProfiles.SingleAsync();
+        Assert.Equal("Draft Student", savedProfile.FullName);
+        Assert.Equal(0, savedProfile.GPA);
+        Assert.Null(savedProfile.ExpectedGraduationDate);
+        Assert.Empty(savedProfile.CvPdfUrl);
+    }
+
+    [Fact]
+    public async Task SaveProfile_RejectsInvalidValuesForFinalRegistration()
+    {
+        var studentId = Guid.NewGuid();
+        await using var context = CreateContext();
+        context.Users.Add(new User
+        {
+            Id = studentId,
+            Email = "student@example.edu",
+            PasswordHash = "not-used-by-this-test",
+            Role = UserRole.Student,
+            Status = AccountStatus.Approved
+        });
+        await context.SaveChangesAsync();
+
         var request = CreateValidRequest();
         request.GPA = 4.5m;
         request.ExpectedGraduationDate = DateTime.UtcNow.Date.AddDays(-1);
-        var validationResults = new List<ValidationResult>();
 
-        var isValid = Validator.TryValidateObject(
-            request,
-            new ValidationContext(request),
-            validationResults,
-            validateAllProperties: true);
+        var result = await CreateController(context, studentId).SaveProfile(request);
 
-        Assert.False(isValid);
-        Assert.Contains(validationResults, result => result.MemberNames.Contains(nameof(StudentProfileUpsertRequest.GPA)));
-        Assert.Contains(
-            validationResults,
-            result => result.MemberNames.Contains(nameof(StudentProfileUpsertRequest.ExpectedGraduationDate)));
+        Assert.IsType<BadRequestObjectResult>(result);
+        Assert.Empty(await context.StudentProfiles.ToListAsync());
     }
 
     private static AppDbContext CreateContext()

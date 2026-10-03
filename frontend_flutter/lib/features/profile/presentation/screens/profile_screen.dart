@@ -61,8 +61,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   bool _isLoadingProfile = true;
   bool _isSavingProfile = false;
-  String _saveButtonText = 'Complete Internship Registration';
-  IconData _saveButtonIcon = Icons.save_outlined;
+  bool _isCompletingRegistration = false;
   String? _profileMessage;
   bool _profileMessageIsError = false;
   bool _profileLoadFailed = false;
@@ -105,7 +104,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _profileService = widget.profileService ?? StudentProfileService();
     _cvUploadService = widget.cvUploadService ?? CvUploadService();
     _referenceClient = widget.referenceClient ?? http.Client();
+    for (final controller in [
+      _fullNameController,
+      _phoneController,
+      _universityController,
+      _gpaController,
+      _expectedGraduationController,
+      _careerObjectivesController,
+    ]) {
+      controller.addListener(_refreshPrimaryAction);
+    }
     _initializeProfile();
+  }
+
+  void _refreshPrimaryAction() {
+    if (mounted && !_isLoadingProfile) setState(() {});
   }
 
   Future<void> _initializeProfile() async {
@@ -246,22 +259,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ? null
           : profile.cvPdfUrl;
       _registrationComplete =
-          _uploadedCvStorageKey != null &&
-          profile.fullName.trim().isNotEmpty &&
-          profile.phone.trim().isNotEmpty &&
-          profile.universityName.trim().isNotEmpty &&
-          profile.degreeProgram.trim().isNotEmpty &&
-          profile.academicStatus.trim().isNotEmpty &&
-          profile.currentYearOfStudy >= 1 &&
-          profile.expectedGraduationDate != null &&
-          profile.desiredJobTitle.trim().isNotEmpty &&
-          profile.primaryDomain.trim().isNotEmpty &&
-          profile.careerObjectivesSummary.trim().isNotEmpty &&
-          profile.skills.isNotEmpty &&
-          profile.toolsAndTechnologies.isNotEmpty &&
-          profile.internshipType.isNotEmpty &&
-          profile.lectureScheduleType.trim().isNotEmpty &&
-          profile.preferredLocations.isNotEmpty;
+          _uploadedCvStorageKey != null && _isStoredProfileComplete(profile);
 
       final matchingDomain = _domains.where(
         (domain) =>
@@ -459,10 +457,77 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return bytes;
   }
 
-  Future<void> _saveProfile() async {
-    if (_isLoadingProfile || _isSavingProfile) {
-      return;
+  bool get _canCompleteRegistration =>
+      _hasCompleteProfileInputs() &&
+      _cvSelectionError == null &&
+      (_selectedCvFile != null || _uploadedCvStorageKey != null);
+
+  String get _primaryButtonText {
+    if (_isSavingProfile) {
+      return _isCompletingRegistration
+          ? 'Completing registration...'
+          : 'Saving progress...';
     }
+    return _canCompleteRegistration
+        ? 'Complete Internship Registration'
+        : 'Save to continue later';
+  }
+
+  IconData get _primaryButtonIcon => _canCompleteRegistration
+      ? Icons.check_circle_outline
+      : Icons.save_outlined;
+
+  Future<void> _handlePrimaryAction() async {
+    if (_isLoadingProfile || _isSavingProfile) return;
+    if (_canCompleteRegistration) {
+      await _completeRegistration();
+    } else {
+      await _saveDraft();
+    }
+  }
+
+  Future<void> _saveDraft() async {
+    if (!_hasActiveSession()) return;
+
+    setState(() {
+      _isSavingProfile = true;
+      _isCompletingRegistration = false;
+      _profileMessage = null;
+      _profileLoadFailed = false;
+    });
+
+    try {
+      final result = await _profileService.saveProfile(
+        profile: _buildProfileRequest(isDraft: true),
+        bearerToken: StudentSession.token ?? '',
+      );
+      if (!mounted) return;
+      setState(() {
+        _campusIdPhotoUrl = result.campusIdPhotoUrl;
+        _uploadedCvStorageKey = result.cvPdfUrl.isEmpty
+            ? null
+            : result.cvPdfUrl;
+        _registrationComplete =
+            _uploadedCvStorageKey != null && _isStoredProfileComplete(result);
+        _profileMessage = 'Your progress has been saved.';
+        _profileMessageIsError = false;
+      });
+    } on StudentProfileException catch (error) {
+      _handleProfileSaveError(error);
+    } catch (_) {
+      _showSaveFailure();
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSavingProfile = false;
+          _isCompletingRegistration = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _completeRegistration() async {
+    if (!_hasActiveSession()) return;
 
     final isFormValid = _formKey.currentState?.validate() ?? false;
     setState(() {
@@ -482,20 +547,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _skillsError != null ||
         _toolsError != null ||
         _internshipTypeError != null ||
-        _locationError != null) {
+        _locationError != null ||
+        !_hasCompleteProfileInputs()) {
       return;
     }
 
-    if (StudentSession.token?.trim().isNotEmpty != true) {
-      setState(() {
-        _expireSession();
-        _profileMessage = 'Your session has expired. Please sign in again.';
-        _profileMessageIsError = true;
-      });
-      return;
-    }
-
-    if (_selectedCvFile == null && _uploadedCvStorageKey == null) {
+    final selectedCv = _selectedCvFile;
+    if (selectedCv == null && _uploadedCvStorageKey == null) {
       setState(() {
         _cvSelectionError = 'Select a valid PDF CV to complete registration.';
         _profileMessage =
@@ -505,62 +563,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return;
     }
 
-    if (_cvSelectionError != null) {
-      return;
-    }
-
     setState(() {
       _isSavingProfile = true;
+      _isCompletingRegistration = true;
       _profileMessage = null;
       _profileLoadFailed = false;
-      _saveButtonText = 'Completing registration...';
     });
 
     try {
-      final selectedCv = _selectedCvFile;
       final cvBytes = selectedCv == null
           ? null
           : await _validatedPdfBytes(selectedCv);
-      final graduation = DateTime.parse(
-        _expectedGraduationController.text.trim(),
-      );
-      final domain = _domains.firstWhere(
-        (item) => item['id'] == _selectedDomainId,
-      );
-      final title = _jobTitles.firstWhere(
-        (item) => item['id'] == _selectedJobTitleId,
-      );
-      final request = StudentProfileUpsertRequest(
-        fullName: _fullNameController.text.trim(),
-        phone: _phoneController.text.trim(),
-        campusIdPhotoUrl: _campusIdPhotoUrl,
-        portfolioUrl: _portfolioUrlController.text.trim().isEmpty
-            ? null
-            : _portfolioUrlController.text.trim(),
-        universityName: _universityController.text.trim(),
-        academicStatus: _selectedAcademicStatus!,
-        degreeProgram: _selectedDegree!,
-        currentYearOfStudy: _selectedYearOfStudy!,
-        gpa: double.parse(_gpaController.text.trim()),
-        expectedGraduationDate: DateTime.utc(
-          graduation.year,
-          graduation.month,
-          graduation.day,
-        ),
-        desiredJobTitle: title['title'].toString(),
-        primaryDomain: domain['name'].toString(),
-        careerObjectivesSummary: _careerObjectivesController.text.trim(),
-        skills: List.of(_skills),
-        toolsAndTechnologies: List.of(_tools),
-        internshipType: _selectedWorkArrangements.toList(),
-        lectureScheduleType: _selectedSchedule!,
-        preferredLocations: _selectedLocations.toList(),
-      );
       final result = await _profileService.saveProfile(
-        profile: request,
+        profile: _buildProfileRequest(isDraft: false),
         bearerToken: StudentSession.token ?? '',
       );
-
       if (!mounted) return;
 
       setState(() {
@@ -590,66 +607,187 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 'Profile saved, but the CV still needs to be uploaded. ${error.message}';
             _profileMessageIsError = true;
             _cvUploadError = error.message;
-            _saveButtonText = 'Complete Internship Registration';
-            _saveButtonIcon = Icons.upload_file;
             _registrationComplete = false;
           });
           return;
         } catch (_) {
           if (!mounted) return;
           setState(() {
-            _profileMessage = 'Profile saved, but the CV still needs to be uploaded. Please retry.';
+            _profileMessage =
+                'Profile saved, but the CV still needs to be uploaded. Please retry.';
             _profileMessageIsError = true;
-            _saveButtonText = 'Complete Internship Registration';
-            _saveButtonIcon = Icons.upload_file;
             _registrationComplete = false;
           });
           return;
         }
       }
 
+      if (!mounted) return;
       setState(() {
-        _registrationComplete = true;
-        _profileMessage = 'Internship registration completed successfully';
-        _profileMessageIsError = false;
-        _saveButtonText = 'Complete Internship Registration';
-        _saveButtonIcon = Icons.check_circle;
+        _registrationComplete = _uploadedCvStorageKey != null;
+        _profileMessage = _registrationComplete
+            ? 'Internship registration completed successfully'
+            : 'A PDF CV is required to complete internship registration.';
+        _profileMessageIsError = !_registrationComplete;
       });
     } on StudentProfileException catch (error) {
-      if (mounted) {
-        if (error.type == StudentProfileErrorType.unauthorized) {
-          _expireSession();
-        }
-        setState(() {
-          _profileMessage = error.message;
-          _profileMessageIsError = true;
-          _saveButtonText = 'Complete Internship Registration';
-          _saveButtonIcon = Icons.save_outlined;
-        });
-      }
+      _handleProfileSaveError(error);
     } on CvUploadException catch (error) {
       if (mounted) {
         setState(() {
           _cvSelectionError = error.message;
           _profileMessage = error.message;
           _profileMessageIsError = true;
-          _saveButtonText = 'Complete Internship Registration';
+          _registrationComplete = false;
         });
       }
     } catch (_) {
-      if (mounted) {
-        setState(() {
-          _profileMessage = 'Unable to save your profile. Please check the form and try again.';
-          _profileMessageIsError = true;
-          _saveButtonText = 'Complete Internship Registration';
-          _saveButtonIcon = Icons.save_outlined;
-        });
-      }
+      _showSaveFailure();
     } finally {
       if (mounted) {
-        setState(() => _isSavingProfile = false);
+        setState(() {
+          _isSavingProfile = false;
+          _isCompletingRegistration = false;
+        });
       }
     }
+  }
+
+  bool _hasActiveSession() {
+    if (StudentSession.token?.trim().isNotEmpty == true) return true;
+    setState(() {
+      _expireSession();
+      _profileMessage = 'Your session has expired. Please sign in again.';
+      _profileMessageIsError = true;
+    });
+    return false;
+  }
+
+  void _handleProfileSaveError(StudentProfileException error) {
+    if (!mounted) return;
+    if (error.type == StudentProfileErrorType.unauthorized) _expireSession();
+    setState(() {
+      _profileMessage = error.message;
+      _profileMessageIsError = true;
+      _registrationComplete = false;
+    });
+  }
+
+  void _showSaveFailure() {
+    if (!mounted) return;
+    setState(() {
+      _profileMessage =
+          'Unable to save your profile. Please check the form and try again.';
+      _profileMessageIsError = true;
+      _registrationComplete = false;
+    });
+  }
+
+  StudentProfileUpsertRequest _buildProfileRequest({required bool isDraft}) {
+    final graduation = DateTime.tryParse(
+      _expectedGraduationController.text.trim(),
+    );
+    return StudentProfileUpsertRequest(
+      fullName: _fullNameController.text.trim(),
+      phone: _phoneController.text.trim(),
+      campusIdPhotoUrl: _campusIdPhotoUrl,
+      portfolioUrl: _portfolioUrlController.text.trim().isEmpty
+          ? null
+          : _portfolioUrlController.text.trim(),
+      universityName: _universityController.text.trim(),
+      academicStatus: _selectedAcademicStatus,
+      degreeProgram: _selectedDegree,
+      currentYearOfStudy: _selectedYearOfStudy,
+      gpa: double.tryParse(_gpaController.text.trim()),
+      expectedGraduationDate: graduation == null
+          ? null
+          : DateTime.utc(graduation.year, graduation.month, graduation.day),
+      desiredJobTitle: _selectedReferenceValue(_jobTitles, _selectedJobTitleId, 'title'),
+      primaryDomain: _selectedReferenceValue(_domains, _selectedDomainId, 'name'),
+      careerObjectivesSummary: _careerObjectivesController.text.trim(),
+      skills: List.of(_skills),
+      toolsAndTechnologies: List.of(_tools),
+      internshipType: _selectedWorkArrangements.toList(),
+      lectureScheduleType: _selectedSchedule,
+      preferredLocations: _selectedLocations.toList(),
+      isDraft: isDraft,
+    );
+  }
+
+  String? _selectedReferenceValue(
+    List<dynamic> values,
+    int? selectedId,
+    String property,
+  ) {
+    if (selectedId == null) return null;
+    for (final value in values) {
+      if (value['id'] == selectedId) return value[property]?.toString();
+    }
+    return null;
+  }
+
+  bool _hasCompleteProfileInputs() {
+    final graduation = DateTime.tryParse(
+      _expectedGraduationController.text.trim(),
+    );
+    final today = DateTime.now();
+    final gpa = double.tryParse(_gpaController.text.trim());
+    return _validateRequired(_fullNameController.text) == null &&
+        _validatePhone(_phoneController.text) == null &&
+        _validateRequired(_universityController.text) == null &&
+        _selectedAcademicStatus?.trim().isNotEmpty == true &&
+        _selectedDegree?.trim().isNotEmpty == true &&
+        (_selectedYearOfStudy ?? 0) >= 1 &&
+        (_selectedYearOfStudy ?? 0) <= 8 &&
+        gpa != null &&
+        gpa >= 0 &&
+        gpa <= 4 &&
+        graduation != null &&
+        !DateTime(graduation.year, graduation.month, graduation.day).isBefore(
+          DateTime(today.year, today.month, today.day),
+        ) &&
+        _selectedReferenceValue(_jobTitles, _selectedJobTitleId, 'title')
+                ?.trim()
+                .isNotEmpty ==
+            true &&
+        _selectedReferenceValue(_domains, _selectedDomainId, 'name')
+                ?.trim()
+                .isNotEmpty ==
+            true &&
+        _validateCareerObjectives(_careerObjectivesController.text) == null &&
+        _validateOptionalUrl(_portfolioUrlController.text) == null &&
+        _skills.isNotEmpty &&
+        _tools.isNotEmpty &&
+        _selectedWorkArrangements.isNotEmpty &&
+        _selectedSchedule?.trim().isNotEmpty == true &&
+        _selectedLocations.isNotEmpty;
+  }
+
+  bool _isStoredProfileComplete(StudentProfileResponse profile) {
+    final today = DateTime.now();
+    final graduation = profile.expectedGraduationDate;
+    return _validateRequired(profile.fullName) == null &&
+        _validatePhone(profile.phone) == null &&
+        _validateRequired(profile.universityName) == null &&
+        profile.academicStatus.trim().isNotEmpty &&
+        profile.degreeProgram.trim().isNotEmpty &&
+        profile.currentYearOfStudy >= 1 &&
+        profile.currentYearOfStudy <= 8 &&
+        profile.gpa >= 0 &&
+        profile.gpa <= 4 &&
+        graduation != null &&
+        !DateTime(graduation.year, graduation.month, graduation.day).isBefore(
+          DateTime(today.year, today.month, today.day),
+        ) &&
+        profile.desiredJobTitle.trim().isNotEmpty &&
+        profile.primaryDomain.trim().isNotEmpty &&
+        _validateCareerObjectives(profile.careerObjectivesSummary) == null &&
+        _validateOptionalUrl(profile.portfolioUrl) == null &&
+        profile.skills.isNotEmpty &&
+        profile.toolsAndTechnologies.isNotEmpty &&
+        profile.internshipType.isNotEmpty &&
+        profile.lectureScheduleType.trim().isNotEmpty &&
+        profile.preferredLocations.isNotEmpty;
   }
 
   @override
@@ -1054,7 +1192,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 onPressed:
                     _isLoadingProfile || _isSavingProfile || _sessionExpired
                     ? null
-                    : _saveProfile,
+                    : _handlePrimaryAction,
                 icon: _isSavingProfile
                     ? const SizedBox(
                         height: 20,
@@ -1064,9 +1202,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           strokeWidth: 2,
                         ),
                       )
-                    : Icon(_saveButtonIcon, size: 20),
+                    : Icon(_primaryButtonIcon, size: 20),
                 label: Text(
-                  _saveButtonText,
+                  _primaryButtonText,
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,

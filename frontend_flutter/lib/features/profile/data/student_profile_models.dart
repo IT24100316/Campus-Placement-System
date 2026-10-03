@@ -1,43 +1,45 @@
 class StudentProfileUpsertRequest {
   const StudentProfileUpsertRequest({
-    required this.fullName,
-    required this.phone,
-    required this.campusIdPhotoUrl,
+    this.fullName,
+    this.phone,
+    this.campusIdPhotoUrl,
     this.portfolioUrl,
-    required this.universityName,
-    required this.academicStatus,
-    required this.degreeProgram,
-    required this.currentYearOfStudy,
-    required this.gpa,
-    required this.expectedGraduationDate,
-    required this.desiredJobTitle,
-    required this.primaryDomain,
-    required this.careerObjectivesSummary,
-    required this.skills,
-    required this.toolsAndTechnologies,
-    required this.internshipType,
-    required this.lectureScheduleType,
-    required this.preferredLocations,
+    this.universityName,
+    this.academicStatus,
+    this.degreeProgram,
+    this.currentYearOfStudy,
+    this.gpa,
+    this.expectedGraduationDate,
+    this.desiredJobTitle,
+    this.primaryDomain,
+    this.careerObjectivesSummary,
+    this.skills,
+    this.toolsAndTechnologies,
+    this.internshipType,
+    this.lectureScheduleType,
+    this.preferredLocations,
+    this.isDraft = false,
   });
 
-  final String fullName;
-  final String phone;
-  final String campusIdPhotoUrl;
+  final String? fullName;
+  final String? phone;
+  final String? campusIdPhotoUrl;
   final String? portfolioUrl;
-  final String universityName;
-  final String academicStatus;
-  final String degreeProgram;
-  final int currentYearOfStudy;
-  final double gpa;
-  final DateTime expectedGraduationDate;
-  final String desiredJobTitle;
-  final String primaryDomain;
-  final String careerObjectivesSummary;
-  final List<String> skills;
-  final List<String> toolsAndTechnologies;
-  final List<String> internshipType;
-  final String lectureScheduleType;
-  final List<String> preferredLocations;
+  final String? universityName;
+  final String? academicStatus;
+  final String? degreeProgram;
+  final int? currentYearOfStudy;
+  final double? gpa;
+  final DateTime? expectedGraduationDate;
+  final String? desiredJobTitle;
+  final String? primaryDomain;
+  final String? careerObjectivesSummary;
+  final List<String>? skills;
+  final List<String>? toolsAndTechnologies;
+  final List<String>? internshipType;
+  final String? lectureScheduleType;
+  final List<String>? preferredLocations;
+  final bool isDraft;
 
   Map<String, Object?> toJson() => {
     'fullName': fullName,
@@ -49,7 +51,7 @@ class StudentProfileUpsertRequest {
     'degreeProgram': degreeProgram,
     'currentYearOfStudy': currentYearOfStudy,
     'gpa': gpa,
-    'expectedGraduationDate': expectedGraduationDate.toUtc().toIso8601String(),
+    'expectedGraduationDate': expectedGraduationDate?.toUtc().toIso8601String(),
     'desiredJobTitle': desiredJobTitle,
     'primaryDomain': primaryDomain,
     'careerObjectivesSummary': careerObjectivesSummary,
@@ -58,6 +60,7 @@ class StudentProfileUpsertRequest {
     'internshipType': internshipType,
     'lectureScheduleType': lectureScheduleType,
     'preferredLocations': preferredLocations,
+    'isDraft': isDraft,
   };
 }
 
