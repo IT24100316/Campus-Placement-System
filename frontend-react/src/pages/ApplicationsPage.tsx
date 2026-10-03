@@ -231,6 +231,7 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
       }
     } catch (err) {
       console.error('Action failed', err);
+      setDecisionError('The decision could not be completed. Check the backend connection.');
     } finally {
       setPendingAction(null);
     }
@@ -434,6 +435,7 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
       )}
 
       <main className={`max-w-7xl w-full mx-auto px-6 flex-1 flex flex-col gap-6 ${hideHeader ? 'py-4' : 'py-8 pt-24'}`}>
+        {decisionError && <div role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{decisionError}</div>}
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
@@ -1141,6 +1143,26 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
                       {viewingValidationFor.validationInfo.warnings.map((w, i) => <li key={i}>{w}</li>)}
                     </ul>
                   </div>
+                </div>
+              )}
+
+              {viewingValidationFor.validationInfo.unsupported_claims?.length ? (
+                <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-rose-800">
+                  <h4 className="text-sm font-bold mb-2">Qualifications requiring review</h4>
+                  <ul className="list-disc list-inside text-xs space-y-1">
+                    {viewingValidationFor.validationInfo.unsupported_claims.map((claim) => <li key={claim}>{claim}</li>)}
+                  </ul>
+                </div>
+              ) : null}
+
+              {Object.entries(viewingValidationFor.validationInfo.evidence || {}).length > 0 && (
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-900">
+                  <h4 className="text-sm font-bold mb-2">CV evidence</h4>
+                  <ul className="space-y-2 text-xs">
+                    {Object.entries(viewingValidationFor.validationInfo.evidence || {}).map(([claim, excerpt]) => (
+                      <li key={claim}><strong>{claim}:</strong> {excerpt}</li>
+                    ))}
+                  </ul>
                 </div>
               )}
 
