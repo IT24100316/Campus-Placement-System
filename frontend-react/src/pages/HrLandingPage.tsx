@@ -112,6 +112,9 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
     }));
   }, [dashboardData?.shortlistedCandidates]);
 
+  // --- Navbar Active Tab State ---
+  const [activeNavTab, setActiveNavTab] = useState<'overview' | 'drives' | 'candidates'>('overview');
+
   const JOBS_PER_PAGE = 6;
 
   // If a new job was just published, ensure we are on page 1 with clear filters so it's immediately visible
@@ -591,8 +594,43 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
               </div>
             </button>
 
-            {/* Desktop Navigation removed as per user request */}
-            <nav className="hidden xl:flex items-center gap-1.5">
+            {/* Desktop Navigation - Styled to match Staff Dashboard */}
+            <nav className="hidden xl:flex items-center gap-1.5 ml-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveNavTab('overview');
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${activeNavTab === 'overview' ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'}`}
+              >
+                <Briefcase className={`w-4 h-4 ${activeNavTab === 'overview' ? 'text-blue-700' : 'text-slate-500'}`} />
+                <span>Overview</span>
+              </button>
+              
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveNavTab('drives');
+                  document.getElementById('jobs-section')?.scrollIntoView({ behavior: 'smooth' });
+                }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${activeNavTab === 'drives' ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'}`}
+              >
+                <Building2 className={`w-4 h-4 ${activeNavTab === 'drives' ? 'text-blue-700' : 'text-slate-500'}`} />
+                <span>Active Drives</span>
+              </button>
+              
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveNavTab('candidates');
+                  document.getElementById('candidates-section')?.scrollIntoView({ behavior: 'smooth' });
+                }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${activeNavTab === 'candidates' ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'}`}
+              >
+                <Sparkles className={`w-4 h-4 ${activeNavTab === 'candidates' ? 'text-blue-700' : 'text-slate-500'}`} />
+                <span>AI Candidates</span>
+              </button>
             </nav>
           </div>
 
@@ -939,7 +977,7 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
           {/* -------------------------------------------------------------
               3. Active Placement Drives / Current Openings Section
              ------------------------------------------------------------- */}
-          <section className="w-full py-6 px-4 sm:px-6 lg:px-8">
+          <section id="jobs-section" className="w-full py-6 px-4 sm:px-6 lg:px-8">
             <div className="max-w-7xl mx-auto flex flex-col gap-4">
               {/* Header with Title & Live Drives Count */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
