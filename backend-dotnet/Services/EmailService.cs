@@ -8,6 +8,7 @@ public interface IEmailService
 {
     Task<bool> SendAccountDecisionAsync(string recipient, string displayName, bool approved, CancellationToken cancellationToken = default);
     Task<bool> SendInterviewScheduledAsync(string toEmail, string studentName, string companyName, string jobTitle, DateTime interviewDate, TimeSpan interviewTime, string? meetingLink, CancellationToken cancellationToken = default);
+    Task<bool> SendCandidateRejectedAsync(string toEmail, string studentName, string companyName, string jobTitle, string reason, CancellationToken cancellationToken = default);
 }
 
 public sealed class BrevoEmailService : IEmailService
@@ -84,6 +85,38 @@ public sealed class BrevoEmailService : IEmailService
         };
 
         return SendAsync(toEmail, studentName, subject, htmlContent, attachment, cancellationToken, isHtml: true, fromNameOverride: companyName);
+    }
+
+    public Task<bool> SendCandidateRejectedAsync(
+        string toEmail, 
+        string studentName, 
+        string companyName, 
+        string jobTitle, 
+        string reason, 
+        CancellationToken cancellationToken = default)
+    {
+        var subject = $"Update on your application for {jobTitle} at {companyName}";
+        
+        var htmlContent = $@"
+            <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;'>
+                <h2>Application Update</h2>
+                <p>Dear <strong>{studentName}</strong>,</p>
+                <p>Thank you for applying to the <strong>{jobTitle}</strong> position at <strong>{companyName}</strong>.</p>
+                
+                <p>We appreciate the time you took to go through the AI screening process. However, after careful review, we regret to inform you that we will not be moving forward with your application at this time.</p>
+                
+                {(string.IsNullOrWhiteSpace(reason) ? "" : $"<div style='background-color: #f8d7da; color: #721c24; padding: 15px; border-radius: 8px; margin: 20px 0;'><h3 style='margin-top: 0; font-size: 14px;'>Feedback</h3><p style='margin: 0;'>{reason}</p></div>")}
+                
+                <p>We wish you the best of luck in your future endeavors.</p>
+                
+                <p style='margin-top: 30px; font-size: 0.9em; color: #666;'>
+                    Best regards,<br/>
+                    <strong>{companyName}</strong>
+                </p>
+            </div>
+        ";
+
+        return SendAsync(toEmail, studentName, subject, htmlContent, null, cancellationToken, isHtml: true, fromNameOverride: companyName);
     }
 
     private async Task<bool> SendAsync(string recipient, string displayName, string subject, string body, object? attachment, CancellationToken cancellationToken, bool isHtml = false, string? fromNameOverride = null)

@@ -322,4 +322,39 @@ public class ApplicationService : IApplicationService
 
         return true;
     }
+
+    public async Task<bool> RejectCandidateAsync(RejectCandidateRequestDto request)
+    {
+        var application = await _context.Applications
+            .Include(a => a.Student)
+                .ThenInclude(u => u.StudentProfile)
+            .Include(a => a.Job)
+                .ThenInclude(j => j.Company)
+            .FirstOrDefaultAsync(a => a.StudentId == request.StudentId && a.JobId == request.JobId);
+
+        if (application == null)
+        {
+            return false;
+        }
+
+        var studentEmail = application.Student.Email;
+        var studentName = application.Student.StudentProfile?.FullName ?? "Student";
+        var companyName = application.Job.Company?.CompanyName ?? "Company";
+        var jobTitle = application.Job.JobTitle;
+
+        // Optionally send a rejection email
+        await _emailService.SendCandidateRejectedAsync(
+            studentEmail,
+            studentName,
+            companyName,
+            jobTitle,
+            request.Reason
+        );
+
+        application.Status = ApplicationStatus.Rejected;
+        application.CompanyMessage = request.Reason; // Save reason in CompanyMessage or just leave it for now.
+
+        await _context.SaveChangesAsync();
+        return true;
+    }
 }

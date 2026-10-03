@@ -157,6 +157,26 @@ export const companyService = {
     }
   },
 
+  async rejectCandidate(studentId: string, jobId: string, reason: string): Promise<boolean> {
+    try {
+      const url = `${API_BASE}/interviews/reject`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          studentId,
+          jobId,
+          reason
+        }),
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  },
+
   async updateProfile(companyId: string, data: {
     companyName: string;
     industry: string;
