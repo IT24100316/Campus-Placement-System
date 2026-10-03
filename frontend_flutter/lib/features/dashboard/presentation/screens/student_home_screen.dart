@@ -109,6 +109,24 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     }
   }
 
+  String get _headerGreeting {
+    final profileName = _profile?.fullName.trim() ?? '';
+    final sessionName = StudentSession.fullName?.trim() ?? '';
+    final name = profileName.isNotEmpty ? profileName : sessionName;
+
+    if (name.isEmpty) {
+      return 'Welcome';
+    }
+
+    final hour = DateTime.now().hour;
+    final salutation = hour >= 5 && hour < 12
+        ? 'Good morning'
+        : hour >= 12 && hour < 17
+        ? 'Good afternoon'
+        : 'Good evening';
+    return '$salutation, $name';
+  }
+
   void _showPlaceholder(BuildContext context, String label) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('$label will be available soon.')),
@@ -130,7 +148,10 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
               sliver: SliverList(
                 delegate: SliverChildListDelegate(
                   [
-                    _Header(onNotificationsTap: () => _showPlaceholder(context, 'Notifications')),
+                    _Header(
+                      greeting: _headerGreeting,
+                      onNotificationsTap: () => _showPlaceholder(context, 'Notifications'),
+                    ),
                     const SizedBox(height: 24),
                     _NextStepCard(
                       profile: _profile,
@@ -421,8 +442,9 @@ class _ApplicationsEmptyState extends StatelessWidget {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.onNotificationsTap});
+  const _Header({required this.greeting, required this.onNotificationsTap});
 
+  final String greeting;
   final VoidCallback onNotificationsTap;
 
   @override
@@ -433,7 +455,7 @@ class _Header extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Good morning, Ryan', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800, color: AppColors.textPrimaryLight, letterSpacing: -0.6)),
+              Text(greeting, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800, color: AppColors.textPrimaryLight, letterSpacing: -0.6)),
               const SizedBox(height: 4),
               const Text("Here's your placement overview", style: TextStyle(color: AppColors.textSecondaryLight, fontSize: 14)),
             ],
