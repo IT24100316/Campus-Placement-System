@@ -174,7 +174,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen>
 
       if (mounted) {
         setState(() {
-          _latestJobs = openJobs.take(5).toList();
+          _latestJobs = openJobs.take(10).toList();
           _isLoadingJobs = false;
         });
       }
