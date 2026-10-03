@@ -780,10 +780,12 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                       <div className="w-12 h-12 rounded-xl bg-blue-50 text-primary flex items-center justify-center">
                         <Users className="w-6 h-6 text-primary" />
                       </div>
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 text-xs font-semibold border border-emerald-200">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                        38 New Matches Ready
-                      </span>
+                      {stats.prescreenedStudents > 0 && (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 text-xs font-semibold border border-emerald-200">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                          {stats.prescreenedStudents} Matches Ready
+                        </span>
+                      )}
                     </div>
                     <div>
                       <h2 className="font-display text-xl sm:text-2xl font-bold text-slate-900">
@@ -797,13 +799,13 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                   <div className="pt-6 flex items-center justify-between">
                     <button
                       type="button"
-                      onClick={() => {}}
+                      onClick={() => document.getElementById('candidates-section')?.scrollIntoView({ behavior: 'smooth' })}
                       className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-white font-semibold text-xs sm:text-sm hover:bg-blue-700 transition-all shadow-sm cursor-pointer"
                     >
                       <span>Review Shortlisted Pool</span>
                       <CheckCircle2 className="w-4 h-4" />
                     </button>
-                    <span className="text-xs text-slate-500 font-medium">Min GPA ≥ 3.5 Verified</span>
+                    <span className="text-xs text-slate-500 font-medium">100% Verified Credentials</span>
                   </div>
                 </div>
               </div>
@@ -822,7 +824,11 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                   </div>
                 </div>
 
-                <div className="bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-xs flex items-center gap-4">
+                <button 
+                  type="button"
+                  onClick={() => document.getElementById('candidates-section')?.scrollIntoView({ behavior: 'smooth' })}
+                  className="bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-xs flex items-center gap-4 hover:-translate-y-1 hover:shadow-md transition-all text-left cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50"
+                >
                   <div className="w-11 h-11 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600 shrink-0">
                     <CheckCircle2 className="w-5 h-5 text-emerald-600" />
                   </div>
@@ -832,7 +838,7 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                     </span>
                     <span className="text-xs text-slate-500 font-medium mt-1">Pre-screened Students</span>
                   </div>
-                </div>
+                </button>
 
                 <div className="bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-xs flex items-center gap-4">
                   <div className="w-11 h-11 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600 shrink-0">
