@@ -210,10 +210,11 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
   // Tells the backend that a human admin has made a final approve or reject decision.
   // If successful, it moves the candidate out of the 'pending' tab!
   const handleAction = async (id: string, action: 'approve' | 'reject') => {
+    setDecisionError('');
     try {
       const res = await fetch(`${API_BASE}/Applications/human-verify`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
         body: JSON.stringify({
           AppId: id,
           Approved: action === 'approve'
@@ -223,6 +224,10 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
         setCandidates(prev => prev.map(c => 
           c.id === id ? { ...c, status: action === 'approve' ? 'approved' : 'disapproved' } : c
         ));
+      } else {
+        const error = await res.json().catch(() => ({}));
+        setDecisionError(error.message || 'The decision could not be completed. Refresh to see its saved status.');
+        await fetchCandidates();
       }
     } catch (err) {
       console.error('Action failed', err);
