@@ -224,20 +224,18 @@ class _StudentHomeScreenState extends State<StudentHomeScreen>
                       onOpenProfile: () => widget.onNavigate(1),
                     ),
                     const SizedBox(height: 28),
-                    DashboardSectionTitle(title: 'Upcoming events', actionLabel: 'View all', onAction: () => _showPlaceholder(context, 'All events')),
+                    DashboardSectionTitle(
+                      title: 'Upcoming events',
+                      actionLabel: 'View all',
+                      onAction: () => widget.onOpenApplications(0),
+                    ),
                     const SizedBox(height: 4),
-                    _SurfaceCard(
-                      child: Column(
-                        children: [
-                          DashboardEventItem(icon: Icons.video_call_outlined, title: 'ABC Tech - Technical interview', dateTime: 'Today, 2:30 PM', iconColor: const Color(0xFF2563EB), badge: 'Today', badgeColor: const Color(0xFFDBEAFE), badgeTextColor: const Color(0xFF1D4ED8), onTap: () => _showPlaceholder(context, 'Interview details')),
-                          const Divider(height: 1, color: AppColors.borderLight),
-                          DashboardEventItem(icon: Icons.groups_outlined, title: 'Placement readiness workshop', dateTime: 'Thu, 10:00 AM', iconColor: const Color(0xFF7C3AED), badge: 'Workshop', badgeColor: const Color(0xFFF3E8FF), badgeTextColor: const Color(0xFF7E22CE), onTap: () => _showPlaceholder(context, 'Workshop details')),
-                          const Divider(height: 1, color: AppColors.borderLight),
-                          DashboardEventItem(icon: Icons.assignment_late_outlined, title: 'Apex Systems assessment', dateTime: 'Oct 18, 9:00 AM', iconColor: const Color(0xFFD97706), badge: 'Upcoming', badgeColor: const Color(0xFFFFF7E6), badgeTextColor: const Color(0xFFB45309), onTap: () => _showPlaceholder(context, 'Assessment details')),
-                          const Divider(height: 1, color: AppColors.borderLight),
-                          DashboardEventItem(icon: Icons.schedule_outlined, title: 'CV verification deadline', dateTime: 'Oct 21, 5:00 PM', iconColor: const Color(0xFFDC2626), badge: 'Deadline', badgeColor: const Color(0xFFFEE2E2), badgeTextColor: const Color(0xFFB91C1C), onTap: () => widget.onNavigate(1)),
-                        ],
-                      ),
+                    _UpcomingEventsPanel(
+                      applications: _applications,
+                      isLoading: _isLoadingApplications,
+                      errorMessage: _applicationsError,
+                      onRetry: _loadApplications,
+                      onOpenApplications: widget.onOpenApplications,
                     ),
                     const SizedBox(height: 28),
                     const DashboardSectionTitle(title: 'Recent activity'),
@@ -506,6 +504,244 @@ class _ExplorationIcon extends StatelessWidget {
       ),
       child: Icon(icon, color: AppColors.primary, size: 18),
     );
+  }
+}
+
+class _UpcomingEventsPanel extends StatelessWidget {
+  const _UpcomingEventsPanel({
+    required this.applications,
+    required this.isLoading,
+    required this.errorMessage,
+    required this.onRetry,
+    required this.onOpenApplications,
+  });
+
+  final List<Map<String, dynamic>> applications;
+  final bool isLoading;
+  final String? errorMessage;
+  final VoidCallback onRetry;
+  final ValueChanged<int> onOpenApplications;
+
+  @override
+  Widget build(BuildContext context) {
+    final events = _UpcomingApplicationEvent.fromApplications(applications);
+
+    return _SurfaceCard(
+      child: isLoading
+          ? const SizedBox(
+              height: 84,
+              child: Center(
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            )
+          : errorMessage != null
+          ? _DashboardLoadError(message: errorMessage!, onRetry: onRetry)
+          : events.isEmpty
+          ? const _UpcomingEventsEmptyState()
+          : Column(
+              children: [
+                for (var index = 0; index < events.length; index++) ...[
+                  _UpcomingApplicationEventItem(
+                    event: events[index],
+                    onTap: () => onOpenApplications(0),
+                  ),
+                  if (index < events.length - 1)
+                    const Divider(height: 1, color: AppColors.borderLight),
+                ],
+              ],
+            ),
+    );
+  }
+}
+
+class _UpcomingApplicationEventItem extends StatelessWidget {
+  const _UpcomingApplicationEventItem({
+    required this.event,
+    required this.onTap,
+  });
+
+  final _UpcomingApplicationEvent event;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final isInterview = event.type == _UpcomingEventType.interview;
+    return DashboardEventItem(
+      icon: isInterview
+          ? Icons.video_call_outlined
+          : Icons.timer_outlined,
+      title: '${event.companyName} \u2014 ${isInterview ? 'Interview' : 'Decision deadline'}',
+      dateTime: event.formattedDateTime,
+      iconColor: isInterview
+          ? const Color(0xFF2563EB)
+          : const Color(0xFFD97706),
+      badge: isInterview ? 'Interview' : 'Deadline',
+      badgeColor: isInterview
+          ? const Color(0xFFDBEAFE)
+          : const Color(0xFFFFF7E6),
+      badgeTextColor: isInterview
+          ? const Color(0xFF1D4ED8)
+          : const Color(0xFFB45309),
+      onTap: onTap,
+    );
+  }
+}
+
+class _UpcomingEventsEmptyState extends StatelessWidget {
+  const _UpcomingEventsEmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 18),
+      child: Column(
+        children: [
+          Text(
+            'No upcoming interviews or deadlines',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: AppColors.textPrimaryLight,
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          SizedBox(height: 6),
+          Text(
+            'Your scheduled interviews and decision deadlines will appear here.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: AppColors.textSecondaryLight,
+              fontSize: 13,
+              height: 1.35,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+enum _UpcomingEventType { interview, deadline }
+
+class _UpcomingApplicationEvent {
+  const _UpcomingApplicationEvent({
+    required this.type,
+    required this.companyName,
+    required this.dateTime,
+  });
+
+  final _UpcomingEventType type;
+  final String companyName;
+  final DateTime dateTime;
+
+  String get formattedDateTime {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    final displayHour = dateTime.hour == 0
+        ? 12
+        : dateTime.hour > 12
+        ? dateTime.hour - 12
+        : dateTime.hour;
+    final minute = dateTime.minute.toString().padLeft(2, '0');
+    final period = dateTime.hour < 12 ? 'AM' : 'PM';
+    return '${months[dateTime.month - 1]} ${dateTime.day}, ${dateTime.year}, $displayHour:$minute $period';
+  }
+
+  static List<_UpcomingApplicationEvent> fromApplications(
+    List<Map<String, dynamic>> applications,
+  ) {
+    final now = DateTime.now();
+    final events = <_UpcomingApplicationEvent>[];
+
+    for (final application in applications) {
+      final companyName = application['companyName']?.toString().trim() ?? '';
+      if (companyName.isEmpty) {
+        continue;
+      }
+
+      final status = application['status']?.toString();
+      if (status == 'Company_Scheduled') {
+        final dateTime = _interviewDateTime(application);
+        if (dateTime != null && dateTime.isAfter(now)) {
+          events.add(
+            _UpcomingApplicationEvent(
+              type: _UpcomingEventType.interview,
+              companyName: companyName,
+              dateTime: dateTime,
+            ),
+          );
+        }
+      } else if (status == 'Admin_Approved') {
+        final dateTime = _localDateTime(application['decisionDeadline']);
+        if (dateTime != null && dateTime.isAfter(now)) {
+          events.add(
+            _UpcomingApplicationEvent(
+              type: _UpcomingEventType.deadline,
+              companyName: companyName,
+              dateTime: dateTime,
+            ),
+          );
+        }
+      }
+    }
+
+    events.sort((left, right) => left.dateTime.compareTo(right.dateTime));
+    return events.take(3).toList();
+  }
+
+  static DateTime? _interviewDateTime(Map<String, dynamic> application) {
+    final date = _localDateTime(application['interviewDate']);
+    final time = _timeParts(application['interviewTime']);
+    if (date == null || time == null) {
+      return null;
+    }
+    return DateTime(date.year, date.month, date.day, time.$1, time.$2, time.$3);
+  }
+
+  static DateTime? _localDateTime(dynamic value) {
+    final rawValue = value?.toString().trim();
+    if (rawValue == null || rawValue.isEmpty) {
+      return null;
+    }
+    return DateTime.tryParse(rawValue)?.toLocal();
+  }
+
+  static (int, int, int)? _timeParts(dynamic value) {
+    final rawValue = value?.toString().trim();
+    if (rawValue == null || rawValue.isEmpty) {
+      return null;
+    }
+    final match = RegExp(
+      r'^(\d{1,2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?$',
+    ).firstMatch(rawValue);
+    if (match == null) {
+      return null;
+    }
+
+    final hour = int.tryParse(match.group(1)!);
+    final minute = int.tryParse(match.group(2)!);
+    final second = int.tryParse(match.group(3) ?? '0');
+    if (hour == null || minute == null || second == null ||
+        hour > 23 || minute > 59 || second > 59) {
+      return null;
+    }
+    return (hour, minute, second);
   }
 }
 
