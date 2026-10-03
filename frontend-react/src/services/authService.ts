@@ -432,12 +432,13 @@ export const authService = {
     const headers = { Authorization: `Bearer ${localStorage.getItem(STORAGE_KEY_TOKEN) || ''}` };
     let res = await fetch(`${API_BASE}/admin/${endpoint}/${encodeURIComponent(id)}`, { method: 'POST', headers });
     if (!res.ok && email) {
-      res = await fetch(`${API_BASE}/admin/${endpoint}/${encodeURIComponent(email)}`, { method: 'POST' });
+      res = await fetch(`${API_BASE}/admin/${endpoint}/${encodeURIComponent(email)}`, { method: 'POST', headers });
     }
     if (!res.ok) {
       const error = await res.json().catch(() => ({}));
       throw new Error(error.message || `Could not ${endpoint} this account.`);
     }
+    const decision = await res.json();
 
     // 2. Update local state
     const updated = current.map((r) => 
@@ -461,6 +462,6 @@ export const authService = {
       }
     }
 
-    return updated;
+    return { records: updated, emailSent: decision.emailSent === true };
   },
 };
