@@ -387,24 +387,18 @@ export const authService = {
           status: u.status as AccountApprovalStatus,
           submittedAt: new Date(u.createdAt).toLocaleDateString() + ' ' + new Date(u.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           refCode: `REG-${u.userId.substring(0, 8).toUpperCase()}`,
-        }));
+      }));
 
-        if (mapped.length > 0) {
-          const local = this.getRegistrations();
-          const merged = [...mapped];
-          for (const item of local) {
-            if (!merged.some((m) => m.email.toLowerCase() === item.email.toLowerCase())) {
-              merged.push(item);
-            }
-          }
-          localStorage.setItem(STORAGE_KEY_REGISTRATIONS, JSON.stringify(merged));
-          return merged;
-        }
-      }
-    } catch {
-      // Ignore network errors
-    }
-    return this.getRegistrations();
+      localStorage.setItem(STORAGE_KEY_REGISTRATIONS, JSON.stringify(mapped));
+      return mapped;
+  },
+
+  async getProtectedDocumentUrl(url: string): Promise<string> {
+    const token = localStorage.getItem(STORAGE_KEY_TOKEN);
+    if (!token) throw new Error('Sign in as an admin to view verification documents.');
+    const response = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    if (!response.ok) throw new Error('Verification document is unavailable.');
+    return URL.createObjectURL(await response.blob());
   },
 
   async fetchCompanies(): Promise<ApprovedCompanyOption[]> {
@@ -428,14 +422,15 @@ export const authService = {
     return this.getCompanies();
   },
 
-  async updateStatus(id: string, status: 'Approved' | 'Rejected'): Promise<RegistrationRecord[]> {
+  async updateStatus(id: string, status: 'Approved' | 'Rejected'): Promise<{ records: RegistrationRecord[]; emailSent: boolean }> {
     const current = this.getRegistrations();
     const target = current.find((r) => r.id === id || r.email.toLowerCase() === id.toLowerCase());
     const email = target?.email || id;
 
     // 1. Send status update to Backend API (sync directly with PostgreSQL)
     const endpoint = status === 'Approved' ? 'approve' : 'reject';
-    let res = await fetch(`${API_BASE}/admin/${endpoint}/${encodeURIComponent(id)}`, { method: 'POST' });
+    const headers = { Authorization: `Bearer ${localStorage.getItem(STORAGE_KEY_TOKEN) || ''}` };
+    let res = await fetch(`${API_BASE}/admin/${endpoint}/${encodeURIComponent(id)}`, { method: 'POST', headers });
     if (!res.ok && email) {
       res = await fetch(`${API_BASE}/admin/${endpoint}/${encodeURIComponent(email)}`, { method: 'POST' });
     }
