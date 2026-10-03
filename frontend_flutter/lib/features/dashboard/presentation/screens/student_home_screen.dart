@@ -473,8 +473,6 @@ class _Header extends StatelessWidget {
             Positioned(right: 8, top: 7, child: Container(width: 8, height: 8, decoration: const BoxDecoration(color: Color(0xFFEF4444), shape: BoxShape.circle))),
           ],
         ),
-        const SizedBox(width: 8),
-        const CircleAvatar(radius: 22, backgroundColor: AppColors.primary, child: Text('R', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 17))),
       ],
     );
   }
