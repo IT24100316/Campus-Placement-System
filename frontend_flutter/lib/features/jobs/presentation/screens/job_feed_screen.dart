@@ -130,7 +130,7 @@ class _JobFeedScreenState extends State<JobFeedScreen> {
                       );
                     }
                     final job = _jobs[index];
-                    return GestureDetector(
+                    return JobCard(
                       onTap: () {
                         Navigator.push(
                           context,
@@ -139,15 +139,13 @@ class _JobFeedScreenState extends State<JobFeedScreen> {
                           ),
                         );
                       },
-                      child: JobCard(
-                        jobTitle: job.jobTitle,
-                        companyName: job.companyName,
-                        matchScore: job.matchScore,
-                        location: '${job.locationCity} • ${job.internshipType.isNotEmpty ? job.internshipType.first : 'OnSite'}',
-                        stipend: job.stipendOffered ? (job.stipendAmountOrDetails ?? 'Paid') : 'Unpaid',
+                      jobTitle: job.jobTitle,
+                      companyName: job.companyName,
                         tags: job.tags,
-                        imageUrl: '',
-                      ),
+                      locationCity: job.locationCity,
+                      internshipTypes: job.internshipType,
+                      targetDomain: job.targetDomain,
+                      applicationDeadline: job.applicationDeadline,
                     );
                   },
                   childCount: _jobs.length + (_hasMore ? 1 : 0),
