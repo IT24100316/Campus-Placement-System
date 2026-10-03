@@ -52,6 +52,15 @@ public class CompanyCandidateDto
     public string? JobId { get; set; }
 }
 
+public class UpdateCompanyProfileDto
+{
+    public string CompanyName { get; set; } = string.Empty;
+    public string Industry { get; set; } = string.Empty;
+    public string ContactPersonName { get; set; } = string.Empty;
+    public string ContactPersonEmail { get; set; } = string.Empty;
+    public string Phone { get; set; } = string.Empty;
+}
+
 public class CompanyDashboardResponseDto
 {
     public Guid CompanyId { get; set; }

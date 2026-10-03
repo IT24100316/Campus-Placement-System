@@ -156,4 +156,36 @@ export const companyService = {
       return false;
     }
   },
+
+  async updateProfile(companyId: string, data: {
+    companyName: string;
+    industry: string;
+    contactPersonName: string;
+    contactPersonEmail: string;
+    phone: string;
+  }): Promise<{ success: boolean; message: string }> {
+    try {
+      const url = `${API_BASE}/company/profile/${companyId}`;
+      const res = await fetch(url, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      const json = await res.json().catch(() => ({}));
+      return { success: res.ok, message: json.message || (res.ok ? 'Updated' : 'Failed') };
+    } catch {
+      return { success: false, message: 'Network error' };
+    }
+  },
+
+  async deleteProfile(companyId: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const url = `${API_BASE}/company/profile/${companyId}`;
+      const res = await fetch(url, { method: 'DELETE' });
+      const json = await res.json().catch(() => ({}));
+      return { success: res.ok, message: json.message || (res.ok ? 'Deleted' : 'Failed') };
+    } catch {
+      return { success: false, message: 'Network error' };
+    }
+  },
 };
