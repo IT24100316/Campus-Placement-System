@@ -94,6 +94,24 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
   const [profileMsg, setProfileMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [showDeleteProfileConfirm, setShowDeleteProfileConfirm] = useState(false);
 
+  // --- Notifications State ---
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const notificationGroups = useMemo(() => {
+    const activeCandidates = dashboardData?.shortlistedCandidates || [];
+    if (activeCandidates.length === 0) return [];
+    
+    // Group candidates by job
+    const grouped = activeCandidates.reduce((acc: any, c) => {
+      acc[c.matchedOpening] = (acc[c.matchedOpening] || 0) + 1;
+      return acc;
+    }, {});
+    
+    return Object.entries(grouped).map(([job, count]) => ({
+      jobTitle: job,
+      count: count as number,
+    }));
+  }, [dashboardData?.shortlistedCandidates]);
+
   const JOBS_PER_PAGE = 6;
 
   // If a new job was just published, ensure we are on page 1 with clear filters so it's immediately visible
@@ -599,14 +617,65 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
             </div>
 
             {/* Notification Bell */}
-            <button
-              type="button"
-              className="relative w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
-              title="Placement Notifications"
-            >
-              <Bell className="w-4 h-4" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-primary ring-2 ring-white"></span>
-            </button>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setNotificationsOpen(!notificationsOpen)}
+                className="relative w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer focus:outline-none"
+                title="Placement Notifications"
+              >
+                <Bell className="w-4 h-4" />
+                {notificationGroups.length > 0 && (
+                  <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-primary ring-2 ring-white"></span>
+                )}
+              </button>
+
+              {/* Notification Dropdown */}
+              {notificationsOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setNotificationsOpen(false)}></div>
+                  <div className="absolute right-0 mt-2 w-80 bg-white border border-slate-200 shadow-xl rounded-xl z-50 overflow-hidden flex flex-col">
+                    <div className="px-4 py-3 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+                      <h3 className="text-sm font-bold text-slate-800">Recruitment Alerts</h3>
+                      <span className="text-[10px] font-semibold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                        {notificationGroups.length} Updates
+                      </span>
+                    </div>
+                    
+                    <div className="max-h-[300px] overflow-y-auto">
+                      {notificationGroups.length === 0 ? (
+                        <div className="p-6 text-center text-slate-500 text-sm">
+                          No new notifications at this time.
+                        </div>
+                      ) : (
+                        notificationGroups.map((group, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => {
+                              setNotificationsOpen(false);
+                              setCandidatesOpeningFilter(group.jobTitle);
+                              document.getElementById('candidates-section')?.scrollIntoView({ behavior: 'smooth' });
+                            }}
+                            className="w-full text-left px-4 py-3 border-b border-slate-50 hover:bg-slate-50 transition-colors cursor-pointer flex items-start gap-3"
+                          >
+                            <div className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5">
+                              <Sparkles className="w-4 h-4" />
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-xs text-slate-600 leading-snug">
+                                <span className="font-bold text-slate-900">{group.count} new student{group.count !== 1 ? 's' : ''}</span> matched for <span className="font-medium text-primary">{group.jobTitle}</span>.
+                              </p>
+                              <p className="text-[10px] text-slate-400 mt-1">Click to review candidates</p>
+                            </div>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
 
             {/* My Profile Button */}
             <button
