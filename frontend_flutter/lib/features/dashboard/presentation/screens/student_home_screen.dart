@@ -294,7 +294,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen>
                     const SizedBox(height: 28),
                     DashboardSectionTitle(
                       title: 'Opportunity spotlight',
-                      actionLabel: 'Browse all jobs',
+                      actionLabel: 'All jobs',
                       onAction: widget.onExploreJobs,
                     ),
                     const SizedBox(height: 12),
@@ -392,12 +392,18 @@ class _ContinueExploringSection extends StatelessWidget {
           icon: Icons.person_outline_rounded,
           title: 'Internship profile',
           subtitle: _profileStatus,
+          accentColor: const Color(0xFF7C3AED),
+          surfaceColor: const Color(0xFFF8F4FF),
+          iconBackgroundColor: const Color(0xFFEDE4FF),
           onTap: onOpenProfile,
         );
         final applicationsTile = _ExplorationTile(
           icon: Icons.assignment_outlined,
           title: 'Applications',
           subtitle: _applicationsStatus,
+          accentColor: const Color(0xFF0F766E),
+          surfaceColor: const Color(0xFFF0FBFA),
+          iconBackgroundColor: const Color(0xFFD4F4EF),
           onTap: onViewApplications,
         );
 
@@ -432,7 +438,7 @@ class _BrowseOpportunitiesTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white,
+      color: Colors.transparent,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: onTap,
@@ -441,12 +447,19 @@ class _BrowseOpportunitiesTile extends StatelessWidget {
           width: double.infinity,
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            border: Border.all(color: AppColors.borderLight),
+            color: const Color(0xFFF4F7FF),
+            border: Border.all(
+              color: AppColors.primary.withValues(alpha: 0.18),
+            ),
             borderRadius: BorderRadius.circular(16),
           ),
           child: Row(
             children: [
-              _ExplorationIcon(icon: Icons.travel_explore_rounded),
+              const _ExplorationIcon(
+                icon: Icons.travel_explore_rounded,
+                iconColor: AppColors.primary,
+                backgroundColor: Color(0xFFE1E9FF),
+              ),
               const SizedBox(width: 12),
               const Expanded(
                 child: Column(
@@ -493,18 +506,24 @@ class _ExplorationTile extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.subtitle,
+    required this.accentColor,
+    required this.surfaceColor,
+    required this.iconBackgroundColor,
     required this.onTap,
   });
 
   final IconData icon;
   final String title;
   final String subtitle;
+  final Color accentColor;
+  final Color surfaceColor;
+  final Color iconBackgroundColor;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white,
+      color: Colors.transparent,
       borderRadius: BorderRadius.circular(15),
       child: InkWell(
         onTap: onTap,
@@ -513,13 +532,18 @@ class _ExplorationTile extends StatelessWidget {
           constraints: const BoxConstraints(minHeight: 112),
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            border: Border.all(color: AppColors.borderLight),
+            color: surfaceColor,
+            border: Border.all(color: accentColor.withValues(alpha: 0.18)),
             borderRadius: BorderRadius.circular(15),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _ExplorationIcon(icon: icon),
+              _ExplorationIcon(
+                icon: icon,
+                iconColor: accentColor,
+                backgroundColor: iconBackgroundColor,
+              ),
               const SizedBox(height: 12),
               Text(
                 title,
@@ -552,9 +576,15 @@ class _ExplorationTile extends StatelessWidget {
 }
 
 class _ExplorationIcon extends StatelessWidget {
-  const _ExplorationIcon({required this.icon});
+  const _ExplorationIcon({
+    required this.icon,
+    required this.iconColor,
+    required this.backgroundColor,
+  });
 
   final IconData icon;
+  final Color iconColor;
+  final Color backgroundColor;
 
   @override
   Widget build(BuildContext context) {
@@ -562,10 +592,10 @@ class _ExplorationIcon extends StatelessWidget {
       width: 34,
       height: 34,
       decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.1),
+        color: backgroundColor,
         borderRadius: BorderRadius.circular(10),
       ),
-      child: Icon(icon, color: AppColors.primary, size: 18),
+      child: Icon(icon, color: iconColor, size: 18),
     );
   }
 }
