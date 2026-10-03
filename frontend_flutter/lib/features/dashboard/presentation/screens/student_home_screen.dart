@@ -202,21 +202,26 @@ class _StudentHomeScreenState extends State<StudentHomeScreen>
                       onOpenApplications: widget.onOpenApplications,
                     ),
                     const SizedBox(height: 28),
-                    const DashboardSectionTitle(title: 'Quick actions'),
+                    const Text(
+                      'CONTINUE EXPLORING',
+                      style: TextStyle(
+                        color: AppColors.textSecondaryLight,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.9,
+                      ),
+                    ),
                     const SizedBox(height: 12),
-                    GridView.count(
-                      crossAxisCount: 2,
-                      mainAxisSpacing: 12,
-                      crossAxisSpacing: 12,
-                      childAspectRatio: width < 360 ? 1.52 : 1.7,
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      children: [
-                        QuickActionItem(icon: Icons.assignment_outlined, label: 'View Applications', onTap: () => widget.onOpenApplications(0)),
-                        QuickActionItem(icon: Icons.person_outline, label: 'Update Profile', onTap: () => widget.onNavigate(3)),
-                        QuickActionItem(icon: Icons.upload_file_outlined, label: 'Manage CV', onTap: () => widget.onNavigate(1)),
-                        QuickActionItem(icon: Icons.notifications_none_rounded, label: 'View Notifications', onTap: () => _showPlaceholder(context, 'Notifications')),
-                      ],
+                    _ContinueExploringSection(
+                      profile: _profile,
+                      applications: _applications,
+                      isLoadingProfile: _isLoadingProfile,
+                      profileError: _profileError,
+                      isLoadingApplications: _isLoadingApplications,
+                      applicationsError: _applicationsError,
+                      onBrowseOpportunities: widget.onExploreJobs,
+                      onViewApplications: () => widget.onOpenApplications(0),
+                      onOpenProfile: () => widget.onNavigate(1),
                     ),
                     const SizedBox(height: 28),
                     DashboardSectionTitle(title: 'Upcoming events', actionLabel: 'View all', onAction: () => _showPlaceholder(context, 'All events')),
@@ -253,6 +258,253 @@ class _StudentHomeScreenState extends State<StudentHomeScreen>
           ],
         ),
       ),
+    );
+  }
+}
+
+class _ContinueExploringSection extends StatelessWidget {
+  const _ContinueExploringSection({
+    required this.profile,
+    required this.applications,
+    required this.isLoadingProfile,
+    required this.profileError,
+    required this.isLoadingApplications,
+    required this.applicationsError,
+    required this.onBrowseOpportunities,
+    required this.onViewApplications,
+    required this.onOpenProfile,
+  });
+
+  final StudentProfileResponse? profile;
+  final List<Map<String, dynamic>> applications;
+  final bool isLoadingProfile;
+  final String? profileError;
+  final bool isLoadingApplications;
+  final String? applicationsError;
+  final VoidCallback onBrowseOpportunities;
+  final VoidCallback onViewApplications;
+  final VoidCallback onOpenProfile;
+
+  String get _profileStatus {
+    if (isLoadingProfile) {
+      return 'Loading profile...';
+    }
+    if (profileError != null) {
+      return 'Profile unavailable';
+    }
+
+    final readiness = _ReadinessSnapshot.fromProfile(
+      profile: profile,
+      applicationCount: 0,
+    );
+    if (!readiness.isProfileComplete) {
+      return 'Complete profile';
+    }
+    return readiness.hasCv ? 'Profile ready' : 'Upload CV';
+  }
+
+  String get _applicationsStatus {
+    if (isLoadingApplications) {
+      return 'Loading applications...';
+    }
+    if (applicationsError != null) {
+      return 'Applications unavailable';
+    }
+    if (applications.isEmpty) {
+      return 'No applications yet';
+    }
+
+    final counts = _ApplicationCounts.fromApplications(applications);
+    final activeCount = counts.actionRequired + counts.pending;
+    if (activeCount > 0) {
+      return '$activeCount active';
+    }
+    return '${applications.length} submitted';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compactLayout = constraints.maxWidth < 300;
+        final profileTile = _ExplorationTile(
+          icon: Icons.person_outline_rounded,
+          title: 'Internship profile',
+          subtitle: _profileStatus,
+          onTap: onOpenProfile,
+        );
+        final applicationsTile = _ExplorationTile(
+          icon: Icons.assignment_outlined,
+          title: 'Applications',
+          subtitle: _applicationsStatus,
+          onTap: onViewApplications,
+        );
+
+        return Column(
+          children: [
+            _BrowseOpportunitiesTile(onTap: onBrowseOpportunities),
+            const SizedBox(height: 10),
+            if (compactLayout) ...[
+              applicationsTile,
+              const SizedBox(height: 10),
+              profileTile,
+            ] else
+              Row(
+                children: [
+                  Expanded(child: applicationsTile),
+                  const SizedBox(width: 10),
+                  Expanded(child: profileTile),
+                ],
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _BrowseOpportunitiesTile extends StatelessWidget {
+  const _BrowseOpportunitiesTile({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            border: Border.all(color: AppColors.borderLight),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            children: [
+              _ExplorationIcon(icon: Icons.travel_explore_rounded),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Browse opportunities',
+                      style: TextStyle(
+                        color: AppColors.textPrimaryLight,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    SizedBox(height: 3),
+                    Text(
+                      'Find internships that match your profile',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: AppColors.textSecondaryLight,
+                        fontSize: 12,
+                        height: 1.25,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Icon(
+                Icons.arrow_forward_rounded,
+                color: AppColors.primary,
+                size: 20,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ExplorationTile extends StatelessWidget {
+  const _ExplorationTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(15),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(15),
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 112),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            border: Border.all(color: AppColors.borderLight),
+            borderRadius: BorderRadius.circular(15),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _ExplorationIcon(icon: icon),
+              const SizedBox(height: 12),
+              Text(
+                title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: AppColors.textPrimaryLight,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  height: 1.15,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                subtitle,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: AppColors.textSecondaryLight,
+                  fontSize: 12,
+                  height: 1.2,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ExplorationIcon extends StatelessWidget {
+  const _ExplorationIcon({required this.icon});
+
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 34,
+      height: 34,
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Icon(icon, color: AppColors.primary, size: 18),
     );
   }
 }
