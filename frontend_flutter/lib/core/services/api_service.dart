@@ -108,10 +108,13 @@ class ApiService {
   }
 
   Future<List<Map<String, dynamic>>> getApplications() async {
-    final studentId = StudentSession.userId;
-    if (studentId == null) return [];
+    final token = StudentSession.token;
+    if (token == null || token.trim().isEmpty) {
+      throw Exception('Sign in before loading applications.');
+    }
     final response = await http.get(
-      Uri.parse(ApiEndpoints.myApplications(studentId)),
+      Uri.parse(ApiEndpoints.myApplications),
+      headers: {'Authorization': 'Bearer $token'},
     );
     if (response.statusCode < 200 || response.statusCode >= 300)
       _decode(response);

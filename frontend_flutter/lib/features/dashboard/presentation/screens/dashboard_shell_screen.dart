@@ -4,6 +4,7 @@ import 'student_home_screen.dart';
 import '../../../../features/profile/presentation/screens/profile_screen.dart';
 import '../../../../features/profile/presentation/screens/profile_settings_screen.dart';
 import '../../../../features/applications/presentation/screens/applications_tracking_screen.dart';
+import '../../../../features/jobs/presentation/screens/job_feed_screen.dart';
 
 class DashboardShellScreen extends StatefulWidget {
   const DashboardShellScreen({super.key});
@@ -24,6 +25,7 @@ class _DashboardShellScreenState extends State<DashboardShellScreen> {
       StudentHomeScreen(
         onNavigate: _setCurrentIndex,
         onOpenApplications: _openApplications,
+        onExploreJobs: _openJobFeed,
       ),
       ProfileScreen(),
       ApplicationsTrackingScreen(
@@ -57,5 +59,11 @@ class _DashboardShellScreenState extends State<DashboardShellScreen> {
       _applicationsSelectionRequest++;
       _currentIndex = 2;
     });
+  }
+
+  void _openJobFeed() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const JobFeedScreen()),
+    );
   }
 }
