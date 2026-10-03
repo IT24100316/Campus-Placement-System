@@ -312,11 +312,11 @@ export const authService = {
     try {
       const res = await fetch(`${API_BASE}/admin/register-employee`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem(STORAGE_KEY_TOKEN) || ''}` },
         body: JSON.stringify({
           fullName: data.fullName,
           email: data.email,
-          password: data.password || 'StaffPass@2025!',
+          password: data.password,
           companyId: data.companyId && data.companyId !== 'other' ? data.companyId : null,
           companyName: data.companyName || 'CampusAI',
           staffId: data.staffId,
@@ -356,39 +356,17 @@ export const authService = {
         record: newRecord,
       };
     } catch {
-      // Offline fallback
-      const newRecord: RegistrationRecord = {
-        id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
-        role: 'staff',
-        fullName: data.fullName,
-        email: data.email,
-        phone: '+1 (555) 000-0000',
-        companyName: data.companyName || 'CampusAI',
-        staffId: data.staffId,
-        jobPosition: data.jobPosition,
-        status: 'Approved',
-        submittedAt: 'Today, ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        refCode,
-      };
-
-      const current = this.getRegistrations();
-      const updated = [newRecord, ...current];
-      localStorage.setItem(STORAGE_KEY_REGISTRATIONS, JSON.stringify(updated));
-
-      return {
-        success: true,
-        message: 'Employee registered locally (backend service unreachable).',
-        record: newRecord,
-      };
+      return { success: false, message: 'The employee was not registered because the backend is unavailable.' };
     }
   },
 
   async syncRegistrationsFromBackend(): Promise<RegistrationRecord[]> {
-    try {
-      const res = await fetch(`${API_BASE}/admin/pending-approvals`);
-      if (res.ok) {
-        const backendUsers: BackendRegistration[] = await res.json();
-        const mapped: RegistrationRecord[] = backendUsers.map((u) => ({
+      const res = await fetch(`${API_BASE}/admin/pending-approvals`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem(STORAGE_KEY_TOKEN) || ''}` },
+      });
+      if (!res.ok) throw new Error('Could not load the verification queue. Sign in as an admin and try again.');
+      const backendUsers: BackendRegistration[] = await res.json();
+      const mapped: RegistrationRecord[] = backendUsers.map((u) => ({
           id: u.userId,
           role: u.role === 'Student' ? 'student' : (u.role === 'Company HR' ? 'hr' : 'staff'),
           fullName: u.fullName,
