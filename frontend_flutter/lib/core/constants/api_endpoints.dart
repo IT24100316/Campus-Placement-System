@@ -18,4 +18,8 @@ class ApiEndpoints {
 
   // Applications
   static String get myApplications => '$baseUrl/applications/me';
+
+  // Notifications
+  static String get notifications => '$baseUrl/notifications';
+  static String get notificationsUnreadCount => '$notifications/unread-count';
 }
