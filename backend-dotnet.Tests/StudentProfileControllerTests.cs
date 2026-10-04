@@ -233,7 +233,6 @@ public class StudentProfileControllerTests
             context,
             null!,
             null!,
-            null!,
             NullLogger<StudentsController>.Instance)
         {
             ControllerContext = new ControllerContext

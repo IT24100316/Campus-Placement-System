@@ -5,7 +5,14 @@ import '../../../../features/jobs/presentation/screens/job_details_screen.dart';
 import '../../../../core/widgets/global_app_header.dart';
 
 class ApplicationsTrackingScreen extends StatefulWidget {
-  const ApplicationsTrackingScreen({super.key});
+  const ApplicationsTrackingScreen({
+    super.key,
+    this.initialTab = 0,
+    this.selectionRequest = 0,
+  });
+
+  final int initialTab;
+  final int selectionRequest;
 
   @override
   State<ApplicationsTrackingScreen> createState() => _ApplicationsTrackingScreenState();
@@ -25,8 +32,20 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
   @override
   void initState() {
     super.initState();
+    _selectedTab = _normalizeTab(widget.initialTab);
     _fetchData();
   }
+
+  @override
+  void didUpdateWidget(covariant ApplicationsTrackingScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (widget.selectionRequest != oldWidget.selectionRequest) {
+      setState(() => _selectedTab = _normalizeTab(widget.initialTab));
+    }
+  }
+
+  int _normalizeTab(int tab) => tab.clamp(0, 2).toInt();
 
   Future<void> _fetchData() async {
     try {

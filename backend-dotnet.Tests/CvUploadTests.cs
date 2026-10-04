@@ -304,7 +304,6 @@ public class CvUploadTests
             context,
             validationService,
             storageService,
-            null!,
             NullLogger<StudentsController>.Instance)
         {
             ControllerContext = new ControllerContext
