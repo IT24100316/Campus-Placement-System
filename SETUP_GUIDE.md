@@ -83,8 +83,9 @@ Follow these steps **in order** when setting up the project for the very first t
    dotnet user-secrets set "Supabase:ServiceRoleKey" "YOUR_SUPABASE_SECRET_KEY"
    dotnet user-secrets set "Supabase:VerificationBucket" "verification-docs"
    dotnet user-secrets set "Supabase:CvBucket" "student-cvs"
-   dotnet user-secrets set "SendGrid:ApiKey" "YOUR_SENDGRID_API_KEY"
-   dotnet user-secrets set "SendGrid:FromEmail" "verified-sender@example.edu"
+   dotnet user-secrets set "BrevoApi:ApiKey" "YOUR_BREVO_API_KEY"
+   dotnet user-secrets set "BrevoApi:SenderEmail" "verified-sender@example.edu"
+   dotnet user-secrets set "Webhook:Secret" "YOUR_SHARED_INTERNAL_SECRET"
    ```
    The backend creates the private Supabase bucket `verification-docs` on the first upload. If Supabase is not configured, development uploads use `backend-dotnet/App_Data/verification-docs`.
 
@@ -146,8 +147,13 @@ Follow these steps **in order** when setting up the project for the very first t
    ```env
    GOOGLE_API_KEY=your_gemini_api_key_here
    OPENAI_API_KEY=your_openai_api_key_here
-   SENDGRID_API_KEY=your_sendgrid_api_key_here
-   SENDGRID_FROM_EMAIL=verified-sender@example.edu
+   BREVO_API_KEY=your_brevo_api_key_here
+   BREVO_SENDER_EMAIL=verified-sender@example.edu
+   DATABASE_URL=postgresql://YOUR_USER:YOUR_PASSWORD@YOUR_HOST:5432/postgres?sslmode=require
+   WEBHOOK_SECRET=YOUR_SHARED_INTERNAL_SECRET
+   DOTNET_WEBHOOK_URL=https://YOUR_API_HOST/api/applications/webhook/evaluation-result
+   SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
+   SUPABASE_SERVICE_ROLE_KEY=your_private_storage_service_key
    ```
 
 ---
