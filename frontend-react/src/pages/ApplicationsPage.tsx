@@ -169,11 +169,6 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
   const [globalPendingMemos, setGlobalPendingMemos] = useState<Record<string, boolean>>({});
   const [memoFilter, setMemoFilter] = useState<'all' | 'action_required' | 'no_action_required'>('all');
 
-  useEffect(() => {
-    fetchCandidates();
-    fetchPendingMemosSummary();
-  }, []);
-
   const fetchPendingMemosSummary = async () => {
     try {
       const response = await fetch(`http://localhost:5168/api/memos/pending-summary`);
@@ -187,6 +182,11 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
       console.error('Failed to fetch pending memos summary', e);
     }
   };
+
+  useEffect(() => {
+    fetchCandidates();
+    fetchPendingMemosSummary();
+  }, []);
 
   const handleAction = async (id: string, action: 'approve' | 'reject') => {
     try {
