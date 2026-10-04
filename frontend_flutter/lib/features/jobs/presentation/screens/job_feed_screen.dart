@@ -24,7 +24,7 @@ class _JobFeedScreenState extends State<JobFeedScreen> {
   String _searchQuery = '';
 
   RangeValues _gpaRange = const RangeValues(2.0, 4.0);
-  List<int> _selectedYears = [];
+  final List<int> _selectedYears = [];
 
   @override
   void initState() {
