@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/services/api_service.dart';
 import '../../../auth/presentation/screens/landing_screen.dart';
+import '../../data/student_profile_service.dart';
 import '../../../../core/widgets/global_app_header.dart';
 
 class ProfileSettingsScreen extends StatefulWidget {
@@ -14,6 +15,11 @@ class ProfileSettingsScreen extends StatefulWidget {
 
 class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
   bool _isEditing = false;
+  bool _isLoadingStatus = true;
+  bool _isLookingForInternship = true;
+  bool _hasProfile = false;
+
+  final StudentProfileService _profileService = StudentProfileService();
 
   final TextEditingController _nameController = TextEditingController(
     text: StudentSession.fullName ?? '',
@@ -36,6 +42,52 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
     if (words.isEmpty) return 'ST';
     if (words.length == 1) return words.first.substring(0, 1).toUpperCase();
     return '${words.first[0]}${words.last[0]}'.toUpperCase();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfileStatus();
+  }
+
+  Future<void> _loadProfileStatus() async {
+    try {
+      final profile = await _profileService.loadProfile(
+        bearerToken: StudentSession.token ?? '',
+      );
+      if (profile != null && mounted) {
+        setState(() {
+          _isLookingForInternship = profile.isLookingForInternship;
+          _hasProfile = true;
+          _isLoadingStatus = false;
+        });
+      } else if (mounted) {
+        setState(() {
+          _hasProfile = false;
+          _isLoadingStatus = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isLoadingStatus = false);
+    }
+  }
+
+  Future<void> _toggleInternshipStatus(bool value) async {
+    final previousValue = _isLookingForInternship;
+    setState(() => _isLookingForInternship = value);
+    try {
+      await _profileService.updateInternshipStatus(
+        isLookingForInternship: value,
+        bearerToken: StudentSession.token ?? '',
+      );
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLookingForInternship = previousValue);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to update status. Please try again.')),
+        );
+      }
+    }
   }
 
   void _toggleEditMode() {
@@ -85,19 +137,23 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
         child: Column(
           children: [
             // User Header Card
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.03),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
+            Material(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              elevation: 0,
+              shadowColor: Colors.black.withValues(alpha: 0.03),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.03),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
               child: Row(
                 children: [
                   Stack(
@@ -195,6 +251,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                   ),
                 ],
               ),
+              ),
             ),
             const SizedBox(height: 16),
 
@@ -272,42 +329,50 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
             const SizedBox(height: 16),
 
             // Personal Details Card
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.03),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
+            Material(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              elevation: 0,
+              shadowColor: Colors.black.withValues(alpha: 0.03),
+              child: Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.03),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Row(
-                        children: [
-                          Icon(
-                            Icons.person,
-                            color: AppColors.primary,
-                            size: 20,
-                          ),
-                          SizedBox(width: 8),
-                          Text(
-                            'Personal Details',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.textPrimaryLight,
+                      const Expanded(
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.person,
+                              color: AppColors.primary,
+                              size: 20,
                             ),
-                          ),
-                        ],
+                            SizedBox(width: 8),
+                            Flexible(
+                              child: Text(
+                                'Personal Details',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.textPrimaryLight,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                       if (!_isEditing)
                         InkWell(
@@ -349,22 +414,100 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                 ],
               ),
             ),
+            ),
+            const SizedBox(height: 16),
+            
+            // Internship Preferences
+            Material(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              elevation: 0,
+              shadowColor: Colors.black.withValues(alpha: 0.03),
+              child: Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.03),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.work_outline, color: AppColors.primary, size: 20),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Internship Preferences',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textPrimaryLight,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  if (_isLoadingStatus)
+                    const Center(child: CircularProgressIndicator())
+                  else
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text(
+                        'Actively Looking for Internship',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimaryLight,
+                        ),
+                      ),
+                      subtitle: const Text(
+                        'Turn this off if you are no longer looking for an internship. Your profile will not be matched with new jobs.',
+                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                      value: _isLookingForInternship,
+                      onChanged: _hasProfile ? _toggleInternshipStatus : null,
+                      activeColor: AppColors.primary,
+                    ),
+                  if (!_hasProfile && !_isLoadingStatus)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 8.0),
+                      child: Text(
+                        'You must set up your student profile first before changing this preference.',
+                        style: TextStyle(fontSize: 12, color: Colors.red),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            ),
             const SizedBox(height: 16),
 
             // Security & Account
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.03),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
+            Material(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              elevation: 0,
+              shadowColor: Colors.black.withValues(alpha: 0.03),
+              child: Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.03),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -372,12 +515,14 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                     children: [
                       Icon(Icons.security, color: AppColors.primary, size: 20),
                       SizedBox(width: 8),
-                      Text(
-                        'Security & Account',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textPrimaryLight,
+                      Expanded(
+                        child: Text(
+                          'Security & Account',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textPrimaryLight,
+                          ),
                         ),
                       ),
                     ],
@@ -454,6 +599,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                   ),
                 ],
               ),
+            ),
             ),
           ],
         ),

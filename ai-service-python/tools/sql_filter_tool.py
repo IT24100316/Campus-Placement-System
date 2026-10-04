@@ -43,7 +43,7 @@ def check_hard_filters_tool(student_id: str, job_id: str) -> Dict[str, Any]:
                 # Fetch Student details
                 cur.execute('''
                     SELECT "GPA", "CurrentYearOfStudy", "InternshipType", 
-                           "PrimaryDomain", "DesiredJobTitle", "DegreeProgram", "PreferredLocations"
+                           "PrimaryDomain", "DesiredJobTitle", "DegreeProgram", "PreferredLocations", "IsLookingForInternship"
                     FROM "StudentProfiles"
                     WHERE "UserId" = %s
                 ''', (student_id,))
@@ -62,6 +62,9 @@ def check_hard_filters_tool(student_id: str, job_id: str) -> Dict[str, Any]:
             return {"passed": False, "reason": "Student profile not found."}
         if not job:
             return {"passed": False, "reason": "Job not found."}
+            
+        if not student.get("IsLookingForInternship", True):
+            return {"passed": False, "reason": "Student is not looking for an internship."}
             
         # 1. GPA Check
         if student["GPA"] is not None and job["MinimumGPA"] is not None:

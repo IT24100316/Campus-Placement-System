@@ -81,7 +81,8 @@ public class StudentsController : ControllerBase
                 InternshipType = candidate.InternshipType,
                 LectureScheduleType = candidate.LectureScheduleType,
                 PreferredLocations = candidate.PreferredLocations,
-                CvPdfUrl = candidate.CvPdfUrl
+                CvPdfUrl = candidate.CvPdfUrl,
+                IsLookingForInternship = candidate.IsLookingForInternship
             })
             .SingleOrDefaultAsync();
 
@@ -91,6 +92,27 @@ public class StudentsController : ControllerBase
         }
 
         return Ok(profile);
+    }
+
+    [HttpPut("profile/internship-status")]
+    [Authorize(Roles = "Student")]
+    public async Task<IActionResult> UpdateInternshipStatus([FromBody] UpdateInternshipStatusDto dto)
+    {
+        if (!TryGetCurrentUserId(out var userId))
+        {
+            return Unauthorized(new { message = "An authenticated student identity is required." });
+        }
+
+        var profile = await _context.StudentProfiles.SingleOrDefaultAsync(p => p.UserId == userId);
+        if (profile == null)
+        {
+            return NotFound(new { message = "Student profile not found." });
+        }
+
+        profile.IsLookingForInternship = dto.IsLookingForInternship;
+        await _context.SaveChangesAsync();
+
+        return Ok(new { message = "Internship status updated successfully", isLookingForInternship = profile.IsLookingForInternship });
     }
 
     [HttpPost("upload-cv")]
