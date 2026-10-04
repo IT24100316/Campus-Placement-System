@@ -146,6 +146,37 @@ public class AuthController : ControllerBase
         }
     }
 
+    [HttpPost("request-password-reset")]
+    public async Task<IActionResult> RequestPasswordReset([FromBody] RequestPasswordResetDto dto, CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+
+        var verified = await _authService.VerifyPasswordResetEmailAsync(dto.Email, cancellationToken);
+        if (!verified)
+        {
+            return BadRequest(new { message = "Enter the email of an approved student account." });
+        }
+
+        return Ok(new { message = "Verified account found. You can now set a new password." });
+    }
+
+    [HttpPost("reset-password")]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto dto, CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+
+        try
+        {
+            var reset = await _authService.ResetPasswordAsync(dto, cancellationToken);
+            if (!reset) return BadRequest(new { message = "Enter the email of an approved student account." });
+            return Ok(new { message = "Password reset successfully. You can now sign in." });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     /// <summary>
     /// Register as Company HR (Creates User + CompanyProfile with Pending status)
     /// </summary>

@@ -169,3 +169,18 @@ public class ChangePasswordDto
     public string NewPassword { get; set; } = string.Empty;
 }
 
+public class RequestPasswordResetDto
+{
+    [Required, EmailAddress]
+    public string Email { get; set; } = string.Empty;
+}
+
+public class ResetPasswordDto
+{
+    [Required, EmailAddress]
+    public string Email { get; set; } = string.Empty;
+
+    [Required, MinLength(8)]
+    public string NewPassword { get; set; } = string.Empty;
+}
+

@@ -388,4 +388,41 @@ public class AuthService : IAuthService
         await _context.SaveChangesAsync(cancellationToken);
         return true;
     }
+
+    public async Task<bool> VerifyPasswordResetEmailAsync(string email, CancellationToken cancellationToken = default)
+    {
+        var normalizedEmail = email.Trim().ToLowerInvariant();
+        return await _context.Users.AnyAsync(candidate =>
+                candidate.Email.ToLower() == normalizedEmail &&
+                candidate.Role == UserRole.Student &&
+                candidate.Status == AccountStatus.Approved,
+                cancellationToken);
+    }
+
+    public async Task<bool> ResetPasswordAsync(ResetPasswordDto dto, CancellationToken cancellationToken = default)
+    {
+        var normalizedEmail = dto.Email.Trim().ToLowerInvariant();
+        var user = await _context.Users.FirstOrDefaultAsync(candidate =>
+            candidate.Email.ToLower() == normalizedEmail &&
+            candidate.Role == UserRole.Student &&
+            candidate.Status == AccountStatus.Approved,
+            cancellationToken);
+        if (user == null) return false;
+
+        if (_passwordHasher.VerifyHashedPassword(user, user.PasswordHash, dto.NewPassword) != PasswordVerificationResult.Failed)
+        {
+            throw new InvalidOperationException("Your new password must be different from your current password.");
+        }
+
+        user.PasswordHash = _passwordHasher.HashPassword(user, dto.NewPassword);
+        _notificationService?.Add(
+            user.Id,
+            "password_updated",
+            "Password updated",
+            "Your account password was reset successfully.",
+            "profile");
+        await _context.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
 }
