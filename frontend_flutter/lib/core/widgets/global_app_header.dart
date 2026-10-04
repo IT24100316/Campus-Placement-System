@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
+import 'campus_ai_logo.dart';
 
 class GlobalAppHeader extends StatelessWidget implements PreferredSizeWidget {
   const GlobalAppHeader({super.key});
@@ -18,10 +19,7 @@ class GlobalAppHeader extends StatelessWidget implements PreferredSizeWidget {
               color: AppColors.primary,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: CustomPaint(
-              size: const Size(20, 20),
-              painter: _TwoLayerIconPainter(color: Colors.white),
-            ),
+            child: CampusAILogo(size: 20, color: Colors.white),
           ),
           const SizedBox(width: 12),
           Column(
@@ -93,45 +91,4 @@ class GlobalAppHeader extends StatelessWidget implements PreferredSizeWidget {
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
 }
-class _TwoLayerIconPainter extends CustomPainter {
-  final Color color;
 
-  _TwoLayerIconPainter({required this.color});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-
-    final scale = size.width / 24.0;
-    canvas.scale(scale, scale);
-
-    final path1 = Path()
-      ..moveTo(12, 2)
-      ..lineTo(2, 7)
-      ..lineTo(12, 12)
-      ..lineTo(22, 7)
-      ..close();
-
-    final path2 = Path()
-      ..moveTo(2, 12)
-      ..lineTo(12, 17)
-      ..lineTo(22, 12);
-
-    final path3 = Path()
-      ..moveTo(2, 17)
-      ..lineTo(12, 22)
-      ..lineTo(22, 17);
-
-    canvas.drawPath(path1, paint);
-    canvas.drawPath(path2, paint);
-    canvas.drawPath(path3, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
