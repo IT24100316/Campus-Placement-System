@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Users, Building2, Sparkles, LogOut, ShieldCheck, Bell } from 'lucide-react';
+import { Users, Building2, Sparkles, LogOut, ShieldCheck, Bell, UserCircle2, X } from 'lucide-react';
 import { StaffStudentsView } from './StaffStudentsView';
 import { StaffJobsView } from './StaffJobsView';
 import { ApplicationsPage } from './ApplicationsPage';
@@ -14,6 +14,7 @@ interface StaffDashboardPageProps {
 // It acts as a container, holding the top navigation bar and switching between the Students, Jobs, and Applications views.
 export const StaffDashboardPage: React.FC<StaffDashboardPageProps> = ({ onLogout, userEmail }) => {
   const [activeTab, setActiveTab] = useState<'students' | 'jobs' | 'applications'>('applications');
+  const [profilePanelOpen, setProfilePanelOpen] = useState(false);
   
   const email = userEmail || 'staff@campusai.edu';
 
@@ -84,6 +85,15 @@ export const StaffDashboardPage: React.FC<StaffDashboardPageProps> = ({ onLogout
               <Bell className="w-5 h-5" />
               <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
             </button>
+            
+            <button
+              onClick={() => setProfilePanelOpen(true)}
+              className="flex items-center gap-2 px-3 py-1.5 text-sm font-semibold text-slate-600 hover:text-blue-700 hover:bg-slate-50 rounded-lg border border-transparent hover:border-slate-200 transition-all focus:outline-none"
+              title="View Staff Profile"
+            >
+              <UserCircle2 className="w-4 h-4" />
+              <span className="hidden sm:inline">My Profile</span>
+            </button>
             <button 
               onClick={onLogout}
               className="flex items-center gap-2 px-3 py-1.5 text-sm font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-lg border border-transparent hover:border-rose-100 transition-all focus:outline-none"
@@ -146,6 +156,50 @@ export const StaffDashboardPage: React.FC<StaffDashboardPageProps> = ({ onLogout
       </div>
 
       <Footer />
+
+      {/* PROFILE SLIDE-OVER PANEL */}
+      {profilePanelOpen && (
+        <div className="fixed inset-0 z-[100] flex justify-end">
+          <div className="absolute inset-0 bg-slate-900/30 backdrop-blur-sm transition-opacity" onClick={() => setProfilePanelOpen(false)}></div>
+          <div className="relative w-full max-w-md bg-white h-full shadow-2xl flex flex-col transform transition-transform">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+              <h2 className="text-lg font-bold text-slate-900">Staff Profile</h2>
+              <button onClick={() => setProfilePanelOpen(false)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 flex-1 overflow-y-auto bg-slate-50/50">
+              <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm mb-6 flex flex-col items-center text-center">
+                <div className="w-16 h-16 rounded-2xl bg-blue-100 text-blue-700 flex items-center justify-center text-2xl font-bold font-mono mb-4">
+                  ST
+                </div>
+                <h3 className="font-bold text-lg text-slate-900">University Staff</h3>
+                <p className="text-sm text-slate-500 mt-1">{email}</p>
+                <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs font-semibold">
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  Verified Member
+                </div>
+              </div>
+              
+              <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+                <div className="px-5 py-4 border-b border-slate-100 bg-slate-50/50">
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Role Details</p>
+                </div>
+                <div className="p-5 space-y-4">
+                  <div>
+                    <p className="text-xs text-slate-400 font-medium mb-1">Account Type</p>
+                    <p className="text-sm font-semibold text-slate-900">Administrator / Staff</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400 font-medium mb-1">Permissions</p>
+                    <p className="text-sm font-semibold text-slate-900">Student & Job Management, Application Approval</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
