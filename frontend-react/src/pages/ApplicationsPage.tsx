@@ -78,8 +78,6 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
 
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loading, setLoading] = useState(true);
-  const [hasPendingMemos, setHasPendingMemos] = useState(false);
-
   const fetchCandidates = async () => {
     try {
       setLoading(true);
@@ -655,7 +653,7 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
                             <div className="pt-4 border-t border-slate-200 mt-auto">
                               <InternalMemosPanel 
                                 applicationId={c.id} 
-                                onPendingMemosChange={(hasPending) => setGlobalPendingMemos(prev => ({ ...prev, [c.id]: hasPending }))} 
+                                onPendingMemosChange={(hasPending: boolean) => setGlobalPendingMemos(prev => ({ ...prev, [c.id]: hasPending }))} 
                               />
                               <div className="flex items-center gap-2 mt-4">
                                 <button 
