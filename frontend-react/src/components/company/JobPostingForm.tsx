@@ -130,7 +130,7 @@ export const JobPostingForm: React.FC<JobPostingFormProps> = ({
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Server connection failed';
       setErrorMessage(
-        `Failed to load reference metadata from database: ${message}. Please ensure the .NET backend is running on http://localhost:5168.`
+        `Failed to load reference metadata from database: ${message}. Please ensure the .NET backend is running correctly.`
       );
     } finally {
       setIsLoadingReferences(false);

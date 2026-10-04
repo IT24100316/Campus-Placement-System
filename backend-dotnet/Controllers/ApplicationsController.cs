@@ -22,9 +22,7 @@ public class ApplicationsController : ControllerBase
     }
 
 
-    /// <summary>
-    /// Creates a pending job application for an approved student.
-    /// </summary>
+    // Called when a student hits the apply button. It handles the request and creates a new pending application!
     [HttpPost("apply")]
     public async Task<IActionResult> Apply(
         [FromBody] ApplyForJobDto request,
@@ -52,9 +50,8 @@ public class ApplicationsController : ControllerBase
         }
     }
 
-    /// <summary>
-    /// Webhook endpoint for Python Agent 3 to return evaluation results.
-    /// </summary>
+    // The webhook where Python Agent 3 posts the AI evaluation results.
+    // It requires a secret token to ensure only our AI engine can hit it.
     [HttpPost("webhook/evaluation-result")]
     public async Task<IActionResult> EvaluationWebhook(
         [FromBody] WebhookEvaluationResultDto payload,
@@ -101,9 +98,7 @@ public class ApplicationsController : ControllerBase
         }
     }
 
-    /// <summary>
-    /// Lists Agent 4 results paused for administrator approval.
-    /// </summary>
+    // Fetches all the applications that the AI has processed and are now waiting for human university admin approval.
     [HttpGet("pending-admin-approval")]
     public async Task<IActionResult> PendingAdminApproval(
         CancellationToken cancellationToken)
@@ -115,9 +110,7 @@ public class ApplicationsController : ControllerBase
         return Ok(applications);
     }
 
-    /// <summary>
-    /// Approves an application and resumes its workflow.
-    /// </summary>
+    // Simply approves the application from the admin's side.
     [HttpPost("{appId:guid}/admin-approve")]
     public Task<IActionResult> AdminApprove(
         Guid appId,
@@ -129,9 +122,7 @@ public class ApplicationsController : ControllerBase
             cancellationToken);
     }
 
-    /// <summary>
-    /// Rejects an application during administrator review.
-    /// </summary>
+    // Rejects the application from the admin's side.
     [HttpPost("{appId:guid}/admin-reject")]
     public Task<IActionResult> AdminReject(
         Guid appId,
@@ -149,10 +140,8 @@ public class ApplicationsController : ControllerBase
         public bool Approved { get; set; }
     }
 
-    /// <summary>
-    /// Bridge endpoint for React UI to approve/reject an application.
-    /// This updates the local DB and forwards the resume signal to Python AI.
-    /// </summary>
+    // This is the bridge endpoint used by the React UI for admins to approve/reject an application.
+    // After saving the decision, it pings the Python AI to wake it up and resume the background workflow!
     [HttpPost("human-verify")]
     public async Task<IActionResult> HumanVerify(
         [FromBody] HumanVerifyRequest request,
@@ -211,9 +200,7 @@ public class ApplicationsController : ControllerBase
         return Ok(new { message = "Decision processed and AI resumed." });
     }
 
-    /// <summary>
-    /// Lists applications belonging to the specified student.
-    /// </summary>
+    // Gets all applications for a given student ID. Useful for admin or staff views.
     [HttpGet("student/{studentId:guid}")]
     public async Task<IActionResult> StudentApplications(
         Guid studentId,
@@ -227,9 +214,7 @@ public class ApplicationsController : ControllerBase
         return Ok(applications);
     }
 
-    /// <summary>
-    /// Lists applications belonging to the authenticated student.
-    /// </summary>
+    // Gets the current logged-in student's applications so they can see their own status on the dashboard.
     [HttpGet("me")]
     [Authorize(Roles = "Student")]
     public async Task<IActionResult> MyApplications(
@@ -257,9 +242,7 @@ public class ApplicationsController : ControllerBase
         return Ok(applications);
     }
 
-    /// <summary>
-    /// Retrieves a paginated list of applications for a specific job.
-    /// </summary>
+    // Grabs a paginated list of all applications for a specific job posting.
     [HttpGet("job/{jobId:guid}")]
     public async Task<IActionResult> GetApplicationsByJobId(
         Guid jobId,
@@ -275,9 +258,7 @@ public class ApplicationsController : ControllerBase
         return Ok(applications);
     }
 
-    /// <summary>
-    /// Searches for applications using the provided query.
-    /// </summary>
+    // Allows searching for applications using a simple text query.
     [HttpGet("search")]
     public async Task<IActionResult> SearchApplications(
         [FromQuery] string query)
@@ -289,9 +270,7 @@ public class ApplicationsController : ControllerBase
     }
 
 
-    /// <summary>
-    /// Retrieves the CV download URL for an application.
-    /// </summary>
+    // Fetches the direct URL to download a student's CV for a specific application.
     [HttpGet("{appId:guid}/cv")]
     public async Task<IActionResult> GetCvDownloadUrl(Guid appId)
     {
@@ -308,6 +287,7 @@ public class ApplicationsController : ControllerBase
         }
     }
 
+    // A private helper that actually talks to the service layer to save an admin's approve/reject decision.
     private async Task<IActionResult> AdminDecision(
         Guid appId,
         bool approved,
@@ -338,9 +318,7 @@ public class ApplicationsController : ControllerBase
         }
     }
 
-    /// <summary>
-    /// Accepts an application offer.
-    /// </summary>
+    // When a student happily accepts a job offer!
     [HttpPost("{appId:guid}/student-accept")]
     [Authorize(Roles = "Student")]
     public Task<IActionResult> StudentAccept(
@@ -350,9 +328,7 @@ public class ApplicationsController : ControllerBase
         return StudentDecision(appId, true, cancellationToken);
     }
 
-    /// <summary>
-    /// Declines an application offer.
-    /// </summary>
+    // When a student declines a job offer.
     [HttpPost("{appId:guid}/student-decline")]
     [Authorize(Roles = "Student")]
     public Task<IActionResult> StudentDecline(
@@ -362,6 +338,7 @@ public class ApplicationsController : ControllerBase
         return StudentDecision(appId, false, cancellationToken);
     }
 
+    // A private helper that saves the student's final accept/decline decision.
     private async Task<IActionResult> StudentDecision(
         Guid appId,
         bool accepted,

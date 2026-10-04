@@ -10,6 +10,8 @@ interface StaffDashboardPageProps {
   userEmail?: string;
 }
 
+// This is the main dashboard shell for University Staff!
+// It acts as a container, holding the top navigation bar and switching between the Students, Jobs, and Applications views.
 export const StaffDashboardPage: React.FC<StaffDashboardPageProps> = ({ onLogout, userEmail }) => {
   const [activeTab, setActiveTab] = useState<'students' | 'jobs' | 'applications'>('applications');
   
