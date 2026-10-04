@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, MapPin, Building2, Calendar, CheckCircle2 } from 'lucide-react';
+import { Search, MapPin, Building2, Calendar } from 'lucide-react';
 
 interface JobFeedDto {
   jobId: string;
@@ -192,7 +192,7 @@ export const StaffJobsView: React.FC = () => {
                 <div className="text-sm font-medium text-slate-500 mt-1 flex items-center gap-2">
                   <span>{selectedJob.companyName}</span>
                   <span>•</span>
-                  <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[16px]">location_on</span> {selectedJob.location} ({selectedJob.workArrangement})</span>
+                  <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[16px]">location_on</span> {selectedJob.locationCity} ({selectedJob.internshipType?.join(', ') || 'Remote'})</span>
                 </div>
               </div>
               <button 
@@ -218,7 +218,7 @@ export const StaffJobsView: React.FC = () => {
                 </div>
                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex flex-col items-center justify-center text-center">
                   <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Deadline</span>
-                  <span className="text-sm font-bold text-slate-900 mt-1">{new Date(selectedJob.deadline).toLocaleDateString()}</span>
+                  <span className="text-sm font-bold text-slate-900 mt-1">{new Date(selectedJob.applicationDeadline).toLocaleDateString()}</span>
                 </div>
               </div>
 

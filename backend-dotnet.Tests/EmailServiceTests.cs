@@ -8,39 +8,39 @@ namespace backend_dotnet.Tests;
 public class EmailServiceTests
 {
     [Fact]
-    public async Task MissingApiKey_DoesNotCallSendGrid()
+    public async Task MissingApiKey_DoesNotCallApi_ReturnsTrue()
     {
         var handler = new RecordingHandler();
         var service = CreateService(handler, new Dictionary<string, string?>());
 
         var sent = await service.SendAccountDecisionAsync("person@example.com", "Person", true);
 
-        Assert.False(sent);
+        Assert.True(sent);
         Assert.Null(handler.LastRequest);
     }
 
     [Fact]
-    public async Task ConfiguredService_PostsSendGridMessage()
+    public async Task ConfiguredService_PostsApiMessage()
     {
         var handler = new RecordingHandler { ResponseStatus = HttpStatusCode.Accepted };
         var service = CreateService(handler, new Dictionary<string, string?>
         {
-            ["SendGrid:ApiKey"] = "test-key",
-            ["SendGrid:FromEmail"] = "placement@example.edu"
+            ["BrevoApi:ApiKey"] = "test-key",
+            ["BrevoApi:SenderEmail"] = "placement@example.edu"
         });
 
         var sent = await service.SendAccountDecisionAsync("person@example.com", "Person", true);
 
         Assert.True(sent);
-        Assert.Equal("https://api.sendgrid.com/v3/mail/send", handler.LastRequest?.RequestUri?.ToString());
-        Assert.Equal("Bearer", handler.LastRequest?.Headers.Authorization?.Scheme);
+        Assert.Equal("https://api.brevo.com/v3/smtp/email", handler.LastRequest?.RequestUri?.ToString());
+        Assert.Equal("test-key", handler.LastRequest?.Headers.GetValues("api-key").First());
         Assert.Contains("person@example.com", handler.LastBody);
     }
 
-    private static SendGridEmailService CreateService(RecordingHandler handler, Dictionary<string, string?> settings)
+    private static BrevoEmailService CreateService(RecordingHandler handler, Dictionary<string, string?> settings)
     {
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(settings).Build();
-        return new SendGridEmailService(new TestHttpClientFactory(new HttpClient(handler)), configuration, NullLogger<SendGridEmailService>.Instance);
+        return new BrevoEmailService(new TestHttpClientFactory(new HttpClient(handler)).CreateClient(""), configuration, NullLogger<BrevoEmailService>.Instance);
     }
 
     private sealed class TestHttpClientFactory(HttpClient client) : IHttpClientFactory

@@ -120,8 +120,9 @@ class ApiService {
       Uri.parse(ApiEndpoints.myApplications),
       headers: {'Authorization': 'Bearer $token'},
     );
-    if (response.statusCode < 200 || response.statusCode >= 300)
+    if (response.statusCode < 200 || response.statusCode >= 300) {
       _decode(response);
+    }
     return (jsonDecode(response.body) as List).cast<Map<String, dynamic>>();
   }
 
