@@ -1687,7 +1687,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             borderRadius: BorderRadius.circular(8),
           ),
           child: DropdownButtonFormField<String>(
-            value: _selectedAcademicStatus,
+            initialValue: _selectedAcademicStatus,
             hint: const Text(
               'Select status',
               style: TextStyle(
@@ -1703,8 +1703,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             items:
                 {
                       ...const ['Full-time Student', 'Graduating Senior'],
-                      if (_selectedAcademicStatus != null)
-                        _selectedAcademicStatus!,
+                      ?_selectedAcademicStatus,
                     }
                     .map(
                       (status) =>
@@ -1736,7 +1735,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             borderRadius: BorderRadius.circular(8),
           ),
           child: DropdownButtonFormField<int>(
-            value: _selectedYearOfStudy,
+            initialValue: _selectedYearOfStudy,
             hint: const Text(
               'Select year',
               style: TextStyle(
@@ -1834,7 +1833,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             borderRadius: BorderRadius.circular(8),
           ),
           child: DropdownButtonFormField<String>(
-            value: _selectedSchedule,
+            initialValue: _selectedSchedule,
             icon: const Icon(Icons.expand_more, color: Colors.grey, size: 18),
             decoration: const InputDecoration(
               icon: Icon(Icons.calendar_month, color: Colors.grey, size: 20),
@@ -1850,7 +1849,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             items:
                 {
                   ...const ['Weekday', 'Weekend'],
-                  if (_selectedSchedule != null) _selectedSchedule!,
+                  ?_selectedSchedule,
                 }.map((String value) {
                   return DropdownMenuItem<String>(
                     value: value,
@@ -2027,8 +2026,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               contentPadding: EdgeInsets.symmetric(vertical: 12),
             ),
             validator: (value) {
-              if (value == null || value.trim().isEmpty)
+              if (value == null || value.trim().isEmpty) {
                 return 'GPA is required.';
+              }
               final numValue = double.tryParse(value);
               if (numValue == null || numValue < 0.0 || numValue > 4.0) {
                 return 'Enter a GPA from 0.00 to 4.00.';
@@ -2057,7 +2057,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             borderRadius: BorderRadius.circular(8),
           ),
           child: DropdownButtonFormField<String>(
-            value: _selectedDegree,
+            initialValue: _selectedDegree,
             hint: const Text(
               'Select Degree Program',
               style: TextStyle(
@@ -2081,7 +2081,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             items:
                 {
                   ...degreePrograms,
-                  if (_selectedDegree != null) _selectedDegree!,
+                  ?_selectedDegree,
                 }.map((String value) {
                   return DropdownMenuItem<String>(
                     value: value,
@@ -2114,7 +2114,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             borderRadius: BorderRadius.circular(8),
           ),
           child: DropdownButtonFormField<int>(
-            value: _selectedDomainId,
+            initialValue: _selectedDomainId,
             hint: _isLoadingDomains
                 ? const SizedBox(
                     height: 16,
@@ -2195,7 +2195,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             borderRadius: BorderRadius.circular(8),
           ),
           child: DropdownButtonFormField<int>(
-            value: _selectedJobTitleId,
+            initialValue: _selectedJobTitleId,
             hint: _isLoadingTitles
                 ? const SizedBox(
                     height: 16,

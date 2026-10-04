@@ -89,7 +89,7 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
       
       const mapped: Candidate[] = data.map((item: any) => {
         let aiPoints: { topic: string; content: string }[] = [{ topic: 'Status', content: 'Awaiting detailed AI analysis...' }];
-        let careerObj = 'No AI summary available.';
+        const careerObj = 'No AI summary available.';
         
         let valInfo: any = undefined;
         if (item.validationReport && item.validationReport !== '{}') {
@@ -219,7 +219,7 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
   };
 
   const filteredCandidates = useMemo(() => {
-    let result = candidates.filter(c => {
+    const result = candidates.filter(c => {
       const matchesTab = c.status === activeTab;
       const q = searchQuery.toLowerCase();
       const matchesSearch =

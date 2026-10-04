@@ -113,8 +113,9 @@ class ApiService {
     final response = await http.get(
       Uri.parse(ApiEndpoints.myApplications(studentId)),
     );
-    if (response.statusCode < 200 || response.statusCode >= 300)
+    if (response.statusCode < 200 || response.statusCode >= 300) {
       _decode(response);
+    }
     return (jsonDecode(response.body) as List).cast<Map<String, dynamic>>();
   }
 
