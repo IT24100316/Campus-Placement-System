@@ -120,229 +120,44 @@ if (builder.Configuration.GetValue("SeedAdminOnStartup", true))
     var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     var hasher = new PasswordHasher<User>();
 
-    // Seed Admin
-    if (!dbContext.Users.Any(u => u.Role == UserRole.Admin))
+    // Seed or Update Admin
+    var adminEmail = builder.Configuration["AdminSettings:Email"];
+    var adminPassword = builder.Configuration["AdminSettings:Password"];
+    
+    if (string.IsNullOrEmpty(adminEmail) || string.IsNullOrEmpty(adminPassword))
+    {
+        throw new InvalidOperationException("Admin credentials must be provided in configuration (AdminSettings:Email and AdminSettings:Password) to seed the admin account.");
+    }
+
+    var existingAdmin = dbContext.Users.FirstOrDefault(u => u.Role == UserRole.Admin);
+    if (existingAdmin == null)
     {
         var adminUser = new User
         {
             Id = Guid.NewGuid(),
-            Email = "admin@campusai.edu",
+            Email = adminEmail,
             Role = UserRole.Admin,
             Status = AccountStatus.Approved,
             CreatedAt = DateTime.UtcNow
         };
-        adminUser.PasswordHash = hasher.HashPassword(adminUser, "Admin@2025");
+        adminUser.PasswordHash = hasher.HashPassword(adminUser, adminPassword);
         dbContext.Users.Add(adminUser);
         dbContext.SaveChanges();
     }
-
-    // Seed Approved Company Accounts for HR Portal
-    var defaultCompanies = new[]
+    else
     {
-        new {
-            Email = "virtusa@company.com",
-            Password = "Virtusa123@",
-            CompanyName = "Virtusa Corporation",
-            Industry = "Information Technology & Digital Engineering",
-            ContactPerson = "Virtusa Campus Recruitment",
-            Phone = "+1 (555) 482-1920"
-        },
-        new {
-            Email = "pasi@company.com",
-            Password = "Pasiya123@",
-            CompanyName = "Pasi Tech Global",
-            Industry = "Software Engineering & Enterprise Cloud",
-            ContactPerson = "Pasindu Weerasingha",
-            Phone = "+1 (555) 891-2345"
-        },
-        new {
-            Email = "c.vance@acmeglobal.tech",
-            Password = "Vanguard#2024Secure!",
-            CompanyName = "Acme Global Technologies Inc.",
-            Industry = "Software, Cloud & Artificial Intelligence",
-            ContactPerson = "Clara Vance",
-            Phone = "+1 (555) 234-5678"
-        }
-    };
-
-    foreach (var c in defaultCompanies)
-    {
-        var existingUser = dbContext.Users.Include(u => u.CompanyProfile).FirstOrDefault(u => u.Email.ToLower() == c.Email.ToLower());
-        if (existingUser != null)
+        var result = hasher.VerifyHashedPassword(existingAdmin, existingAdmin.PasswordHash, adminPassword);
+        if (result == PasswordVerificationResult.Failed)
         {
-            // Ensure status is Approved so it cannot be trapped in a Pending loop
-            if (existingUser.Status != AccountStatus.Approved)
-            {
-                existingUser.Status = AccountStatus.Approved;
-                dbContext.SaveChanges();
-            }
-
-            if (existingUser.CompanyProfile == null)
-            {
-                var companyProfile = new CompanyProfile
-                {
-                    UserId = existingUser.Id,
-                    CompanyName = c.CompanyName,
-                    Industry = c.Industry,
-                    ContactPersonName = c.ContactPerson,
-                    ContactPersonEmail = c.Email.ToLower(),
-                    Phone = c.Phone,
-                    BusinessRegistrationDocumentUrl = $"{c.CompanyName.Replace(" ", "_")}_BR.pdf"
-                };
-                dbContext.CompanyProfiles.Add(companyProfile);
-                dbContext.SaveChanges();
-            }
-        }
-        else
-        {
-            var companyUser = new User
-            {
-                Id = Guid.NewGuid(),
-                Email = c.Email.ToLower(),
-                Role = UserRole.Company,
-                Status = AccountStatus.Approved,
-                CreatedAt = DateTime.UtcNow
-            };
-            companyUser.PasswordHash = hasher.HashPassword(companyUser, c.Password);
-
-            var companyProfile = new CompanyProfile
-            {
-                UserId = companyUser.Id,
-                CompanyName = c.CompanyName,
-                Industry = c.Industry,
-                ContactPersonName = c.ContactPerson,
-                ContactPersonEmail = c.Email.ToLower(),
-                Phone = c.Phone,
-                BusinessRegistrationDocumentUrl = $"{c.CompanyName.Replace(" ", "_")}_BR.pdf"
-            };
-
-            dbContext.Users.Add(companyUser);
-            dbContext.CompanyProfiles.Add(companyProfile);
+            existingAdmin.Email = adminEmail;
+            existingAdmin.PasswordHash = hasher.HashPassword(existingAdmin, adminPassword);
             dbContext.SaveChanges();
         }
-
-        // Ensure sample placement job drives exist for this company
-        var targetCompany = dbContext.CompanyProfiles.FirstOrDefault(cp => cp.ContactPersonEmail.ToLower() == c.Email.ToLower());
-        if (targetCompany != null && !dbContext.Jobs.Any(j => j.CompanyId == targetCompany.UserId))
-        {
-            dbContext.Jobs.AddRange(
-                new Job
-                {
-                    JobId = Guid.Parse("22222222-2222-2222-2222-222222222222"),
-                    CompanyId = targetCompany.UserId,
-                    JobTitle = "Backend Engineering Co-op",
-                    TargetDomain = "Distributed Systems & Cloud APIs",
-                    JobDescriptionSummary = "Join our platform core team building high-throughput microservices and real-time event pipelines.",
-                    InternshipType = new[] { "Full-time", "Hybrid" },
-                    LocationCity = "San Jose, CA / Remote",
-                    MinimumGPA = 3.5m,
-                    AllowedYearsOfStudy = new[] { 3, 4 },
-                    MandatorySkills = new[] { "Python", "Go", "PostgreSQL", "Docker" },
-                    NiceToHaveSkills = new[] { "Kubernetes", "gRPC", "Redis" },
-                    PreferredDegreePrograms = new[] { "B.S. Computer Science", "B.S. Software Engineering" },
-                    StipendOffered = true,
-                    StipendAmountOrDetails = "$45 / hr + Housing Stipend",
-                    DurationMonths = 6,
-                    ApplicationDeadline = DateTime.UtcNow.AddDays(45),
-                    CreatedAt = DateTime.UtcNow.AddDays(-5)
-                },
-                new Job
-                {
-                    JobId = Guid.NewGuid(),
-                    CompanyId = targetCompany.UserId,
-                    JobTitle = "Associate Machine Learning Engineer",
-                    TargetDomain = "AI Infrastructure & Agent Systems",
-                    JobDescriptionSummary = "Build and optimize autonomous model evaluation pipelines, vector search indexing, and neural models.",
-                    InternshipType = new[] { "Full-time" },
-                    LocationCity = "Austin, TX / Hybrid",
-                    MinimumGPA = 3.6m,
-                    AllowedYearsOfStudy = new[] { 4 },
-                    MandatorySkills = new[] { "PyTorch", "Python", "CUDA", "FastAPI" },
-                    NiceToHaveSkills = new[] { "LangChain", "Vector DBs", "Triton" },
-                    PreferredDegreePrograms = new[] { "M.S. Machine Learning", "B.S. Computer Science" },
-                    StipendOffered = true,
-                    StipendAmountOrDetails = "$55 / hr + Relocation",
-                    DurationMonths = 6,
-                    ApplicationDeadline = DateTime.UtcNow.AddDays(30),
-                    CreatedAt = DateTime.UtcNow.AddDays(-4)
-                },
-                new Job
-                {
-                    JobId = Guid.NewGuid(),
-                    CompanyId = targetCompany.UserId,
-                    JobTitle = "Hardware Systems Intern",
-                    TargetDomain = "Embedded Firmware & Robotics",
-                    JobDescriptionSummary = "Develop low-level embedded software, real-time operating systems, and interface drivers.",
-                    InternshipType = new[] { "Full-time", "On-site" },
-                    LocationCity = "Boston, MA",
-                    MinimumGPA = 3.4m,
-                    AllowedYearsOfStudy = new[] { 3, 4 },
-                    MandatorySkills = new[] { "C++", "Verilog", "RTOS", "Linux" },
-                    NiceToHaveSkills = new[] { "Altium", "ARM Cortex", "UART/SPI" },
-                    PreferredDegreePrograms = new[] { "B.S. Electrical & Computer Eng", "B.S. Robotics" },
-                    StipendOffered = true,
-                    StipendAmountOrDetails = "$40 / hr",
-                    DurationMonths = 4,
-                    ApplicationDeadline = DateTime.UtcNow.AddDays(60),
-                    CreatedAt = DateTime.UtcNow.AddDays(-3)
-                }
-            );
-            dbContext.SaveChanges();
-        }
-
-        // 5b. Seed Controlled Computing Target Domains & Realistic Internship Titles (Idempotent)
-        await JobReferenceSeeder.SeedAsync(dbContext);
-    }
-    
-    // ── Demo Students (Thusara Abey + Dinuri) ───────────────────────────────
-    var hasher2 = new PasswordHasher<User>();
-    var virtusaId = dbContext.Users.FirstOrDefault(u => u.Email == "virtusa@company.com")?.Id;
-    var coopJob    = virtusaId.HasValue ? dbContext.Jobs.FirstOrDefault(j => j.CompanyId == virtusaId.Value && j.JobTitle == "Backend Engineering Co-op") : null;
-    var mlJob      = virtusaId.HasValue ? dbContext.Jobs.FirstOrDefault(j => j.CompanyId == virtusaId.Value && j.JobTitle == "Associate Machine Learning Engineer") : null;
-
-    // ── Student 1: Thusara Abey ──────────────────────────────────────────────
-    var thusaraId = Guid.Parse("11111111-1111-1111-1111-111111111111");
-    // A prior registration may use the demo email with a different ID. Check both
-    // identifiers so startup seeding remains safe to run against an existing database.
-    if (!dbContext.Users.Any(u => u.Id == thusaraId || u.Email.ToLower() == "thusaraabey16645@gmail.com"))
-    {
-        var thusara = new User { Id = thusaraId, Email = "thusaraabey16645@gmail.com", Role = UserRole.Student, Status = AccountStatus.Approved, CreatedAt = DateTime.UtcNow };
-        thusara.PasswordHash = hasher2.HashPassword(thusara, "DemoPass123!");
-        dbContext.Users.Add(thusara);
-        dbContext.StudentProfiles.Add(new StudentProfile
-        {
-            UserId     = thusaraId,
-            FullName   = "Thusara Abey",
-            UniversityName = "University of Moratuwa",
-            DegreeProgram  = "B.Sc. (Hons) Software Engineering",
-            GPA        = 3.95m,
-            Skills     = new[] { "Python", "Go", "PostgreSQL", "Docker" },
-            ToolsAndTechnologies = new[] { "Kubernetes", "Redis", "gRPC" },
-            PrimaryDomain = "Software Engineering"
-        });
-        dbContext.SaveChanges();
     }
 
-    // ── Student 2: Dinuri ────────────────────────────────────────────────────
-    var dinuriId = Guid.Parse("55555555-5555-5555-5555-555555555555");
-    if (!dbContext.Users.Any(u => u.Id == dinuriId || u.Email.ToLower() == "thusaraabeyrathna@gmail.com"))
-    {
-        var dinuri = new User { Id = dinuriId, Email = "thusaraabeyrathna@gmail.com", Role = UserRole.Student, Status = AccountStatus.Approved, CreatedAt = DateTime.UtcNow };
-        dinuri.PasswordHash = hasher2.HashPassword(dinuri, "DemoPass123!");
-        dbContext.Users.Add(dinuri);
-        dbContext.StudentProfiles.Add(new StudentProfile
-        {
-            UserId     = dinuriId,
-            FullName   = "Dinuri Perera",
-            UniversityName = "University of Colombo",
-            DegreeProgram  = "B.Sc. (Hons) Computer Science",
-            GPA        = 3.88m,
-            Skills     = new[] { "PyTorch", "Python", "TensorFlow", "FastAPI" },
-            ToolsAndTechnologies = new[] { "CUDA", "LangChain", "Docker" },
-            PrimaryDomain = "Artificial Intelligence & Machine Learning"
-        });
-        dbContext.SaveChanges();
-    }
+    // 5b. Seed Controlled Computing Target Domains & Realistic Internship Titles (Idempotent)
+    // Removed hardcoded companies and demo students for security
+    await JobReferenceSeeder.SeedAsync(dbContext);
 }
 
 // Configure HTTP request pipeline

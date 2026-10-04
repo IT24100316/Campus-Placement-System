@@ -23,6 +23,7 @@ import {
   RotateCcw,
   Repeat,
   Eye,
+  EyeOff,
   Trash2,
   Edit,
   UserCircle2,
@@ -107,6 +108,13 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileMsg, setProfileMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [showDeleteProfileConfirm, setShowDeleteProfileConfirm] = useState(false);
+
+  const [showPasswordChange, setShowPasswordChange] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '' });
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [passwordMsg, setPasswordMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
 
   // --- Notifications State ---
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -587,6 +595,25 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
     } else {
       setProfileMsg({ type: 'error', text: result.message || 'Failed to delete account.' });
       setShowDeleteProfileConfirm(false);
+    }
+  };
+
+  const handlePasswordChange = async () => {
+    if (!passwordForm.currentPassword || passwordForm.newPassword.length < 8) {
+      setPasswordMsg({ type: 'error', text: 'New password must be at least 8 characters.' });
+      return;
+    }
+    setPasswordSaving(true);
+    setPasswordMsg(null);
+    const { authService } = await import('../services/authService');
+    const result = await authService.changePassword(passwordForm.currentPassword, passwordForm.newPassword);
+    setPasswordSaving(false);
+    if (result.success) {
+      setPasswordMsg({ type: 'success', text: result.message });
+      setPasswordForm({ currentPassword: '', newPassword: '' });
+      setTimeout(() => setShowPasswordChange(false), 2000);
+    } else {
+      setPasswordMsg({ type: 'error', text: result.message });
     }
   };
 
@@ -2762,6 +2789,87 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                   ))}
                 </div>
               )}
+
+              {/* Security zone */}
+              <div className="pt-2 border-t border-slate-100">
+                <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-3">Security</p>
+                {!showPasswordChange ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowPasswordChange(true)}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-700 hover:text-primary hover:bg-blue-50 border border-slate-200 hover:border-blue-200 transition-all cursor-pointer"
+                  >
+                    <ShieldCheck className="w-4 h-4" />
+                    Change Password
+                  </button>
+                ) : (
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+                    <p className="text-sm font-semibold text-slate-800">Change Password</p>
+                    
+                    {passwordMsg && (
+                      <div className={`px-3 py-2 rounded-md text-xs font-medium ${passwordMsg.type === 'success' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                        {passwordMsg.text}
+                      </div>
+                    )}
+
+                    <div className="relative">
+                      <input
+                        type={showCurrentPassword ? "text" : "password"}
+                        placeholder="Current Password"
+                        value={passwordForm.currentPassword}
+                        onChange={e => setPasswordForm(f => ({ ...f, currentPassword: e.target.value }))}
+                        className="w-full px-3 py-2 pr-10 text-sm border border-slate-200 rounded-lg bg-white focus:ring-2 focus:ring-primary/30 outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 focus:outline-none cursor-pointer"
+                        title={showCurrentPassword ? "Hide password" : "Show password"}
+                      >
+                        {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    <div className="relative">
+                      <input
+                        type={showNewPassword ? "text" : "password"}
+                        placeholder="New Password (min 8 chars)"
+                        value={passwordForm.newPassword}
+                        onChange={e => setPasswordForm(f => ({ ...f, newPassword: e.target.value }))}
+                        className="w-full px-3 py-2 pr-10 text-sm border border-slate-200 rounded-lg bg-white focus:ring-2 focus:ring-primary/30 outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 focus:outline-none cursor-pointer"
+                        title={showNewPassword ? "Hide password" : "Show password"}
+                      >
+                        {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    <div className="flex gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowPasswordChange(false);
+                          setPasswordForm({ currentPassword: '', newPassword: '' });
+                          setPasswordMsg(null);
+                        }}
+                        className="flex-1 px-3 py-2 rounded-lg text-xs font-semibold text-slate-600 bg-white border border-slate-200 hover:bg-slate-100 transition-colors cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handlePasswordChange}
+                        disabled={passwordSaving}
+                        className="flex-1 px-3 py-2 rounded-lg text-xs font-semibold text-white bg-primary hover:bg-blue-700 transition-colors cursor-pointer disabled:opacity-70"
+                      >
+                        {passwordSaving ? 'Saving...' : 'Update'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {/* Danger zone */}
               <div className="pt-2 border-t border-slate-100">

@@ -158,3 +158,14 @@ public class RegisterStudentFormDto
     [Required]
     public IFormFile CampusIdPhoto { get; set; } = null!;
 }
+
+public class ChangePasswordDto
+{
+    [Required]
+    public string CurrentPassword { get; set; } = string.Empty;
+
+    [Required]
+    [MinLength(8)]
+    public string NewPassword { get; set; } = string.Empty;
+}
+

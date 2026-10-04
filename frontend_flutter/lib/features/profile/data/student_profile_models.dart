@@ -88,6 +88,7 @@ class StudentProfileResponse {
     required this.cvPdfUrl,
     this.cvUploadedAt,
     this.cvNextEligibleUploadAt,
+    required this.isLookingForInternship,
   });
 
   final String userId;
@@ -112,6 +113,7 @@ class StudentProfileResponse {
   final String cvPdfUrl;
   final DateTime? cvUploadedAt;
   final DateTime? cvNextEligibleUploadAt;
+  final bool isLookingForInternship;
 
   factory StudentProfileResponse.fromJson(Map<String, dynamic> json) {
     List<String> strings(String key) =>
@@ -146,6 +148,7 @@ class StudentProfileResponse {
       cvNextEligibleUploadAt: json['cvNextEligibleUploadAt'] == null
           ? null
           : DateTime.parse(json['cvNextEligibleUploadAt'] as String).toUtc(),
+      isLookingForInternship: json['isLookingForInternship'] as bool? ?? true,
     );
   }
 }

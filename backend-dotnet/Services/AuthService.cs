@@ -355,4 +355,20 @@ public class AuthService : IAuthService
             })
             .ToListAsync();
     }
+
+    public async Task<bool> ChangePasswordAsync(Guid userId, ChangePasswordDto dto, CancellationToken cancellationToken = default)
+    {
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
+        if (user == null) return false;
+
+        var verifyResult = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, dto.CurrentPassword);
+        if (verifyResult == PasswordVerificationResult.Failed)
+        {
+            throw new InvalidOperationException("Current password is incorrect.");
+        }
+
+        user.PasswordHash = _passwordHasher.HashPassword(user, dto.NewPassword);
+        await _context.SaveChangesAsync(cancellationToken);
+        return true;
+    }
 }

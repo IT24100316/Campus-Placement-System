@@ -209,6 +209,53 @@ class StudentProfileService {
     );
   }
 
+  Future<void> updateInternshipStatus({
+    required bool isLookingForInternship,
+    required String bearerToken,
+  }) async {
+    final token = bearerToken.trim();
+    if (token.isEmpty) {
+      throw const StudentProfileException(
+        StudentProfileErrorType.missingToken,
+        'Sign in before updating your profile.',
+      );
+    }
+
+    http.Response response;
+    try {
+      response = await _client
+          .put(
+            Uri.parse('${ApiEndpoints.baseUrl}/students/profile/internship-status'),
+            headers: {
+              'Authorization': 'Bearer $token',
+              'Content-Type': 'application/json',
+            },
+            body: jsonEncode({
+              'isLookingForInternship': isLookingForInternship,
+            }),
+          )
+          .timeout(const Duration(seconds: 30));
+    } on TimeoutException {
+      throw const StudentProfileException(
+        StudentProfileErrorType.network,
+        'The request timed out. Please try again.',
+      );
+    } on http.ClientException {
+      throw const StudentProfileException(
+        StudentProfileErrorType.network,
+        'Unable to reach the server. Check your connection and try again.',
+      );
+    }
+
+    if (response.statusCode == 200) return;
+    
+    final data = _decode(response.body);
+    throw StudentProfileException(
+      _errorType(response.statusCode),
+      _errorMessage(data) ?? _fallbackMessage(response.statusCode),
+    );
+  }
+
   StudentProfileErrorType _errorType(int statusCode) => switch (statusCode) {
     400 => StudentProfileErrorType.validation,
     401 => StudentProfileErrorType.unauthorized,

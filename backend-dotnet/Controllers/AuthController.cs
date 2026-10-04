@@ -121,6 +121,31 @@ public class AuthController : ControllerBase
         return Ok(user);
     }
 
+    [Authorize]
+    [HttpPut("change-password")]
+    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto dto, CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (userIdClaim == null || !Guid.TryParse(userIdClaim, out var userId))
+            return Unauthorized(new { message = "The authentication token does not contain a valid user identifier." });
+
+        try
+        {
+            var success = await _authService.ChangePasswordAsync(userId, dto, cancellationToken);
+            if (!success)
+                return BadRequest(new { message = "User not found or password update failed." });
+
+            return Ok(new { message = "Password changed successfully." });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     /// <summary>
     /// Register as Company HR (Creates User + CompanyProfile with Pending status)
     /// </summary>

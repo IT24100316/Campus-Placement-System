@@ -49,4 +49,10 @@ public class StudentProfileResponse
     public string CvPdfUrl { get; set; } = string.Empty;
     public DateTime? CvUploadedAt { get; set; }
     public DateTime? CvNextEligibleUploadAt { get; set; }
+    public bool IsLookingForInternship { get; set; }
+}
+
+public class UpdateInternshipStatusDto
+{
+    public bool IsLookingForInternship { get; set; }
 }
