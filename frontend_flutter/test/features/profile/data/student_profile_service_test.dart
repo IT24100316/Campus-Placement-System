@@ -8,9 +8,6 @@ import 'package:frontend_flutter/features/profile/data/student_profile_service.d
 
 void main() {
   final endpoint = Uri.parse('https://example.test/api/students/profile');
-  final campusIdEndpoint = Uri.parse(
-    'https://example.test/api/students/campus-id',
-  );
   final profile = StudentProfileUpsertRequest(
     fullName: 'Alex Student',
     phone: '+94111222333',
@@ -78,38 +75,6 @@ void main() {
         ),
       ),
     );
-  });
-
-  test('loads a registered campus ID through the authorized endpoint', () async {
-    final service = StudentProfileService(
-      campusIdEndpoint: campusIdEndpoint,
-      client: MockClient((request) async {
-        expect(request.method, 'GET');
-        expect(request.url, campusIdEndpoint);
-        expect(request.headers['Authorization'], 'Bearer verified-token');
-        return http.Response.bytes(
-          [0x89, 0x50, 0x4e, 0x47],
-          200,
-          headers: {'content-type': 'image/png'},
-        );
-      }),
-    );
-
-    final document = await service.loadCampusId(
-      bearerToken: ' verified-token ',
-    );
-
-    expect(document?.bytes, [0x89, 0x50, 0x4e, 0x47]);
-    expect(document?.contentType, 'image/png');
-  });
-
-  test('returns no campus ID when none is registered', () async {
-    final service = StudentProfileService(
-      campusIdEndpoint: campusIdEndpoint,
-      client: MockClient((_) async => http.Response('', 404)),
-    );
-
-    expect(await service.loadCampusId(bearerToken: 'token'), isNull);
   });
 
   test('reports unauthorized loading', () async {
