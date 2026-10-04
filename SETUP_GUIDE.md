@@ -155,6 +155,9 @@ Follow these steps **in order** when setting up the project for the very first t
    SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
    SUPABASE_SERVICE_ROLE_KEY=your_private_storage_service_key
    ```
+   Use the same `Webhook:Secret` and `WEBHOOK_SECRET` value. The Python service
+   creates durable LangGraph checkpoints in PostgreSQL on startup; its database
+   user needs permission to create the checkpoint tables on first run.
 
 ---
 
