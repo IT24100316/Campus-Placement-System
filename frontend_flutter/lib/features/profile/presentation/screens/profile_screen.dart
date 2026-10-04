@@ -1787,8 +1787,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   String? _validateUniversityName(String? value, {required bool required}) {
     final university = value?.trim() ?? '';
-    if (university.isEmpty)
+    if (university.isEmpty) {
       return required ? 'University name is required.' : null;
+    }
     final hasLetter = RegExp(r'\p{L}', unicode: true).hasMatch(university);
     final hasControlCharacter = RegExp(
       r'[\p{Cc}\p{Cf}]',

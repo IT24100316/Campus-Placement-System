@@ -132,8 +132,9 @@ class _JobFeedScreenState extends State<JobFeedScreen> {
     for (final job in jobs) {
       for (final type in job.internshipType) {
         final normalized = _normalizeWorkType(type);
-        if (_workLabels.containsKey(normalized))
+        if (_workLabels.containsKey(normalized)) {
           _supportedWorkTypes.add(normalized);
+        }
       }
     }
   }
