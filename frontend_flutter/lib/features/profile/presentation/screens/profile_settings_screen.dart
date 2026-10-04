@@ -59,6 +59,9 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
 
   bool get _hasUploadedCv => _profile?.cvPdfUrl.trim().isNotEmpty == true;
 
+  bool get _isAccountApproved =>
+      StudentSession.accountStatus?.trim().toLowerCase() == 'approved';
+
   Future<void> _openPersonalDetails() async {
     await Navigator.of(context).push(
       MaterialPageRoute(
@@ -108,6 +111,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                 name: _displayName,
                 email: _displayEmail,
                 hasUploadedCv: _hasUploadedCv,
+                isAccountApproved: _isAccountApproved,
               ),
               const SizedBox(height: 28),
               const _SectionLabel(label: 'ACCOUNT'),
@@ -156,12 +160,14 @@ class _ProfileHeader extends StatelessWidget {
     required this.name,
     required this.email,
     required this.hasUploadedCv,
+    required this.isAccountApproved,
   });
 
   final String initials;
   final String name;
   final String email;
   final bool hasUploadedCv;
+  final bool isAccountApproved;
 
   @override
   Widget build(BuildContext context) {
@@ -190,16 +196,33 @@ class _ProfileHeader extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: AppColors.textPrimaryLight,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.25,
-                ),
+              Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppColors.textPrimaryLight,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.25,
+                      ),
+                    ),
+                  ),
+                  if (isAccountApproved) ...[
+                    const SizedBox(width: 6),
+                    const Tooltip(
+                      message: 'Verified account',
+                      child: Icon(
+                        Icons.verified_rounded,
+                        color: AppColors.primary,
+                        size: 18,
+                      ),
+                    ),
+                  ],
+                ],
               ),
               if (email.isNotEmpty) ...[
                 const SizedBox(height: 3),

@@ -12,6 +12,7 @@ class StudentSession {
   static String? fullName;
   static String? email;
   static String? role;
+  static String? accountStatus;
 
   static void clear() {
     userId = null;
@@ -19,6 +20,7 @@ class StudentSession {
     fullName = null;
     email = null;
     role = null;
+    accountStatus = null;
   }
 }
 
@@ -94,6 +96,7 @@ class ApiService {
     StudentSession.fullName = user['fullName']?.toString();
     StudentSession.email = user['email']?.toString();
     StudentSession.role = user['role']?.toString();
+    StudentSession.accountStatus = user['status']?.toString();
 
     // Keep the screen-facing shape stable while taking identity exclusively
     // from the JWT-protected /me response.
@@ -103,6 +106,7 @@ class ApiService {
       'role': user['role'],
       'email': user['email'],
       'fullName': user['fullName'],
+      'status': user['status'],
       'user': user,
     };
   }
