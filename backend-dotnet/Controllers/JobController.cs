@@ -13,11 +13,13 @@ public class JobsController : ControllerBase
 {
     private readonly IJobService _jobService;
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IConfiguration _configuration;
 
-    public JobsController(IJobService jobService, IHttpClientFactory httpClientFactory)
+    public JobsController(IJobService jobService, IHttpClientFactory httpClientFactory, IConfiguration configuration)
     {
         _jobService = jobService;
         _httpClientFactory = httpClientFactory;
+        _configuration = configuration;
     }
 
     /// <summary>
@@ -80,7 +82,8 @@ public class JobsController : ControllerBase
             try 
             {
                 var client = _httpClientFactory.CreateClient();
-                var aiUrl = "http://127.0.0.1:8000/analyze";
+                var aiBaseUrl = (_configuration["AiService:BaseUrl"] ?? "http://127.0.0.1:8000").TrimEnd('/');
+                var aiUrl = $"{aiBaseUrl}/analyze";
                 var payload = new { job_id = result.Job.JobId, student_ids = new List<string>(), evaluate_all = true };
                 var json = System.Text.Json.JsonSerializer.Serialize(payload);
                 var content = new System.Net.Http.StringContent(json, System.Text.Encoding.UTF8, "application/json");
@@ -161,7 +164,8 @@ public class JobsController : ControllerBase
                 using var client = _httpClientFactory.CreateClient();
                 // Send the exact same payload as CreateJob, but the JobId is the existing one
                 var aiPayload = new { job_id = result.Job?.JobId, evaluate_all = true };
-                var response = await client.PostAsJsonAsync("http://127.0.0.1:8000/analyze", aiPayload);
+                var aiBaseUrl = (_configuration["AiService:BaseUrl"] ?? "http://127.0.0.1:8000").TrimEnd('/');
+                var response = await client.PostAsJsonAsync($"{aiBaseUrl}/analyze", aiPayload);
                 response.EnsureSuccessStatusCode();
             }
             catch (Exception ex)
