@@ -8,14 +8,14 @@ namespace backend_dotnet.Tests;
 public class EmailServiceTests
 {
     [Fact]
-    public async Task MissingApiKey_DoesNotCallApi_ReturnsTrue()
+    public async Task MissingApiKey_DoesNotCallApi_ReturnsFalse()
     {
         var handler = new RecordingHandler();
         var service = CreateService(handler, new Dictionary<string, string?>());
 
         var sent = await service.SendAccountDecisionAsync("person@example.com", "Person", true);
 
-        Assert.True(sent);
+        Assert.False(sent);
         Assert.Null(handler.LastRequest);
     }
 
