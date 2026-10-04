@@ -628,14 +628,6 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
           badgeText: '2FA Active',
           badgeColor: Colors.grey,
         ),
-        const SizedBox(height: 8),
-        _buildInfoRow(
-          'Authenticated User ID',
-          StudentSession.userId ?? 'Unavailable',
-          trailingIcon: Icons.verified,
-          iconColor: AppColors.primary,
-          isMonospace: true,
-        ),
       ],
     );
   }
@@ -647,7 +639,6 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
     Color? iconColor,
     String? badgeText,
     Color? badgeColor,
-    bool isMonospace = false,
   }) {
     return Container(
       padding: const EdgeInsets.all(12),
@@ -675,7 +666,6 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                   style: TextStyle(
                     fontSize: 14,
                     color: AppColors.textPrimaryLight,
-                    fontFamily: isMonospace ? 'monospace' : null,
                   ),
                 ),
               ],
