@@ -22,6 +22,7 @@ public class StudentProfile
     public string LectureScheduleType { get; set; } = string.Empty;
     public string[] PreferredLocations { get; set; } = Array.Empty<string>();
     public string CvPdfUrl { get; set; } = string.Empty;
+    public bool IsLookingForInternship { get; set; } = true;
 
     // Navigation property
     public User User { get; set; } = null!;

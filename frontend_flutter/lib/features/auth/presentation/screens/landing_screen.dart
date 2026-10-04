@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/widgets/campus_ai_logo.dart';
 import 'login_screen.dart';
 import 'register_screen.dart';
 
@@ -36,7 +37,7 @@ class LandingScreen extends StatelessWidget {
                             ),
                           ],
                         ),
-                        child: const Icon(Icons.layers, color: Colors.white, size: 24),
+                        child: const Center(child: CampusAILogo(size: 24, color: Colors.white)),
                       ),
                       const SizedBox(width: 12),
                       const Column(
@@ -271,3 +272,4 @@ class LandingScreen extends StatelessWidget {
     );
   }
 }
+

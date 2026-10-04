@@ -125,6 +125,30 @@ export const authService = {
     }
   },
 
+  async changePassword(currentPassword: string, newPassword: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return { success: false, message: 'Not authenticated.' };
+
+      const res = await fetch(`${API_BASE}/auth/change-password`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ currentPassword, newPassword })
+      });
+      
+      const data = await res.json();
+      if (!res.ok) {
+        return { success: false, message: data.message || 'Failed to change password.' };
+      }
+      return { success: true, message: data.message || 'Password changed successfully.' };
+    } catch (err: any) {
+      return { success: false, message: err.message || 'Failed to connect to the server.' };
+    }
+  },
+
   async login(
     email: string,
     password: string

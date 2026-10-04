@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/constants/app_colors.dart';
 import '../../../../core/services/api_service.dart';
 import '../../../../features/jobs/presentation/screens/job_details_screen.dart';
 import '../../../../core/widgets/global_app_header.dart';
@@ -11,10 +12,10 @@ class ApplicationsTrackingScreen extends StatefulWidget {
 }
 
 class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen> {
-  final Color primaryColor = const Color(0xFF003594);
-  final Color backgroundColor = const Color(0xFFF8F9FF);
-  final Color onSurface = const Color(0xFF0B1C30);
-  final Color onSurfaceVariant = const Color(0xFF434655);
+
+  final Color backgroundColor = AppColors.backgroundLight;
+  final Color onSurface = AppColors.textPrimaryLight;
+  final Color onSurfaceVariant = AppColors.textSecondaryLight;
 
   int _selectedTab = 0; // 0: Action, 1: Pending, 2: History
   List<Map<String, dynamic>> _applications = [];
@@ -152,14 +153,14 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
-            color: const Color(0xFFDCE9FF),
+            color: AppColors.primary.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Row(
             children: [
-              Icon(Icons.auto_awesome, color: primaryColor, size: 18),
+              Icon(Icons.auto_awesome, color: AppColors.primary, size: 18),
               const SizedBox(width: 4),
-              Text('AI Synced', style: TextStyle(color: primaryColor, fontSize: 12, fontWeight: FontWeight.w600)),
+              Text('AI Synced', style: TextStyle(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.w600)),
             ],
           ),
         )
@@ -170,7 +171,7 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
   Widget _buildTabs(int actionCount, int pendingCount, int historyCount) {
     return Container(
       padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(color: const Color(0xFFE6EEFF), borderRadius: BorderRadius.circular(12)),
+      decoration: BoxDecoration(color: AppColors.borderLight, borderRadius: BorderRadius.circular(12)),
       child: Row(
         children: [
           _buildTabItem(0, 'Action Req.', actionCount.toString(), true),
@@ -197,7 +198,7 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(title, style: TextStyle(
-                color: isSelected ? primaryColor : onSurfaceVariant, 
+                color: isSelected ? AppColors.primary : onSurfaceVariant, 
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                 fontSize: 12
               )),
@@ -206,7 +207,7 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
                 width: 20, height: 20,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: isRedBadge && isSelected && badgeCount != "0" ? const Color(0xFFBA1A1A) : const Color(0xFFD3E4FE),
+                  color: isRedBadge && isSelected && badgeCount != "0" ? const Color(0xFFBA1A1A) : AppColors.primary.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: Text(badgeCount, style: TextStyle(
@@ -227,11 +228,11 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
         if (items.isNotEmpty)
           Container(
             padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: const Color(0xFFDCE9FF), borderRadius: BorderRadius.circular(12)),
+            decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.priority_high, color: primaryColor, size: 20),
+                Icon(Icons.priority_high, color: AppColors.primary, size: 20),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Column(
@@ -300,15 +301,15 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
             children: [
               Container(
                 width: 48, height: 48,
-                decoration: BoxDecoration(color: const Color(0xFFEFF4FF), borderRadius: BorderRadius.circular(12)),
-                child: const Icon(Icons.analytics, color: Color(0xFF003594)),
+                decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
+                child: const Icon(Icons.analytics, color: AppColors.primary),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(company.toUpperCase(), style: const TextStyle(color: Color(0xFF003594), fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+                    Text(company.toUpperCase(), style: const TextStyle(color: AppColors.primary, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
                     Text(title, style: TextStyle(color: onSurface, fontSize: 16, fontWeight: FontWeight.bold)),
                     Text('Business Intelligence & Analytics', style: TextStyle(color: onSurfaceVariant, fontSize: 12)),
                   ],
@@ -323,25 +324,25 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
             children: [
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(color: const Color(0xFFDCE9FF), borderRadius: BorderRadius.circular(12)),
+                decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.payments, color: Color(0xFF003594), size: 14),
+                    const Icon(Icons.payments, color: AppColors.primary, size: 14),
                     const SizedBox(width: 4),
-                    const Text('Offer: 21.5 LPA • Full-time', style: TextStyle(color: Color(0xFF003594), fontSize: 11, fontWeight: FontWeight.w600)),
+                    const Text('Offer: 21.5 LPA • Full-time', style: TextStyle(color: AppColors.primary, fontSize: 11, fontWeight: FontWeight.w600)),
                   ],
                 ),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(color: const Color(0xFFDBE1FF), borderRadius: BorderRadius.circular(12)),
+                decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.verified, color: Color(0xFF003EA8), size: 14),
+                    const Icon(Icons.verified, color: AppColors.primaryDark, size: 14),
                     const SizedBox(width: 4),
-                    const Text('Offer Extended - Admin Approved', style: TextStyle(color: Color(0xFF003EA8), fontSize: 11, fontWeight: FontWeight.w600)),
+                    const Text('Offer Extended - Admin Approved', style: TextStyle(color: AppColors.primaryDark, fontSize: 11, fontWeight: FontWeight.w600)),
                   ],
                 ),
               ),
@@ -592,8 +593,8 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
             children: [
               Container(
                 width: 44, height: 44,
-                decoration: BoxDecoration(color: const Color(0xFFEFF4FF), borderRadius: BorderRadius.circular(12)),
-                child: Icon(icon, color: const Color(0xFF003594)),
+                decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
+                child: Icon(icon, color: AppColors.primary),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -621,7 +622,7 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
             alignment: Alignment.centerLeft,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(color: const Color(0xFFD3E4FE), borderRadius: BorderRadius.circular(12)),
+              decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
               child: Text(badge, style: TextStyle(color: onSurfaceVariant, fontSize: 11, fontWeight: FontWeight.w600)),
             ),
           ),
@@ -630,10 +631,10 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(color: const Color(0xFFF8F9FF), borderRadius: BorderRadius.circular(8), border: Border.all(color: const Color(0xFFE6EEFF))),
+              decoration: BoxDecoration(color: const Color(0xFFF8F9FF), borderRadius: BorderRadius.circular(8), border: Border.all(color: AppColors.borderLight)),
               child: Row(
                 children: [
-                  Icon(Icons.info_outline, size: 16, color: primaryColor),
+                  Icon(Icons.info_outline, size: 16, color: AppColors.primary),
                   const SizedBox(width: 8),
                   Expanded(child: Text(statusDescription, style: TextStyle(color: onSurfaceVariant, fontSize: 12, fontWeight: FontWeight.w500))),
                 ],
@@ -696,8 +697,8 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
             children: [
               Container(
                 width: 44, height: 44,
-                decoration: BoxDecoration(color: const Color(0xFFEFF4FF), borderRadius: BorderRadius.circular(12)),
-                child: Icon(icon, color: const Color(0xFF003594)),
+                decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
+                child: Icon(icon, color: AppColors.primary),
               ),
               const SizedBox(width: 12),
               Expanded(
