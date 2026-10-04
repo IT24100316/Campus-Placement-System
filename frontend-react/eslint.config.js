@@ -24,10 +24,7 @@ export default defineConfig([
       'no-useless-assignment': 'warn',
       'no-empty': 'warn',
       'react-hooks/exhaustive-deps': 'warn',
-      'react-hooks/purity': 'warn',
-      '@typescript-eslint/ban-ts-comment': 'warn',
-      'react-hooks/set-state-in-effect': 'warn',
-      'react-hooks/immutability': 'warn'
+      '@typescript-eslint/ban-ts-comment': 'warn'
     },
     languageOptions: {
       globals: globals.browser,
