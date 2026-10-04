@@ -10,6 +10,7 @@ class ApiEndpoints {
 
   // Profile
   static String get studentProfile => '$baseUrl/students/profile';
+  static String get studentCampusId => '$baseUrl/students/campus-id';
   static String get uploadCv => '$baseUrl/students/upload-cv';
 
   // Jobs

@@ -17,17 +17,20 @@ public class StudentsController : ControllerBase
     private readonly AppDbContext _context;
     private readonly ICvFileValidationService _cvFileValidationService;
     private readonly ICvStorageService _cvStorageService;
+    private readonly IDocumentStorageService _documentStorageService;
     private readonly ILogger<StudentsController> _logger;
 
     public StudentsController(
         AppDbContext context,
         ICvFileValidationService cvFileValidationService,
         ICvStorageService cvStorageService,
+        IDocumentStorageService documentStorageService,
         ILogger<StudentsController> logger)
     {
         _context = context;
         _cvFileValidationService = cvFileValidationService;
         _cvStorageService = cvStorageService;
+        _documentStorageService = documentStorageService;
         _logger = logger;
     }
 
@@ -91,6 +94,36 @@ public class StudentsController : ControllerBase
         }
 
         return Ok(profile);
+    }
+
+    [HttpGet("campus-id")]
+    [Authorize(Roles = "Student")]
+    public async Task<IActionResult> GetCampusId(CancellationToken cancellationToken)
+    {
+        if (!TryGetCurrentUserId(out var userId))
+        {
+            return Unauthorized(new { message = "An authenticated student identity is required." });
+        }
+
+        var storageKey = await _context.StudentProfiles
+            .AsNoTracking()
+            .Where(candidate => candidate.UserId == userId)
+            .Select(candidate => candidate.CampusIdPhotoUrl)
+            .SingleOrDefaultAsync(cancellationToken);
+
+        if (string.IsNullOrWhiteSpace(storageKey))
+        {
+            return NotFound(new { message = "No campus ID is registered for this student." });
+        }
+
+        var document = await _documentStorageService.OpenReadAsync(storageKey, cancellationToken);
+        return document is null
+            ? NotFound(new { message = "The registered campus ID is unavailable." })
+            : File(
+                document.Value.Content,
+                document.Value.ContentType,
+                document.Value.FileName,
+                enableRangeProcessing: true);
     }
 
     [HttpPost("upload-cv")]

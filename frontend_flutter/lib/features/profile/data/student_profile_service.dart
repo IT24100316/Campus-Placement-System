@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
@@ -27,14 +28,28 @@ class StudentProfileException implements Exception {
   String toString() => message;
 }
 
+class CampusIdDocument {
+  const CampusIdDocument({required this.bytes, required this.contentType});
+
+  final Uint8List bytes;
+  final String contentType;
+}
+
 class StudentProfileService {
-  StudentProfileService({http.Client? client, Uri? profileEndpoint})
+  StudentProfileService({
+    http.Client? client,
+    Uri? profileEndpoint,
+    Uri? campusIdEndpoint,
+  })
     : _client = client ?? http.Client(),
       _profileEndpoint =
-          profileEndpoint ?? Uri.parse(ApiEndpoints.studentProfile);
+          profileEndpoint ?? Uri.parse(ApiEndpoints.studentProfile),
+      _campusIdEndpoint =
+          campusIdEndpoint ?? Uri.parse(ApiEndpoints.studentCampusId);
 
   final http.Client _client;
   final Uri _profileEndpoint;
+  final Uri _campusIdEndpoint;
 
   Future<StudentProfileResponse?> loadProfile({
     required String bearerToken,
@@ -86,6 +101,49 @@ class StudentProfileService {
     throw StudentProfileException(
       _errorType(response.statusCode),
       _errorMessage(data) ?? _fallbackMessage(response.statusCode),
+    );
+  }
+
+  Future<CampusIdDocument?> loadCampusId({required String bearerToken}) async {
+    final token = bearerToken.trim();
+    if (token.isEmpty) {
+      throw const StudentProfileException(
+        StudentProfileErrorType.missingToken,
+        'Sign in before viewing your registered campus ID.',
+      );
+    }
+
+    http.Response response;
+    try {
+      response = await _client
+          .get(
+            _campusIdEndpoint,
+            headers: {'Authorization': 'Bearer $token'},
+          )
+          .timeout(const Duration(seconds: 30));
+    } on TimeoutException {
+      throw const StudentProfileException(
+        StudentProfileErrorType.network,
+        'The campus ID request timed out. Please try again.',
+      );
+    } on http.ClientException {
+      throw const StudentProfileException(
+        StudentProfileErrorType.network,
+        'Unable to load your registered campus ID.',
+      );
+    }
+
+    if (response.statusCode == 404) return null;
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw StudentProfileException(
+        _errorType(response.statusCode),
+        _fallbackMessage(response.statusCode),
+      );
+    }
+
+    return CampusIdDocument(
+      bytes: response.bodyBytes,
+      contentType: response.headers['content-type'] ?? 'image/jpeg',
     );
   }
 
