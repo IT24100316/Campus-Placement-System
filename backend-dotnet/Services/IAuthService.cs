@@ -13,4 +13,5 @@ public interface IAuthService
     Task<AuthRegisterResultDto> RegisterCompanyStaffAsync(RegisterCompanyStaffDto dto);
     Task<AuthRegisterResultDto> RegisterStudentAsync(RegisterStudentFormDto dto, CancellationToken cancellationToken = default);
     Task<IEnumerable<ApprovedCompanyDto>> GetCompaniesAsync();
+    Task<bool> ChangePasswordAsync(Guid userId, ChangePasswordDto dto, CancellationToken cancellationToken = default);
 }

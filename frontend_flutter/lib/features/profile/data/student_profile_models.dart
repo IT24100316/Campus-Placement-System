@@ -83,6 +83,7 @@ class StudentProfileResponse {
     required this.lectureScheduleType,
     required this.preferredLocations,
     required this.cvPdfUrl,
+    required this.isLookingForInternship,
   });
 
   final String userId;
@@ -105,6 +106,7 @@ class StudentProfileResponse {
   final String lectureScheduleType;
   final List<String> preferredLocations;
   final String cvPdfUrl;
+  final bool isLookingForInternship;
 
   factory StudentProfileResponse.fromJson(Map<String, dynamic> json) {
     List<String> strings(String key) =>
@@ -133,6 +135,7 @@ class StudentProfileResponse {
       lectureScheduleType: json['lectureScheduleType'] as String,
       preferredLocations: strings('preferredLocations'),
       cvPdfUrl: json['cvPdfUrl'] as String,
+      isLookingForInternship: json['isLookingForInternship'] as bool? ?? true,
     );
   }
 }
