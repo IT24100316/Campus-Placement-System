@@ -1,4 +1,12 @@
+import base64
+import io
+
+import pytest
+from pypdf import PdfWriter
+
 from agents.validation import validate_summary_against_cv
+from agents.validation.validation_service import extract_pdf_text, load_pdf
+from tools.webhook_tool import send_validation_webhook
 
 
 def test_validation_accepts_cv_grounded_summary():
