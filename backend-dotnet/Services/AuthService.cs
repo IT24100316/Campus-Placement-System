@@ -367,6 +367,11 @@ public class AuthService : IAuthService
             throw new InvalidOperationException("Current password is incorrect.");
         }
 
+        if (string.Equals(dto.CurrentPassword, dto.NewPassword, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("Your new password must be different from your current password.");
+        }
+
         user.PasswordHash = _passwordHasher.HashPassword(user, dto.NewPassword);
         await _context.SaveChangesAsync(cancellationToken);
         return true;

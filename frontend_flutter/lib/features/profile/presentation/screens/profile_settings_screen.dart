@@ -13,6 +13,126 @@ class ProfileSettingsScreen extends StatefulWidget {
   State<ProfileSettingsScreen> createState() => _ProfileSettingsScreenState();
 }
 
+class _ChangePasswordDialog extends StatefulWidget {
+  const _ChangePasswordDialog({required this.onSubmit});
+
+  final Future<void> Function({
+    required String currentPassword,
+    required String newPassword,
+  }) onSubmit;
+
+  @override
+  State<_ChangePasswordDialog> createState() => _ChangePasswordDialogState();
+}
+
+class _ChangePasswordDialogState extends State<_ChangePasswordDialog> {
+  final _currentPasswordController = TextEditingController();
+  final _newPasswordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+  var _isSaving = false;
+  var _hideCurrentPassword = true;
+  var _hideNewPassword = true;
+  var _hideConfirmation = true;
+  String? _errorMessage;
+
+  @override
+  void dispose() {
+    _currentPasswordController.dispose();
+    _newPasswordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final currentPassword = _currentPasswordController.text;
+    final newPassword = _newPasswordController.text;
+    if (currentPassword.isEmpty || newPassword.isEmpty) {
+      setState(() => _errorMessage = 'Enter your current and new password.');
+      return;
+    }
+    if (newPassword.length < 8) {
+      setState(() => _errorMessage = 'Your new password must contain at least 8 characters.');
+      return;
+    }
+    if (newPassword != _confirmPasswordController.text) {
+      setState(() => _errorMessage = 'The new passwords do not match.');
+      return;
+    }
+    setState(() {
+      _isSaving = true;
+      _errorMessage = null;
+    });
+    try {
+      await widget.onSubmit(currentPassword: currentPassword, newPassword: newPassword);
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+          _errorMessage = error.toString().replaceFirst('Exception: ', '');
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        title: const Text('Change password'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Use at least 8 characters and choose a password different from your current one.',
+                style: TextStyle(color: AppColors.textSecondaryLight, fontSize: 13),
+              ),
+              if (_errorMessage != null) ...[
+                const SizedBox(height: 12),
+                Text(_errorMessage!, style: const TextStyle(color: Colors.red, fontSize: 12)),
+              ],
+              const SizedBox(height: 16),
+              _passwordField('Current password', _currentPasswordController, _hideCurrentPassword, (value) => setState(() => _hideCurrentPassword = value)),
+              const SizedBox(height: 12),
+              _passwordField('New password', _newPasswordController, _hideNewPassword, (value) => setState(() => _hideNewPassword = value)),
+              const SizedBox(height: 12),
+              _passwordField('Confirm new password', _confirmPasswordController, _hideConfirmation, (value) => setState(() => _hideConfirmation = value)),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: _isSaving ? null : () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: _isSaving ? null : _submit,
+            child: _isSaving
+                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Text('Change password'),
+          ),
+        ],
+      );
+
+  Widget _passwordField(
+    String label,
+    TextEditingController controller,
+    bool isHidden,
+    ValueChanged<bool> onHiddenChanged,
+  ) => TextField(
+    controller: controller,
+    obscureText: isHidden,
+    enabled: !_isSaving,
+    decoration: InputDecoration(
+      labelText: label,
+      suffixIcon: IconButton(
+        tooltip: isHidden ? 'Show password' : 'Hide password',
+        onPressed: _isSaving ? null : () => onHiddenChanged(!isHidden),
+        icon: Icon(isHidden ? Icons.visibility_outlined : Icons.visibility_off_outlined),
+      ),
+    ),
+  );
+}
+
 class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
   bool _isEditing = false;
   bool _isLoadingStatus = true;
@@ -20,6 +140,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
   bool _hasProfile = false;
 
   final StudentProfileService _profileService = StudentProfileService();
+  final ApiService _apiService = ApiService();
 
   final TextEditingController _nameController = TextEditingController(
     text: StudentSession.fullName ?? '',
@@ -117,6 +238,20 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
       MaterialPageRoute(builder: (_) => const LandingScreen()),
       (route) => false,
     );
+  }
+
+  Future<void> _showChangePasswordDialog() async {
+    final changed = await showDialog<bool>(
+      context: context,
+      builder: (_) => _ChangePasswordDialog(
+        onSubmit: _apiService.changePassword,
+      ),
+    );
+    if (changed == true && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Password changed successfully.')),
+      );
+    }
   }
 
   @override
@@ -529,7 +664,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                   ),
                   const SizedBox(height: 16),
                   InkWell(
-                    onTap: () {},
+                    onTap: _showChangePasswordDialog,
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
                         vertical: 12,

@@ -6,6 +6,7 @@ class ApiEndpoints {
   // Auth
   static String get login => '$baseUrl/auth/login';
   static String get currentUser => '$baseUrl/auth/me';
+  static String get changePassword => '$baseUrl/auth/change-password';
   static String get registerStudent => '$baseUrl/Auth/register-student';
 
   // Profile
