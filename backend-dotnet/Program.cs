@@ -123,15 +123,23 @@ if (builder.Configuration.GetValue("SeedAdminOnStartup", true))
     // Seed Admin
     if (!dbContext.Users.Any(u => u.Role == UserRole.Admin))
     {
+        var adminEmail = builder.Configuration["AdminSettings:Email"];
+        var adminPassword = builder.Configuration["AdminSettings:Password"];
+        
+        if (string.IsNullOrEmpty(adminEmail) || string.IsNullOrEmpty(adminPassword))
+        {
+            throw new InvalidOperationException("Admin credentials must be provided in configuration (AdminSettings:Email and AdminSettings:Password) to seed the admin account.");
+        }
+
         var adminUser = new User
         {
             Id = Guid.NewGuid(),
-            Email = "admin@campusai.edu",
+            Email = adminEmail,
             Role = UserRole.Admin,
             Status = AccountStatus.Approved,
             CreatedAt = DateTime.UtcNow
         };
-        adminUser.PasswordHash = hasher.HashPassword(adminUser, "Admin@2025");
+        adminUser.PasswordHash = hasher.HashPassword(adminUser, adminPassword);
         dbContext.Users.Add(adminUser);
         dbContext.SaveChanges();
     }
