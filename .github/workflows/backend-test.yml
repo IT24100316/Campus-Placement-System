@@ -1,0 +1,38 @@
+name: Backend CI
+
+on:
+  push:
+    branches:
+      - main
+      - '**' # Including other branches for testing
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x' # Use the version matching your project
+
+    - name: Restore dependencies
+      run: dotnet restore backend-dotnet/backend-dotnet.csproj
+
+    - name: Build
+      run: dotnet build backend-dotnet/backend-dotnet.csproj --no-restore
+
+    - name: Restore Test dependencies
+      run: dotnet restore backend-dotnet.Tests/backend-dotnet.Tests.csproj
+
+    - name: Build Tests
+      run: dotnet build backend-dotnet.Tests/backend-dotnet.Tests.csproj --no-restore
+
+    - name: Run Backend Tests
+      run: dotnet test backend-dotnet.Tests/backend-dotnet.Tests.csproj --no-build --verbosity normal
