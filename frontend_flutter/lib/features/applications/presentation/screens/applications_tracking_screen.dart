@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../../../core/constants/app_colors.dart';
 import '../../../../core/services/api_service.dart';
 import '../../../../features/jobs/presentation/screens/job_details_screen.dart';
 import '../../../../core/widgets/global_app_header.dart';
@@ -122,83 +121,6 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
           ),
         ),
       ),
-    );
-  }
-
-  PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-      backgroundColor: backgroundColor.withValues(alpha: 0.9),
-      elevation: 0,
-      scrolledUnderElevation: 4,
-      automaticallyImplyLeading: false,
-      title: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              color: primaryColor,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Icon(Icons.layers, color: Colors.white, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'CampusAI Portal',
-                style: TextStyle(
-                  color: onSurface,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Text(
-                'Autonomous Placement',
-                style: TextStyle(
-                  color: onSurfaceVariant,
-                  fontSize: 12,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-      actions: [
-        IconButton(
-          icon: const Badge(
-            backgroundColor: Colors.red,
-            child: Icon(Icons.notifications_none),
-          ),
-          color: onSurfaceVariant,
-          onPressed: () {},
-        ),
-        Container(
-          margin: const EdgeInsets.only(right: 16, left: 4),
-          alignment: Alignment.center,
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              const CircleAvatar(
-                radius: 16,
-                backgroundColor: AppColors.primary,
-                child: Icon(Icons.person, color: Colors.white, size: 18),
-              ),
-              Positioned(
-                bottom: -2,
-                right: -2,
-                child: Container(
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.verified, color: AppColors.primary, size: 14),
-                ),
-              )
-            ],
-          ),
-        ),
-      ],
     );
   }
 
