@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { Sparkles, Home, ShieldCheck, LogOut, Building2, PlusCircle, UserPlus, LogIn } from 'lucide-react';
 import { LandingPage } from './pages/LandingPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { AdminDashboardPage } from './pages/AdminDashboardPage';
@@ -100,7 +99,6 @@ function App() {
 
   const isStaff = currentUser?.role?.toLowerCase().includes('staff') || false;
   const isAdmin = currentUser?.role?.toLowerCase() === 'admin' || currentView === 'admin';
-  const isHr = !isStaff && (currentView === 'hr' || (currentUser?.role && currentUser.role.toLowerCase().includes('company')));
 
   return (
     <div className="relative min-h-screen">
