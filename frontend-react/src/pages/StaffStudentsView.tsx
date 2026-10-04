@@ -21,6 +21,8 @@ interface StudentProfile {
   cvUrl?: string;
 }
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5168/api';
+
 export const StaffStudentsView: React.FC = () => {
   const [students, setStudents] = useState<StudentProfile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,10 +31,12 @@ export const StaffStudentsView: React.FC = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [selectedStudent, setSelectedStudent] = useState<StudentProfile | null>(null);
 
+  // Reaches out to the server to grab a paginated list of all student profiles.
+  // We use this to fill the directory grid!
   const fetchStudents = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`http://localhost:5168/api/Students/directory?search=${encodeURIComponent(search)}&page=${page}&pageSize=12`, {
+      const res = await fetch(`${API_BASE}/Students/directory?search=${encodeURIComponent(search)}&page=${page}&pageSize=12`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}` // Adjust depending on your auth scheme
         }
@@ -48,6 +52,8 @@ export const StaffStudentsView: React.FC = () => {
     }
   };
 
+  // Listens for changes when a staff member types in the search box.
+  // It pauses for half a second before actually searching, so we don't bombard the server.
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
       fetchStudents();

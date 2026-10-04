@@ -1,13 +1,13 @@
 import requests
 import io
-from PyPDF2 import PdfReader
+from pypdf import PdfReader
 
 import asyncio
 
 async def extract_cv_text_locally(cv_url: str) -> str:
     """
-    Downloads the PDF from the given URL (including Google Drive links) 
-    and extracts all text from it.
+    Downloads a student's PDF resume (even from Google Drive) 
+    and reads all the text inside so our AI can analyze it.
     """
     try:
         # 1. Convert Google Drive share link to a Direct Download link

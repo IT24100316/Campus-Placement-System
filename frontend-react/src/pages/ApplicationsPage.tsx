@@ -4,6 +4,8 @@ import { Footer } from '../components/layout/Footer';
 import InternalMemosPanel from '../components/admin/InternalMemosPanel';
 import { Building2, PlusCircle, Users, CheckCircle2, Bell, LogOut, Loader2 } from 'lucide-react';
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5168/api';
+
 interface Candidate {
   id: string;
   initials: string;
@@ -78,10 +80,12 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
 
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loading, setLoading] = useState(true);
+  // Grabs all the pending applications from the backend API.
+  // It also parses the complex AI validation reports so they look nice in the UI!
   const fetchCandidates = async () => {
     try {
       setLoading(true);
-      const res = await fetch('http://localhost:5168/api/Applications/pending-admin-approval');
+      const res = await fetch(`${API_BASE}/Applications/pending-admin-approval`);
       if (!res.ok) throw new Error('Failed to fetch');
       const data = await res.json();
       
@@ -169,9 +173,11 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
   const [globalPendingMemos, setGlobalPendingMemos] = useState<Record<string, boolean>>({});
   const [memoFilter, setMemoFilter] = useState<'all' | 'action_required' | 'no_action_required'>('all');
 
+  // Fetches a quick list of all applications that have unresolved memos.
+  // We use this to disable the "Approve/Reject" buttons until staff resolve their discussions.
   const fetchPendingMemosSummary = async () => {
     try {
-      const response = await fetch(`http://localhost:5168/api/memos/pending-summary`);
+      const response = await fetch(`${API_BASE}/memos/pending-summary`);
       if (response.ok) {
         const appIds: string[] = await response.json();
         const map: Record<string, boolean> = {};
@@ -188,9 +194,11 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
     fetchPendingMemosSummary();
   }, []);
 
+  // Tells the backend that a human admin has made a final approve or reject decision.
+  // If successful, it moves the candidate out of the 'pending' tab!
   const handleAction = async (id: string, action: 'approve' | 'reject') => {
     try {
-      const res = await fetch(`http://localhost:5168/api/Applications/human-verify`, {
+      const res = await fetch(`${API_BASE}/Applications/human-verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -210,12 +218,16 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
     }
   };
 
+  // Switches between the Pending, Approved, and Disapproved tabs.
+  // It also resets the pagination back to page 1 so things don't look weird.
   const handleTabChange = (tab: 'pending' | 'approved' | 'disapproved') => {
     setActiveTab(tab);
     setExpandedId(null);
     setCurrentPage(1);
   };
 
+  // A smart list that automatically filters the candidates based on the current tab, search box, and memo filter.
+  // It even pushes candidates with pending memos to the top of the list so they don't get ignored!
   const filteredCandidates = useMemo(() => {
     const result = candidates.filter(c => {
       const matchesTab = c.status === activeTab;
@@ -244,11 +256,14 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
     return result;
   }, [candidates, activeTab, searchQuery, memoFilter, globalPendingMemos]);
 
+  // Slices up our filtered list so we only show 5 candidates at a time on the screen.
   const paginatedCandidates = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     return filteredCandidates.slice(startIndex, startIndex + itemsPerPage);
   }, [filteredCandidates, currentPage]);
 
+  // Expands or collapses a candidate's card to show their full AI evaluation and details.
+  // It's smart enough to ignore clicks on the approve/reject buttons!
   const toggleAccordion = (id: string, e: React.MouseEvent) => {
     // Prevent toggle if clicking on quick action buttons
     if ((e.target as HTMLElement).closest('button')) return;

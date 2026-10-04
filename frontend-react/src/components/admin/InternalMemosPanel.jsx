@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5168/api';
+
 const InternalMemosPanel = ({ applicationId, onPendingMemosChange }) => {
   const [memos, setMemos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -7,11 +9,11 @@ const InternalMemosPanel = ({ applicationId, onPendingMemosChange }) => {
   const [editingMemoId, setEditingMemoId] = useState(null);
   const [editMemoText, setEditMemoText] = useState('');
 
-  // Fetch memos when component mounts
+  // Runs as soon as the panel opens. It asks the server for all the memos attached to this specific application.
   useEffect(() => {
     const fetchMemos = async () => {
       try {
-        const response = await fetch(`http://localhost:5168/api/memos/application/${applicationId}`, {
+        const response = await fetch(`${API_BASE}/memos/application/${applicationId}`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
           }
@@ -30,7 +32,8 @@ const InternalMemosPanel = ({ applicationId, onPendingMemosChange }) => {
     fetchMemos();
   }, [applicationId]);
 
-  // Check if any memos are pending and lift state up
+  // Looks through the list of memos to see if any are still 'Pending'.
+  // If there are, it tells the parent component so it can lock the Approve/Reject buttons!
   const checkPending = (memosList) => {
     const hasPending = memosList.some(m => m.status === 'Pending');
     if (onPendingMemosChange) {
@@ -38,12 +41,13 @@ const InternalMemosPanel = ({ applicationId, onPendingMemosChange }) => {
     }
   };
 
-  // Create new memo
+  // Sends a brand new memo to the server.
+  // It also adds it directly to the list on the screen so you don't have to refresh the page.
   const handleAddMemo = async () => {
     if (!newMemoText.trim()) return;
     
     try {
-      const response = await fetch(`http://localhost:5168/api/memos`, {
+      const response = await fetch(`${API_BASE}/memos`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -64,10 +68,11 @@ const InternalMemosPanel = ({ applicationId, onPendingMemosChange }) => {
     }
   };
 
-  // Update existing memo text
+  // Saves the changes you made to an existing memo.
+  // Great for fixing typos without having to delete and re-write the whole thing!
   const handleUpdateMemo = async (memoId) => {
     try {
-      const response = await fetch(`http://localhost:5168/api/memos/${memoId}`, {
+      const response = await fetch(`${API_BASE}/memos/${memoId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -87,10 +92,11 @@ const InternalMemosPanel = ({ applicationId, onPendingMemosChange }) => {
     }
   };
 
-  // Resolve (Soft Delete) memo
+  // Marks a memo as 'Resolved'.
+  // This is like checking off a to-do item, letting everyone know the issue has been handled.
   const handleResolveMemo = async (memoId) => {
     try {
-      const response = await fetch(`http://localhost:5168/api/memos/${memoId}/resolve`, {
+      const response = await fetch(`${API_BASE}/memos/${memoId}/resolve`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -107,11 +113,12 @@ const InternalMemosPanel = ({ applicationId, onPendingMemosChange }) => {
     }
   };
 
-  // Hard Delete memo
+  // Completely deletes a memo from the database forever.
+  // We ask for confirmation first, just in case it was clicked by accident!
   const handleDeleteMemo = async (memoId) => {
     if (!window.confirm("Are you sure you want to completely delete this memo?")) return;
     try {
-      const response = await fetch(`http://localhost:5168/api/memos/${memoId}`, {
+      const response = await fetch(`${API_BASE}/memos/${memoId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
