@@ -18,25 +18,34 @@ class GlobalAppHeader extends StatelessWidget implements PreferredSizeWidget {
               color: AppColors.primary,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(Icons.layers, color: Colors.white, size: 20),
+            child: CustomPaint(
+              size: const Size(20, 20),
+              painter: _TwoLayerIconPainter(color: Colors.white),
+            ),
           ),
           const SizedBox(width: 12),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: const [
               Text(
-                'CampusAI Portal',
+                'CampusAI',
                 style: TextStyle(
                   color: AppColors.textPrimaryLight,
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
+                  height: 1.1,
                 ),
               ),
+              SizedBox(height: 2),
               Text(
-                'Autonomous Placement',
+                'STUDENT PORTAL',
                 style: TextStyle(
-                  color: AppColors.textSecondaryLight,
-                  fontSize: 12,
+                  color: AppColors.primary,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.5,
+                  height: 1.1,
                 ),
               ),
             ],
@@ -83,4 +92,46 @@ class GlobalAppHeader extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+}
+class _TwoLayerIconPainter extends CustomPainter {
+  final Color color;
+
+  _TwoLayerIconPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    final scale = size.width / 24.0;
+    canvas.scale(scale, scale);
+
+    final path1 = Path()
+      ..moveTo(12, 2)
+      ..lineTo(2, 7)
+      ..lineTo(12, 12)
+      ..lineTo(22, 7)
+      ..close();
+
+    final path2 = Path()
+      ..moveTo(2, 12)
+      ..lineTo(12, 17)
+      ..lineTo(22, 12);
+
+    final path3 = Path()
+      ..moveTo(2, 17)
+      ..lineTo(12, 22)
+      ..lineTo(22, 17);
+
+    canvas.drawPath(path1, paint);
+    canvas.drawPath(path2, paint);
+    canvas.drawPath(path3, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
