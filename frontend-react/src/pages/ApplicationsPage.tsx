@@ -422,12 +422,6 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
             <h1 className="font-bold text-2xl sm:text-3xl tracking-tight">Applications & Candidates</h1>
             <p className="text-sm text-slate-500 mt-1">Review, match, and evaluate verified student applicants for active roles.</p>
           </div>
-          <div className="flex items-center gap-3">
-            <button className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-slate-200 bg-white text-sm font-medium hover:bg-slate-50 transition-colors shadow-sm">
-              <span className="material-symbols-outlined text-[18px] text-slate-500">download</span>
-              Export
-            </button>
-          </div>
         </div>
 
         {/* Unified Clean Filter & Search Bar */}
