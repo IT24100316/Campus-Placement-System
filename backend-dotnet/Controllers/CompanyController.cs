@@ -61,4 +61,33 @@ public class CompanyController : ControllerBase
 
         return Ok(new { message = "Job updated successfully." });
     }
+
+    /// <summary>
+    /// Update a company HR profile (name, industry, contact, phone)
+    /// </summary>
+    [HttpPut("profile/{companyId}")]
+    public async Task<IActionResult> UpdateProfile(Guid companyId, [FromBody] backend_dotnet.DTOs.UpdateCompanyProfileDto dto)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        var success = await _companyService.UpdateProfileAsync(companyId, dto);
+        if (!success)
+            return NotFound(new { message = "Company profile not found." });
+
+        return Ok(new { message = "Profile updated successfully." });
+    }
+
+    /// <summary>
+    /// Delete a company HR profile and user account
+    /// </summary>
+    [HttpDelete("profile/{companyId}")]
+    public async Task<IActionResult> DeleteProfile(Guid companyId)
+    {
+        var success = await _companyService.DeleteProfileAsync(companyId);
+        if (!success)
+            return NotFound(new { message = "Company profile not found." });
+
+        return Ok(new { message = "Profile and account deleted successfully." });
+    }
 }

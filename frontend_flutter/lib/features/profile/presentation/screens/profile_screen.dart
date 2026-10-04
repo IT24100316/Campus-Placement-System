@@ -13,6 +13,7 @@ import '../../../../core/services/cv_upload_service.dart';
 import '../../../auth/presentation/screens/landing_screen.dart';
 import '../../data/student_profile_models.dart';
 import '../../data/student_profile_service.dart';
+import '../../../../core/widgets/global_app_header.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({
@@ -670,105 +671,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        backgroundColor: Colors.white.withValues(alpha: 0.85),
-        elevation: 0,
-        surfaceTintColor: Colors.transparent,
-        title: Row(
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.circular(8),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primary.withValues(alpha: 0.2),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: const Icon(Icons.layers, color: Colors.white, size: 20),
-            ),
-            const SizedBox(width: 8),
-            const Flexible(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'CampusAI Portal',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimaryLight,
-                    ),
-                  ),
-                  Text(
-                    'Autonomous Placement',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: AppColors.textSecondaryLight,
-                      fontWeight: FontWeight.normal,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: const Badge(
-              backgroundColor: Colors.red,
-              smallSize: 8,
-              child: Icon(
-                Icons.notifications_outlined,
-                color: AppColors.textSecondaryLight,
-              ),
-            ),
-            onPressed: () {},
-          ),
-          Padding(
-            padding: const EdgeInsets.only(right: 16.0, left: 8.0),
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Container(
-                  width: 32,
-                  height: 32,
-                  decoration: const BoxDecoration(
-                    color: AppColors.primary,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.person,
-                    color: Colors.white,
-                    size: 18,
-                  ),
-                ),
-                Positioned(
-                  bottom: -2,
-                  right: -2,
-                  child: Container(
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.verified,
-                      color: AppColors.primary,
-                      size: 14,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+      appBar: const GlobalAppHeader(),
       body: Stack(
         children: [
           SingleChildScrollView(
@@ -1687,7 +1590,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             borderRadius: BorderRadius.circular(8),
           ),
           child: DropdownButtonFormField<String>(
-            value: _selectedAcademicStatus,
+            initialValue: _selectedAcademicStatus,
             hint: const Text(
               'Select status',
               style: TextStyle(
@@ -1703,8 +1606,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             items:
                 {
                       ...const ['Full-time Student', 'Graduating Senior'],
-                      if (_selectedAcademicStatus != null)
-                        _selectedAcademicStatus!,
+                      ?_selectedAcademicStatus,
                     }
                     .map(
                       (status) =>
@@ -1736,7 +1638,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             borderRadius: BorderRadius.circular(8),
           ),
           child: DropdownButtonFormField<int>(
-            value: _selectedYearOfStudy,
+            initialValue: _selectedYearOfStudy,
             hint: const Text(
               'Select year',
               style: TextStyle(
@@ -1834,7 +1736,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             borderRadius: BorderRadius.circular(8),
           ),
           child: DropdownButtonFormField<String>(
-            value: _selectedSchedule,
+            initialValue: _selectedSchedule,
             icon: const Icon(Icons.expand_more, color: Colors.grey, size: 18),
             decoration: const InputDecoration(
               icon: Icon(Icons.calendar_month, color: Colors.grey, size: 20),
@@ -1850,7 +1752,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             items:
                 {
                   ...const ['Weekday', 'Weekend'],
-                  if (_selectedSchedule != null) _selectedSchedule!,
+                  ?_selectedSchedule,
                 }.map((String value) {
                   return DropdownMenuItem<String>(
                     value: value,
@@ -2027,8 +1929,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               contentPadding: EdgeInsets.symmetric(vertical: 12),
             ),
             validator: (value) {
-              if (value == null || value.trim().isEmpty)
+              if (value == null || value.trim().isEmpty) {
                 return 'GPA is required.';
+              }
               final numValue = double.tryParse(value);
               if (numValue == null || numValue < 0.0 || numValue > 4.0) {
                 return 'Enter a GPA from 0.00 to 4.00.';
@@ -2057,7 +1960,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             borderRadius: BorderRadius.circular(8),
           ),
           child: DropdownButtonFormField<String>(
-            value: _selectedDegree,
+            initialValue: _selectedDegree,
             hint: const Text(
               'Select Degree Program',
               style: TextStyle(
@@ -2081,7 +1984,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             items:
                 {
                   ...degreePrograms,
-                  if (_selectedDegree != null) _selectedDegree!,
+                  ?_selectedDegree,
                 }.map((String value) {
                   return DropdownMenuItem<String>(
                     value: value,
@@ -2114,7 +2017,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             borderRadius: BorderRadius.circular(8),
           ),
           child: DropdownButtonFormField<int>(
-            value: _selectedDomainId,
+            initialValue: _selectedDomainId,
             hint: _isLoadingDomains
                 ? const SizedBox(
                     height: 16,
@@ -2195,7 +2098,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             borderRadius: BorderRadius.circular(8),
           ),
           child: DropdownButtonFormField<int>(
-            value: _selectedJobTitleId,
+            initialValue: _selectedJobTitleId,
             hint: _isLoadingTitles
                 ? const SizedBox(
                     height: 16,

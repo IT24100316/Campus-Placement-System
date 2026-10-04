@@ -21,7 +21,7 @@ from agents.tier1 import tier1_node
 from agents.analysis import analysis_node
 from agents.action import action_node
 from agents.validation import validation_node, run_validation
-from tools.sendgrid_tool import send_email
+from tools.brevo_tool import send_email
 
 # Load environment variables from .env file
 load_dotenv()

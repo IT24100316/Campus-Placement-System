@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../../../core/constants/app_colors.dart';
-import '../../../../core/constants/app_colors.dart';
 import '../../../../core/services/api_service.dart';
 import '../../../../features/jobs/presentation/screens/job_details_screen.dart';
+import '../../../../core/widgets/global_app_header.dart';
 
 class ApplicationsTrackingScreen extends StatefulWidget {
   const ApplicationsTrackingScreen({super.key});
@@ -70,7 +69,7 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
     if (_isLoading) {
       return Scaffold(
         backgroundColor: backgroundColor,
-        appBar: _buildAppBar(),
+        appBar: const GlobalAppHeader(),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
@@ -78,7 +77,7 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
     if (_errorMessage != null && _applications.isEmpty) {
       return Scaffold(
         backgroundColor: backgroundColor,
-        appBar: _buildAppBar(),
+        appBar: const GlobalAppHeader(),
         body: Center(
           child: Text('Could not load applications.\n$_errorMessage', textAlign: TextAlign.center),
         ),
@@ -92,7 +91,7 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
 
     return Scaffold(
       backgroundColor: backgroundColor,
-      appBar: _buildAppBar(),
+      appBar: const GlobalAppHeader(),
       body: RefreshIndicator(
         onRefresh: _refresh,
         child: SingleChildScrollView(
@@ -122,83 +121,6 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
           ),
         ),
       ),
-    );
-  }
-
-  PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-      backgroundColor: backgroundColor.withOpacity(0.9),
-      elevation: 0,
-      scrolledUnderElevation: 4,
-      automaticallyImplyLeading: false,
-      title: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              color: primaryColor,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Icon(Icons.layers, color: Colors.white, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'CampusAI Portal',
-                style: TextStyle(
-                  color: onSurface,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Text(
-                'Autonomous Placement',
-                style: TextStyle(
-                  color: onSurfaceVariant,
-                  fontSize: 12,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-      actions: [
-        IconButton(
-          icon: const Badge(
-            backgroundColor: Colors.red,
-            child: Icon(Icons.notifications_none),
-          ),
-          color: onSurfaceVariant,
-          onPressed: () {},
-        ),
-        Container(
-          margin: const EdgeInsets.only(right: 16, left: 4),
-          alignment: Alignment.center,
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              const CircleAvatar(
-                radius: 16,
-                backgroundColor: AppColors.primary,
-                child: Icon(Icons.person, color: Colors.white, size: 18),
-              ),
-              Positioned(
-                bottom: -2,
-                right: -2,
-                child: Container(
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.verified, color: AppColors.primary, size: 14),
-                ),
-              )
-            ],
-          ),
-        ),
-      ],
     );
   }
 
@@ -269,7 +191,7 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
           decoration: BoxDecoration(
             color: isSelected ? Colors.white : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
-            boxShadow: isSelected ? [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 2, offset: const Offset(0, 1))] : [],
+            boxShadow: isSelected ? [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 2, offset: const Offset(0, 1))] : [],
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -328,7 +250,7 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
         ...items.map((item) => Padding(
           padding: const EdgeInsets.only(bottom: 16),
           child: _buildActionCard(item),
-        )).toList(),
+        )),
       ],
     );
   }
@@ -369,7 +291,7 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
       } : null,
       child: Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 4)]),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 4)]),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -428,7 +350,7 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
           const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(color: const Color(0xFFFFDAD6).withOpacity(0.5), borderRadius: BorderRadius.circular(8)),
+            decoration: BoxDecoration(color: const Color(0xFFFFDAD6).withValues(alpha: 0.5), borderRadius: BorderRadius.circular(8)),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -509,17 +431,15 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
                           item['status'] = 'Student_Accepted';
                         });
                         await ApiService().acceptOffer(item['applicationId']?.toString() ?? '');
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Offer Accepted!')));
-                        }
+                        if (!mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Offer Accepted!')));
                         _refresh();
                       } catch (e) {
                         setState(() {
                           item['status'] = 'Admin_Approved';
                         });
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
-                        }
+                        if (!mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
                       }
                     },
                     icon: const Icon(Icons.check_circle, size: 18),
@@ -583,17 +503,15 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
                           item['status'] = 'Rejected';
                         });
                         await ApiService().declineOffer(item['applicationId']?.toString() ?? '');
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Offer Declined!')));
-                        }
+                        if (!mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Offer Declined!')));
                         _refresh();
                       } catch (e) {
                         setState(() {
                           item['status'] = 'Admin_Approved';
                         });
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
-                        }
+                        if (!mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
                       }
                     },
                     icon: const Icon(Icons.cancel, size: 18),
@@ -662,11 +580,10 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
     required IconData icon, required String company, required String date,
     required String title, required String subtitle, required String badge,
     String? statusDescription,
-    bool isQuiz = false, bool isHourglass = false,
   }) {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 4)]),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 4)]),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -770,7 +687,7 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
   }) {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 4)]),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 4)]),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
