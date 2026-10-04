@@ -2,6 +2,7 @@ import base64
 import io
 import json
 import re
+import difflib
 from dataclasses import asdict
 from typing import Any
 import requests
@@ -12,6 +13,11 @@ STOP_WORDS = {
     "about", "after", "also", "and", "are", "because", "been", "before", "being",
     "candidate", "for", "from", "has", "have", "into", "its", "that", "the", "their",
     "this", "was", "were", "with", "years", "student", "summary", "skills",
+    "excellent", "strong", "proficient", "developed", "demonstrated", "experienced", 
+    "knowledge", "working", "understanding", "good", "advanced", "basic", "familiar", 
+    "using", "used", "built", "created", "designed", "implemented", "managed", "led", 
+    "team", "project", "work", "experience", "highly", "skilled", "various", "multiple",
+    "technologies", "tools", "frameworks", "languages", "environments", "applications"
 }
 
 def extract_pdf_text(pdf_bytes: bytes) -> str:
@@ -64,8 +70,22 @@ def validate_summary_against_cv(summary: Any, cv_text: str) -> ValidationResult:
     if not summary_terms:
         return ValidationResult(False, 0.0, [], [], ["Summary contains no verifiable terms."])
 
-    supported = sorted(summary_terms & cv_terms)
-    unsupported = sorted(summary_terms - cv_terms)
+    supported = []
+    unsupported = []
+    cv_terms_list = list(cv_terms)
+    
+    for term in summary_terms:
+        if term in cv_terms:
+            supported.append(term)
+        else:
+            matches = difflib.get_close_matches(term, cv_terms_list, n=1, cutoff=0.8)
+            if matches:
+                supported.append(term)
+            else:
+                unsupported.append(term)
+
+    supported = sorted(supported)
+    unsupported = sorted(unsupported)
     confidence = round(len(supported) / len(summary_terms), 3)
     warnings = []
     if unsupported:
