@@ -40,3 +40,10 @@
   vertical-align: middle;
   line-height: 1;
 }
+
+/* Hide Edge native password reveal icon */
+input::-ms-reveal,
+input::-ms-clear {
+  display: none;
+}
+
