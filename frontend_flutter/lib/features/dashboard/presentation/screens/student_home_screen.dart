@@ -7,6 +7,8 @@ import '../../../profile/data/student_profile_service.dart';
 import '../../../jobs/data/models/job_feed_model.dart';
 import '../../../jobs/data/repositories/job_repository.dart';
 import '../../../jobs/presentation/screens/job_details_screen.dart';
+import '../../../notifications/data/student_notification_service.dart';
+import '../../../notifications/presentation/screens/notification_center_screen.dart';
 import '../widgets/dashboard_components.dart';
 
 class StudentHomeScreen extends StatefulWidget {
@@ -32,6 +34,8 @@ class _StudentHomeScreenState extends State<StudentHomeScreen>
   final StudentProfileService _profileService = StudentProfileService();
   final ApiService _apiService = ApiService();
   final JobRepository _jobRepository = JobRepository();
+  final StudentNotificationService _notificationService =
+      StudentNotificationService();
 
   StudentProfileResponse? _profile;
   List<Map<String, dynamic>> _applications = const [];
@@ -42,6 +46,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen>
   String? _profileError;
   String? _applicationsError;
   String? _jobsError;
+  int _unreadNotifications = 0;
 
   @override
   void initState() {
@@ -78,6 +83,23 @@ class _StudentHomeScreenState extends State<StudentHomeScreen>
   void _refreshHomeData() {
     _loadDashboardData();
     _loadLatestJobs();
+    _loadUnreadNotifications();
+  }
+
+  Future<void> _loadUnreadNotifications() async {
+    try {
+      final count = await _notificationService.unreadCount();
+      if (mounted) setState(() => _unreadNotifications = count);
+    } catch (_) {
+      // The dashboard continues to work while the notification API is unavailable.
+    }
+  }
+
+  Future<void> _openNotifications() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const NotificationCenterScreen()),
+    );
+    _loadUnreadNotifications();
   }
 
   Future<void> _loadProfile() async {
@@ -206,12 +228,6 @@ class _StudentHomeScreenState extends State<StudentHomeScreen>
     return '$salutation, $name';
   }
 
-  void _showPlaceholder(BuildContext context, String label) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$label will be available soon.')),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.sizeOf(context).width;
@@ -225,8 +241,8 @@ class _StudentHomeScreenState extends State<StudentHomeScreen>
             SliverToBoxAdapter(
               child: _Header(
                 greeting: _headerGreeting,
-                onNotificationsTap: () =>
-                    _showPlaceholder(context, 'Notifications'),
+                unreadNotifications: _unreadNotifications,
+                onNotificationsTap: _openNotifications,
               ),
             ),
             SliverPadding(
@@ -1418,9 +1434,14 @@ class _ApplicationsEmptyState extends StatelessWidget {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.greeting, required this.onNotificationsTap});
+  const _Header({
+    required this.greeting,
+    required this.unreadNotifications,
+    required this.onNotificationsTap,
+  });
 
   final String greeting;
+  final int unreadNotifications;
   final VoidCallback onNotificationsTap;
 
   @override
@@ -1473,16 +1494,18 @@ class _Header extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              IconButton(
-                onPressed: onNotificationsTap,
-                style: IconButton.styleFrom(fixedSize: const Size(44, 44)),
-                icon: const Icon(Icons.notifications_none_rounded, color: AppColors.textPrimaryLight),
+          IconButton(
+            onPressed: onNotificationsTap,
+            style: IconButton.styleFrom(fixedSize: const Size(44, 44)),
+            icon: Badge.count(
+              count: unreadNotifications,
+              isLabelVisible: unreadNotifications > 0,
+              backgroundColor: Colors.red,
+              child: const Icon(
+                Icons.notifications_none_rounded,
+                color: AppColors.textPrimaryLight,
               ),
-              Positioned(right: 8, top: 7, child: Container(width: 8, height: 8, decoration: const BoxDecoration(color: Color(0xFFEF4444), shape: BoxShape.circle))),
-            ],
+            ),
           ),
         ],
       ),

@@ -1,9 +1,44 @@
 import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
 import 'campus_ai_logo.dart';
+import '../../features/notifications/data/student_notification_service.dart';
+import '../../features/notifications/presentation/screens/notification_center_screen.dart';
 
-class GlobalAppHeader extends StatelessWidget implements PreferredSizeWidget {
+class GlobalAppHeader extends StatefulWidget implements PreferredSizeWidget {
   const GlobalAppHeader({super.key});
+
+  @override
+  State<GlobalAppHeader> createState() => _GlobalAppHeaderState();
+
+  @override
+  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+}
+
+class _GlobalAppHeaderState extends State<GlobalAppHeader> {
+  final _notificationService = StudentNotificationService();
+  int _unreadCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUnreadCount();
+  }
+
+  Future<void> _loadUnreadCount() async {
+    try {
+      final count = await _notificationService.unreadCount();
+      if (mounted) setState(() => _unreadCount = count);
+    } catch (_) {
+      // A header must still render while a session is loading or unavailable.
+    }
+  }
+
+  Future<void> _openNotificationCenter() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const NotificationCenterScreen()),
+    );
+    _loadUnreadCount();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -52,12 +87,14 @@ class GlobalAppHeader extends StatelessWidget implements PreferredSizeWidget {
       ),
       actions: [
         IconButton(
-          icon: const Badge(
+          icon: Badge.count(
+            count: _unreadCount,
+            isLabelVisible: _unreadCount > 0,
             backgroundColor: Colors.red,
-            child: Icon(Icons.notifications_none),
+            child: const Icon(Icons.notifications_none),
           ),
           color: AppColors.textSecondaryLight,
-          onPressed: () {},
+          onPressed: _openNotificationCenter,
         ),
         Container(
           margin: const EdgeInsets.only(right: 16, left: 4),
@@ -88,7 +125,5 @@ class GlobalAppHeader extends StatelessWidget implements PreferredSizeWidget {
     );
   }
 
-  @override
-  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
 }
 

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/services/api_service.dart';
-import '../../../../core/widgets/authenticated_brand_header.dart';
+import '../../../../core/widgets/global_app_header.dart';
 import '../../data/student_profile_models.dart';
 import '../../data/student_profile_service.dart';
 import 'profile_screen.dart';
@@ -100,15 +100,14 @@ class _ResumeHubScreenState extends State<ResumeHubScreen> {
     final snapshot = _ResumeSnapshot.fromProfile(_profile);
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
+      appBar: const GlobalAppHeader(),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _loadResume,
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(16, 24, 16, 32),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
             children: [
-              const AuthenticatedBrandHeader(),
-              const SizedBox(height: 24),
               const Text(
                 'Resume',
                 style: TextStyle(

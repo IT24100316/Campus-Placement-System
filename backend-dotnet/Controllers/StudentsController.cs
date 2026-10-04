@@ -20,17 +20,20 @@ public class StudentsController : ControllerBase
     private readonly ICvFileValidationService _cvFileValidationService;
     private readonly ICvStorageService _cvStorageService;
     private readonly ILogger<StudentsController> _logger;
+    private readonly INotificationService? _notificationService;
 
     public StudentsController(
         AppDbContext context,
         ICvFileValidationService cvFileValidationService,
         ICvStorageService cvStorageService,
-        ILogger<StudentsController> logger)
+        ILogger<StudentsController> logger,
+        INotificationService? notificationService = null)
     {
         _context = context;
         _cvFileValidationService = cvFileValidationService;
         _cvStorageService = cvStorageService;
         _logger = logger;
+        _notificationService = notificationService;
     }
 
     [HttpGet("profile")]
@@ -199,6 +202,19 @@ public class StudentsController : ControllerBase
         profile.CvPdfUrl = storageKey;
         var newUploadedAtUtc = DateTime.UtcNow;
         profile.CvUploadedAt = newUploadedAtUtc;
+        _notificationService?.Clear(userId, "cv_replacement_available");
+        _notificationService?.Add(
+            userId,
+            "cv_uploaded",
+            "CV uploaded",
+            "Your CV was uploaded successfully. You can replace it again after seven days.",
+            "resume");
+        _notificationService?.AddIfMissing(
+            userId,
+            "resume_complete",
+            "Resume complete",
+            "Your profile and CV are ready for internship opportunities.",
+            "resume");
 
         try
         {
@@ -271,6 +287,8 @@ public class StudentsController : ControllerBase
             .SingleOrDefaultAsync(candidate => candidate.UserId == userId);
         var isNewProfile = profile == null;
 
+        var wasComplete = profile != null && IsCompleteForInternshipRegistration(profile);
+
         profile ??= new StudentProfile
         {
             UserId = userId
@@ -283,6 +301,7 @@ public class StudentsController : ControllerBase
         }
 
         ApplyProfileUpdates(profile, request);
+        var isComplete = IsCompleteForInternshipRegistration(profile);
 
         if (!request.IsDraft && !IsValidForInternshipRegistration(profile))
         {
@@ -295,6 +314,16 @@ public class StudentsController : ControllerBase
         if (isNewProfile)
         {
             _context.StudentProfiles.Add(profile);
+        }
+
+        if (!wasComplete && isComplete)
+        {
+            _notificationService?.AddIfMissing(
+                userId,
+                "profile_complete",
+                "Profile complete",
+                "Your internship profile is complete. Upload your CV to finish your resume.",
+                "resume");
         }
 
         try
