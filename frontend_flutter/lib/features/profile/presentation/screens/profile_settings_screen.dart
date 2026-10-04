@@ -474,7 +474,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                       ),
                       value: _isLookingForInternship,
                       onChanged: _hasProfile ? _toggleInternshipStatus : null,
-                      activeColor: AppColors.primary,
+                      activeThumbColor: AppColors.primary,
                     ),
                   if (!_hasProfile && !_isLoadingStatus)
                     const Padding(
