@@ -40,8 +40,8 @@ class _JobFeedScreenState extends State<JobFeedScreen> {
   String? _errorMessage;
   String _searchQuery = '';
   RangeValues _gpaRange = const RangeValues(2, 4);
-  List<int> _selectedYears = [];
-  Set<String> _selectedWorkTypes = {};
+  final List<int> _selectedYears = [];
+  final Set<String> _selectedWorkTypes = {};
   _JobSort _sort = _JobSort.newest;
 
   @override
@@ -49,7 +49,8 @@ class _JobFeedScreenState extends State<JobFeedScreen> {
     super.initState();
     _fetchJobs();
     _scrollController.addListener(() {
-      final nearEnd = _scrollController.position.pixels >=
+      final nearEnd =
+          _scrollController.position.pixels >=
           _scrollController.position.maxScrollExtent - 200;
       if (nearEnd && !_isLoading && _hasMore) _fetchNextPage();
     });
@@ -131,7 +132,8 @@ class _JobFeedScreenState extends State<JobFeedScreen> {
     for (final job in jobs) {
       for (final type in job.internshipType) {
         final normalized = _normalizeWorkType(type);
-        if (_workLabels.containsKey(normalized)) _supportedWorkTypes.add(normalized);
+        if (_workLabels.containsKey(normalized))
+          _supportedWorkTypes.add(normalized);
       }
     }
   }
@@ -199,13 +201,12 @@ class _JobFeedScreenState extends State<JobFeedScreen> {
           if (_jobs.isNotEmpty)
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 24),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 24,
+                  horizontal: 24,
+                ),
                 child: Text(
-                  'Showing ' +
-                      jobs.length.toString() +
-                      ' of ' +
-                      _totalJobs.toString() +
-                      ' campus drives',
+                  'Showing ${jobs.length} of $_totalJobs campus drives',
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     color: AppColors.textSecondaryLight,
@@ -252,7 +253,9 @@ class _JobFeedScreenState extends State<JobFeedScreen> {
     if (_isLoading && _jobs.isEmpty) {
       return const SliverFillRemaining(
         hasScrollBody: false,
-        child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+        child: Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
       );
     }
     if (_errorMessage != null && _jobs.isEmpty) {
@@ -309,34 +312,33 @@ class _JobFeedScreenState extends State<JobFeedScreen> {
     return SliverPadding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
       sliver: SliverList(
-        delegate: SliverChildBuilderDelegate(
-          (context, index) {
-            if (index == jobs.length) {
-              return const Padding(
-                padding: EdgeInsets.all(16),
-                child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
-              );
-            }
-            final job = jobs[index];
-            return JobCard(
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => JobDetailsScreen(jobId: job.jobId),
-                  ),
-                );
-              },
-              jobTitle: job.jobTitle,
-              companyName: job.companyName,
-              locationCity: job.locationCity,
-              internshipTypes: job.internshipType,
-              targetDomain: job.targetDomain,
-              tags: job.tags,
-              applicationDeadline: job.applicationDeadline,
+        delegate: SliverChildBuilderDelegate((context, index) {
+          if (index == jobs.length) {
+            return const Padding(
+              padding: EdgeInsets.all(16),
+              child: Center(
+                child: CircularProgressIndicator(color: AppColors.primary),
+              ),
             );
-          },
-          childCount: jobs.length + (_hasMore ? 1 : 0),
-        ),
+          }
+          final job = jobs[index];
+          return JobCard(
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => JobDetailsScreen(jobId: job.jobId),
+                ),
+              );
+            },
+            jobTitle: job.jobTitle,
+            companyName: job.companyName,
+            locationCity: job.locationCity,
+            internshipTypes: job.internshipType,
+            targetDomain: job.targetDomain,
+            tags: job.tags,
+            applicationDeadline: job.applicationDeadline,
+          );
+        }, childCount: jobs.length + (_hasMore ? 1 : 0)),
       ),
     );
   }

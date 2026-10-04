@@ -409,9 +409,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   String? _tagEntryError(String value, List<String> items, String label) {
     if (value.isEmpty) return 'Enter a $label before adding it.';
-    if (items.any(
-      (item) => item.trim().toLowerCase() == value.toLowerCase(),
-    )) {
+    if (items.any((item) => item.trim().toLowerCase() == value.toLowerCase())) {
       return 'This $label has already been added.';
     }
     return null;
@@ -583,13 +581,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
             graduation.month,
             graduation.day,
           ).isBefore(DateTime(today.year, today.month, today.day)),
-      _selectedReferenceValue(_jobTitles, _selectedJobTitleId, 'title')
-              ?.trim()
-              .isNotEmpty ==
+      _selectedReferenceValue(
+            _jobTitles,
+            _selectedJobTitleId,
+            'title',
+          )?.trim().isNotEmpty ==
           true,
-      _selectedReferenceValue(_domains, _selectedDomainId, 'name')
-              ?.trim()
-              .isNotEmpty ==
+      _selectedReferenceValue(
+            _domains,
+            _selectedDomainId,
+            'name',
+          )?.trim().isNotEmpty ==
           true,
       _validateCareerObjectives(
             _careerObjectivesController.text,
@@ -680,11 +682,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() => _showFinalValidation = true);
     final isFormValid = _formKey.currentState?.validate() ?? false;
     setState(() {
-      _skillsError = _validateTagItems(
-        _skills,
-        label: 'skill',
-        required: true,
-      );
+      _skillsError = _validateTagItems(_skills, label: 'skill', required: true);
       _toolsError = _validateTagItems(
         _tools,
         label: 'tool or technology',
@@ -772,8 +770,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         } catch (_) {
           if (!mounted) return;
           setState(() {
-            _profileMessage =
-                'Profile saved, but the CV still needs to be uploaded. Please retry.';
+            _profileMessage = 'Profile saved, but the CV still needs to be uploaded. Please retry.';
             _profileMessageIsError = true;
             _registrationComplete = false;
           });
@@ -861,8 +858,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
       expectedGraduationDate: graduation == null
           ? null
           : DateTime.utc(graduation.year, graduation.month, graduation.day),
-      desiredJobTitle: _selectedReferenceValue(_jobTitles, _selectedJobTitleId, 'title'),
-      primaryDomain: _selectedReferenceValue(_domains, _selectedDomainId, 'name'),
+      desiredJobTitle: _selectedReferenceValue(
+        _jobTitles,
+        _selectedJobTitleId,
+        'title',
+      ),
+      primaryDomain: _selectedReferenceValue(
+        _domains,
+        _selectedDomainId,
+        'name',
+      ),
       careerObjectivesSummary: _careerObjectivesController.text.trim(),
       skills: List.of(_skills),
       toolsAndTechnologies: List.of(_tools),
@@ -891,7 +896,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
     final today = DateTime.now();
     final gpa = double.tryParse(_gpaController.text.trim());
-    return _validateFullName(_fullNameController.text, required: true) == null &&
+    return _validateFullName(_fullNameController.text, required: true) ==
+            null &&
         _validatePhone(_phoneController.text, required: true) == null &&
         _validateUniversityName(_universityController.text, required: true) ==
             null &&
@@ -903,16 +909,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
         gpa >= 0 &&
         gpa <= 4 &&
         graduation != null &&
-        !DateTime(graduation.year, graduation.month, graduation.day).isBefore(
-          DateTime(today.year, today.month, today.day),
-        ) &&
-        _selectedReferenceValue(_jobTitles, _selectedJobTitleId, 'title')
-                ?.trim()
-                .isNotEmpty ==
+        !DateTime(
+          graduation.year,
+          graduation.month,
+          graduation.day,
+        ).isBefore(DateTime(today.year, today.month, today.day)) &&
+        _selectedReferenceValue(
+              _jobTitles,
+              _selectedJobTitleId,
+              'title',
+            )?.trim().isNotEmpty ==
             true &&
-        _selectedReferenceValue(_domains, _selectedDomainId, 'name')
-                ?.trim()
-                .isNotEmpty ==
+        _selectedReferenceValue(
+              _domains,
+              _selectedDomainId,
+              'name',
+            )?.trim().isNotEmpty ==
             true &&
         _validateCareerObjectives(
               _careerObjectivesController.text,
@@ -937,7 +949,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final graduation = profile.expectedGraduationDate;
     return _validateFullName(profile.fullName, required: true) == null &&
         _validatePhone(profile.phone, required: true) == null &&
-        _validateUniversityName(profile.universityName, required: true) == null &&
+        _validateUniversityName(profile.universityName, required: true) ==
+            null &&
         profile.academicStatus.trim().isNotEmpty &&
         profile.degreeProgram.trim().isNotEmpty &&
         profile.currentYearOfStudy >= 1 &&
@@ -945,9 +958,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         profile.gpa >= 0 &&
         profile.gpa <= 4 &&
         graduation != null &&
-        !DateTime(graduation.year, graduation.month, graduation.day).isBefore(
-          DateTime(today.year, today.month, today.day),
-        ) &&
+        !DateTime(
+          graduation.year,
+          graduation.month,
+          graduation.day,
+        ).isBefore(DateTime(today.year, today.month, today.day)) &&
         profile.desiredJobTitle.trim().isNotEmpty &&
         profile.primaryDomain.trim().isNotEmpty &&
         _validateCareerObjectives(
@@ -1074,8 +1089,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     icon: Icons.person_outline,
                     title: 'Personal information',
                     completedFields: _completedIn([
-                      _validateFullName(_fullNameController.text, required: true) == null,
-                      _validatePhone(_phoneController.text, required: true) == null,
+                      _validateFullName(
+                            _fullNameController.text,
+                            required: true,
+                          ) ==
+                          null,
+                      _validatePhone(_phoneController.text, required: true) ==
+                          null,
                     ]),
                     totalFields: 2,
                     children: [
@@ -1120,7 +1140,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       double.tryParse(_gpaController.text.trim()) != null &&
                           (double.tryParse(_gpaController.text.trim()) ?? -1) >=
                               0 &&
-                          (double.tryParse(_gpaController.text.trim()) ?? 5) <= 4,
+                          (double.tryParse(_gpaController.text.trim()) ?? 5) <=
+                              4,
                       _validateExpectedGraduationDate(
                             _expectedGraduationController.text,
                             required: true,
@@ -1185,17 +1206,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             _domains,
                             _selectedDomainId,
                             'name',
-                          )
-                              ?.trim()
-                              .isNotEmpty ==
+                          )?.trim().isNotEmpty ==
                           true,
                       _selectedReferenceValue(
                             _jobTitles,
                             _selectedJobTitleId,
                             'title',
-                          )
-                              ?.trim()
-                              .isNotEmpty ==
+                          )?.trim().isNotEmpty ==
                           true,
                       _validateCareerObjectives(
                             _careerObjectivesController.text,
@@ -1397,7 +1414,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: LinearProgressIndicator(
               value: completed / _requiredResumeFieldCount,
               backgroundColor: AppColors.borderLight,
-              valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+              valueColor: const AlwaysStoppedAnimation<Color>(
+                AppColors.primary,
+              ),
               minHeight: 6,
             ),
           ),
@@ -1412,9 +1431,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       decoration: BoxDecoration(
         color: AppColors.primary.withValues(alpha: 0.03),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppColors.primary.withValues(alpha: 0.2),
-        ),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
       ),
       child: Column(
         children: [
@@ -1770,10 +1787,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   String? _validateUniversityName(String? value, {required bool required}) {
     final university = value?.trim() ?? '';
-    if (university.isEmpty) return required ? 'University name is required.' : null;
+    if (university.isEmpty)
+      return required ? 'University name is required.' : null;
     final hasLetter = RegExp(r'\p{L}', unicode: true).hasMatch(university);
-    final hasControlCharacter = RegExp(r'[\p{Cc}\p{Cf}]', unicode: true)
-        .hasMatch(university);
+    final hasControlCharacter = RegExp(
+      r'[\p{Cc}\p{Cf}]',
+      unicode: true,
+    ).hasMatch(university);
     return university.length >= 2 &&
             university.length <= 255 &&
             hasLetter &&
@@ -1931,7 +1951,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(11),
-              borderSide: const BorderSide(color: AppColors.primary, width: 1.4),
+              borderSide: const BorderSide(
+                color: AppColors.primary,
+                width: 1.4,
+              ),
             ),
           ),
         ),
@@ -1955,7 +1978,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             borderRadius: BorderRadius.circular(8),
           ),
           child: DropdownButtonFormField<String>(
-            value: _selectedAcademicStatus,
+            initialValue: _selectedAcademicStatus,
             hint: const Text(
               'Select status',
               style: TextStyle(
@@ -1971,8 +1994,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             items:
                 {
                       ...const ['Full-time Student', 'Graduating Senior'],
-                      if (_selectedAcademicStatus != null)
-                        _selectedAcademicStatus!,
+                      ?_selectedAcademicStatus,
                     }
                     .map(
                       (status) =>
@@ -1981,9 +2003,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     .toList(),
             onChanged: (status) =>
                 setState(() => _selectedAcademicStatus = status),
-            validator: (value) => _showFinalValidation
-                ? _validateRequired(value)
-                : null,
+            validator: (value) =>
+                _showFinalValidation ? _validateRequired(value) : null,
           ),
         ),
       ],
@@ -2006,7 +2027,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             borderRadius: BorderRadius.circular(8),
           ),
           child: DropdownButtonFormField<int>(
-            value: _selectedYearOfStudy,
+            initialValue: _selectedYearOfStudy,
             hint: const Text(
               'Select year',
               style: TextStyle(
@@ -2024,9 +2045,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               return DropdownMenuItem(value: year, child: Text('Year $year'));
             }),
             onChanged: (year) => setState(() => _selectedYearOfStudy = year),
-            validator: (year) => _showFinalValidation && year == null
-                ? 'Select a year.'
-                : null,
+            validator: (year) =>
+                _showFinalValidation && year == null ? 'Select a year.' : null,
           ),
         ),
       ],
@@ -2117,7 +2137,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             borderRadius: BorderRadius.circular(8),
           ),
           child: DropdownButtonFormField<String>(
-            value: _selectedSchedule,
+            initialValue: _selectedSchedule,
             icon: const Icon(Icons.expand_more, color: Colors.grey, size: 18),
             decoration: const InputDecoration(
               icon: Icon(Icons.calendar_month, color: Colors.grey, size: 20),
@@ -2133,7 +2153,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             items:
                 {
                   ...const ['Weekday', 'Weekend'],
-                  if (_selectedSchedule != null) _selectedSchedule!,
+                  ?_selectedSchedule,
                 }.map((String value) {
                   return DropdownMenuItem<String>(
                     value: value,
@@ -2145,9 +2165,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 setState(() => _selectedSchedule = newValue);
               }
             },
-            validator: (value) => _showFinalValidation
-                ? _validateRequired(value)
-                : null,
+            validator: (value) =>
+                _showFinalValidation ? _validateRequired(value) : null,
           ),
         ),
       ],
@@ -2311,10 +2330,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               isDense: true,
               contentPadding: EdgeInsets.symmetric(vertical: 12),
             ),
-            validator: (value) => _validateGpa(
-              value,
-              required: _showFinalValidation,
-            ),
+            validator: (value) =>
+                _validateGpa(value, required: _showFinalValidation),
           ),
         ),
       ],
@@ -2337,7 +2354,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             borderRadius: BorderRadius.circular(8),
           ),
           child: DropdownButtonFormField<String>(
-            value: _selectedDegree,
+            initialValue: _selectedDegree,
             hint: const Text(
               'Select Degree Program',
               style: TextStyle(
@@ -2358,22 +2375,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
               color: AppColors.textPrimaryLight,
             ),
             dropdownColor: Colors.white,
-            items:
-                {
-                  ...degreePrograms,
-                  if (_selectedDegree != null) _selectedDegree!,
-                }.map((String value) {
-                  return DropdownMenuItem<String>(
-                    value: value,
-                    child: Text(value, overflow: TextOverflow.ellipsis),
-                  );
-                }).toList(),
+            items: {...degreePrograms, ?_selectedDegree}.map((String value) {
+              return DropdownMenuItem<String>(
+                value: value,
+                child: Text(value, overflow: TextOverflow.ellipsis),
+              );
+            }).toList(),
             onChanged: (newValue) {
               setState(() => _selectedDegree = newValue);
             },
-            validator: (value) => _showFinalValidation
-                ? _validateRequired(value)
-                : null,
+            validator: (value) =>
+                _showFinalValidation ? _validateRequired(value) : null,
           ),
         ),
       ],
@@ -2396,7 +2408,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             borderRadius: BorderRadius.circular(8),
           ),
           child: DropdownButtonFormField<int>(
-            value: _selectedDomainId,
+            initialValue: _selectedDomainId,
             hint: _isLoadingDomains
                 ? const SizedBox(
                     height: 16,
@@ -2452,8 +2464,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 if (newValue > 0) _fetchJobTitles(newValue);
               }
             },
-            validator: (domainId) => _showFinalValidation &&
-                    (domainId == null || domainId == -1)
+            validator: (domainId) =>
+                _showFinalValidation && (domainId == null || domainId == -1)
                 ? 'Select a primary domain.'
                 : null,
           ),
@@ -2478,7 +2490,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             borderRadius: BorderRadius.circular(8),
           ),
           child: DropdownButtonFormField<int>(
-            value: _selectedJobTitleId,
+            initialValue: _selectedJobTitleId,
             hint: _isLoadingTitles
                 ? const SizedBox(
                     height: 16,
@@ -2533,8 +2545,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       });
                     }
                   },
-            validator: (jobTitleId) => _showFinalValidation &&
-                    (jobTitleId == null || jobTitleId == -1)
+            validator: (jobTitleId) =>
+                _showFinalValidation && (jobTitleId == null || jobTitleId == -1)
                 ? 'Select a target job title.'
                 : null,
           ),
