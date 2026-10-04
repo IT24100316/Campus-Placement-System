@@ -135,7 +135,12 @@ public class StudentProfileControllerTests
             new[] { new Claim(ClaimTypes.NameIdentifier, studentId.ToString()) },
             authenticationType: "TestAuthentication");
 
-        return new StudentsController(context, null!, null!, NullLogger<StudentsController>.Instance)
+        return new StudentsController(
+            context,
+            null!,
+            null!,
+            null!,
+            NullLogger<StudentsController>.Instance)
         {
             ControllerContext = new ControllerContext
             {

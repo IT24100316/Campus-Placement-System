@@ -135,7 +135,7 @@ void main() {
   });
 
   testWidgets(
-    'Document Upload follows all profile sections and stays scrollable',
+    'CV upload follows all resume sections and stays scrollable',
     (tester) async {
       addTearDown(() => tester.binding.setSurfaceSize(null));
       final service = StudentProfileService(
@@ -158,11 +158,11 @@ void main() {
         await tester.pumpAndSettle();
 
         final titles = [
-          'Personal Information',
-          'Academic Information',
-          'Career Goals & Preferences',
-          'Technical Profile',
-          'Document Upload',
+          'Personal information',
+          'Academic background',
+          'Career goals and preferences',
+          'Skills and tools',
+          'CV upload',
         ];
         final positions = titles.map((title) {
           final section = find.text(title);
@@ -172,7 +172,7 @@ void main() {
         expect(positions, orderedEquals([...positions]..sort()));
         expect(
           find.ancestor(
-            of: find.text('Document Upload'),
+            of: find.text('CV upload'),
             matching: find.byType(SingleChildScrollView),
           ),
           findsOneWidget,
@@ -185,6 +185,44 @@ void main() {
       }
     },
   );
+
+  testWidgets('disables CV replacement until the server eligibility time', (
+    tester,
+  ) async {
+    final coolingProfile = <String, dynamic>{
+      ...profile,
+      'cvUploadedAt': DateTime.now().toUtc().toIso8601String(),
+      'cvNextEligibleUploadAt': DateTime.now()
+          .toUtc()
+          .add(const Duration(days: 1))
+          .toIso8601String(),
+    };
+    final service = StudentProfileService(
+      profileEndpoint: endpoint,
+      client: MockClient((_) async => http.Response(jsonEncode(coolingProfile), 200)),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ProfileScreen(
+          profileService: service,
+          referenceClient: references(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Select PDF'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.textContaining('You can update your CV again on'),
+      findsOneWidget,
+    );
+    expect(
+      tester.widget<OutlinedButton>(find.widgetWithText(OutlinedButton, 'Select PDF')).onPressed,
+      isNull,
+    );
+  });
 
   testWidgets('saves and reloads a partial internship registration draft', (
     tester,

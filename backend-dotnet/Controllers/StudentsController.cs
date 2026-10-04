@@ -14,6 +14,7 @@ namespace backend_dotnet.Controllers;
 [Route("api/[controller]")]
 public class StudentsController : ControllerBase
 {
+    private static readonly TimeSpan CvReplacementCooldown = TimeSpan.FromDays(7);
     private readonly AppDbContext _context;
     private readonly ICvFileValidationService _cvFileValidationService;
     private readonly ICvStorageService _cvStorageService;
@@ -84,7 +85,8 @@ public class StudentsController : ControllerBase
                 InternshipType = candidate.InternshipType,
                 LectureScheduleType = candidate.LectureScheduleType,
                 PreferredLocations = candidate.PreferredLocations,
-                CvPdfUrl = candidate.CvPdfUrl
+                CvPdfUrl = candidate.CvPdfUrl,
+                CvUploadedAt = candidate.CvUploadedAt
             })
             .SingleOrDefaultAsync();
 
@@ -92,6 +94,10 @@ public class StudentsController : ControllerBase
         {
             return NotFound(new { message = "Student profile not found." });
         }
+
+        profile.CvNextEligibleUploadAt = profile.CvUploadedAt?
+            .ToUniversalTime()
+            .Add(CvReplacementCooldown);
 
         return Ok(profile);
     }
@@ -167,6 +173,20 @@ public class StudentsController : ControllerBase
             return BadRequest(new { message = "Complete the required internship profile fields before uploading a CV." });
         }
 
+        var previousStorageKey = profile.CvPdfUrl;
+        var uploadedAtUtc = profile.CvUploadedAt?.ToUniversalTime();
+        var nextEligibleUploadAt = uploadedAtUtc?.Add(CvReplacementCooldown);
+        if (!string.IsNullOrWhiteSpace(previousStorageKey)
+            && nextEligibleUploadAt.HasValue
+            && DateTime.UtcNow < nextEligibleUploadAt.Value)
+        {
+            return Conflict(new
+            {
+                message = $"You can update your CV again on {nextEligibleUploadAt.Value:yyyy-MM-dd HH:mm:ss} UTC.",
+                nextEligibleUploadAt = nextEligibleUploadAt.Value
+            });
+        }
+
         var validation = await _cvFileValidationService.ValidateAsync(file, cancellationToken);
         if (!validation.IsValid)
         {
@@ -186,8 +206,9 @@ public class StudentsController : ControllerBase
             });
         }
 
-        var previousStorageKey = profile.CvPdfUrl;
         profile.CvPdfUrl = storageKey;
+        var newUploadedAtUtc = DateTime.UtcNow;
+        profile.CvUploadedAt = newUploadedAtUtc;
 
         try
         {
@@ -224,7 +245,9 @@ public class StudentsController : ControllerBase
         return Ok(new
         {
             message = "CV uploaded successfully.",
-            cvStorageKey = storageKey
+            cvStorageKey = storageKey,
+            cvUploadedAt = newUploadedAtUtc,
+            cvNextEligibleUploadAt = newUploadedAtUtc.Add(CvReplacementCooldown)
         });
     }
 
@@ -392,7 +415,9 @@ public class StudentsController : ControllerBase
             InternshipType = profile.InternshipType,
             LectureScheduleType = profile.LectureScheduleType,
             PreferredLocations = profile.PreferredLocations,
-            CvPdfUrl = profile.CvPdfUrl
+            CvPdfUrl = profile.CvPdfUrl,
+            CvUploadedAt = profile.CvUploadedAt,
+            CvNextEligibleUploadAt = profile.CvUploadedAt?.ToUniversalTime().Add(CvReplacementCooldown)
         };
     }
 
@@ -442,7 +467,8 @@ public class StudentsController : ControllerBase
                 InternshipType = sp.InternshipType,
                 LectureScheduleType = sp.LectureScheduleType,
                 PreferredLocations = sp.PreferredLocations,
-                CvPdfUrl = sp.CvPdfUrl
+                CvPdfUrl = sp.CvPdfUrl,
+                CvUploadedAt = sp.CvUploadedAt
             })
             .ToListAsync();
 

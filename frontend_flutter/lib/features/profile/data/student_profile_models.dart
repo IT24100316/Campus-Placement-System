@@ -86,6 +86,8 @@ class StudentProfileResponse {
     required this.lectureScheduleType,
     required this.preferredLocations,
     required this.cvPdfUrl,
+    this.cvUploadedAt,
+    this.cvNextEligibleUploadAt,
   });
 
   final String userId;
@@ -108,6 +110,8 @@ class StudentProfileResponse {
   final String lectureScheduleType;
   final List<String> preferredLocations;
   final String cvPdfUrl;
+  final DateTime? cvUploadedAt;
+  final DateTime? cvNextEligibleUploadAt;
 
   factory StudentProfileResponse.fromJson(Map<String, dynamic> json) {
     List<String> strings(String key) =>
@@ -136,6 +140,12 @@ class StudentProfileResponse {
       lectureScheduleType: json['lectureScheduleType'] as String,
       preferredLocations: strings('preferredLocations'),
       cvPdfUrl: json['cvPdfUrl'] as String,
+      cvUploadedAt: json['cvUploadedAt'] == null
+          ? null
+          : DateTime.parse(json['cvUploadedAt'] as String).toUtc(),
+      cvNextEligibleUploadAt: json['cvNextEligibleUploadAt'] == null
+          ? null
+          : DateTime.parse(json['cvNextEligibleUploadAt'] as String).toUtc(),
     );
   }
 }
