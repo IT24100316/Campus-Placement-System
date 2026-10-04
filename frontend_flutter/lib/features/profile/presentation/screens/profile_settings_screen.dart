@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/services/api_service.dart';
+import '../../../../core/widgets/authenticated_brand_header.dart';
 import '../../../auth/presentation/screens/landing_screen.dart';
 import '../../data/student_profile_models.dart';
 import '../../data/student_profile_service.dart';
@@ -89,15 +90,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
         backgroundColor: AppColors.backgroundLight,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
-        title: const Text(
-          'Profile',
-          style: TextStyle(
-            color: AppColors.textPrimaryLight,
-            fontSize: 22,
-            fontWeight: FontWeight.w800,
-            letterSpacing: -0.3,
-          ),
-        ),
+        title: const AuthenticatedBrandHeader(),
       ),
       body: SafeArea(
         top: false,
@@ -106,6 +99,16 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              const Text(
+                'Profile',
+                style: TextStyle(
+                  color: AppColors.textPrimaryLight,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.3,
+                ),
+              ),
+              const SizedBox(height: 20),
               _ProfileHeader(
                 initials: _initials,
                 name: _displayName,

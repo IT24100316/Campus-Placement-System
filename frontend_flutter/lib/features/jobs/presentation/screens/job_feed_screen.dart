@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/widgets/authenticated_brand_header.dart';
 import '../../data/models/job_feed_model.dart';
 import '../../data/repositories/job_repository.dart';
 import '../widgets/job_card.dart';
@@ -191,6 +192,7 @@ class _JobFeedScreenState extends State<JobFeedScreen> {
       body: CustomScrollView(
         controller: _scrollController,
         slivers: [
+          SliverToBoxAdapter(child: _buildPageIntro()),
           SliverToBoxAdapter(child: _buildSearchBar()),
           if (_hasNewFilters) SliverToBoxAdapter(child: _buildFilterState()),
           _buildJobsSliver(jobs),
@@ -212,6 +214,35 @@ class _JobFeedScreenState extends State<JobFeedScreen> {
                 ),
               ),
             ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPageIntro() {
+    return const Padding(
+      padding: EdgeInsets.fromLTRB(24, 12, 24, 18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Jobs',
+            style: TextStyle(
+              color: AppColors.textPrimaryLight,
+              fontSize: 26,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.45,
+            ),
+          ),
+          SizedBox(height: 4),
+          Text(
+            'Explore internship opportunities',
+            style: TextStyle(
+              color: AppColors.textSecondaryLight,
+              fontSize: 14,
+              height: 1.35,
+            ),
+          ),
         ],
       ),
     );
@@ -315,39 +346,7 @@ class _JobFeedScreenState extends State<JobFeedScreen> {
       backgroundColor: AppColors.backgroundLight,
       elevation: 0,
       scrolledUnderElevation: 1,
-      title: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              color: AppColors.primary,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Icon(Icons.layers, color: Colors.white, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
-              Text(
-                'CampusAI Portal',
-                style: TextStyle(
-                  color: AppColors.textPrimaryLight,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Text(
-                'Autonomous Placement',
-                style: TextStyle(
-                  color: AppColors.textSecondaryLight,
-                  fontSize: 12,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+      title: const AuthenticatedBrandHeader(),
       actions: [
         Padding(
           padding: const EdgeInsets.only(right: 8),
@@ -366,7 +365,7 @@ class _JobFeedScreenState extends State<JobFeedScreen> {
 
   Widget _buildSearchBar() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 16, 24, 12),
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
       child: Row(
         children: [
           Expanded(

@@ -63,12 +63,12 @@ class JobCard extends StatelessWidget {
           decoration: BoxDecoration(
             color: AppColors.surfaceLight,
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: const Color(0xFFDCE5F5)),
+            border: Border.all(color: const Color(0xFFD7E2F4)),
             boxShadow: const [
               BoxShadow(
                 color: Color(0x06111827),
-                blurRadius: 10,
-                offset: Offset(0, 3),
+                blurRadius: 8,
+                offset: Offset(0, 2),
               ),
             ],
           ),
@@ -104,7 +104,7 @@ class JobCard extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   color: AppColors.textPrimaryLight,
-                  fontSize: 19,
+                  fontSize: 20,
                   fontWeight: FontWeight.w800,
                   height: 1.18,
                   letterSpacing: -0.25,

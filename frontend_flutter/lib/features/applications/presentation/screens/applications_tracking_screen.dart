@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
-import '../../../../core/constants/app_colors.dart';
+import '../../../../core/widgets/authenticated_brand_header.dart';
 import '../../../../core/services/api_service.dart';
 import '../../../../features/jobs/presentation/screens/job_details_screen.dart';
 
@@ -149,38 +149,10 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
       elevation: 0,
       scrolledUnderElevation: 4,
       automaticallyImplyLeading: false,
-      title: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              color: primaryColor,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Icon(Icons.layers, color: Colors.white, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'CampusAI Portal',
-                style: TextStyle(
-                  color: onSurface,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Text(
-                'Autonomous Placement',
-                style: TextStyle(
-                  color: onSurfaceVariant,
-                  fontSize: 12,
-                ),
-              ),
-            ],
-          ),
-        ],
+      title: AuthenticatedBrandHeader(
+        primaryColor: primaryColor,
+        titleColor: onSurface,
+        subtitleColor: onSurfaceVariant,
       ),
       actions: [
         Padding(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/services/api_service.dart';
+import '../../../../core/widgets/authenticated_brand_header.dart';
 import '../../data/student_profile_models.dart';
 import '../../data/student_profile_service.dart';
 import 'profile_screen.dart';
@@ -106,6 +107,8 @@ class _ResumeHubScreenState extends State<ResumeHubScreen> {
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.fromLTRB(16, 24, 16, 32),
             children: [
+              const AuthenticatedBrandHeader(),
+              const SizedBox(height: 24),
               const Text(
                 'Resume',
                 style: TextStyle(
