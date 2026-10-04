@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
+import 'campus_ai_logo.dart';
 
 class GlobalAppHeader extends StatelessWidget implements PreferredSizeWidget {
   const GlobalAppHeader({super.key});
@@ -18,25 +19,31 @@ class GlobalAppHeader extends StatelessWidget implements PreferredSizeWidget {
               color: AppColors.primary,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(Icons.layers, color: Colors.white, size: 20),
+            child: CampusAILogo(size: 20, color: Colors.white),
           ),
           const SizedBox(width: 12),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: const [
               Text(
-                'CampusAI Portal',
+                'CampusAI',
                 style: TextStyle(
                   color: AppColors.textPrimaryLight,
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
+                  height: 1.1,
                 ),
               ),
+              SizedBox(height: 2),
               Text(
-                'Autonomous Placement',
+                'STUDENT PORTAL',
                 style: TextStyle(
-                  color: AppColors.textSecondaryLight,
-                  fontSize: 12,
+                  color: AppColors.primary,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.5,
+                  height: 1.1,
                 ),
               ),
             ],
@@ -84,3 +91,4 @@ class GlobalAppHeader extends StatelessWidget implements PreferredSizeWidget {
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
 }
+
