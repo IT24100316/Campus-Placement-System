@@ -4,6 +4,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../applications/presentation/screens/applications_tracking_screen.dart';
 import '../../../jobs/presentation/screens/job_feed_screen.dart';
 import '../../../profile/presentation/screens/resume_hub_screen.dart';
+import '../../../profile/presentation/screens/profile_settings_screen.dart';
 import '../../data/student_notification_service.dart';
 
 class NotificationCenterScreen extends StatefulWidget {
@@ -37,6 +38,10 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
     } else if (destination == 'resume') {
       await Navigator.of(context).push(MaterialPageRoute(
         builder: (_) => const ResumeHubScreen(),
+      ));
+    } else if (destination == 'profile') {
+      await Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => const ProfileSettingsScreen(),
       ));
     }
     if (mounted) setState(() => _notifications = _service.load());
@@ -101,6 +106,11 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
         'interview' => Icons.event_available_outlined,
         'action_required' => Icons.priority_high_rounded,
         'application_received' => Icons.task_alt_outlined,
+        'password_updated' => Icons.lock_outline_rounded,
+        'cv_uploaded' => Icons.upload_file_outlined,
+        'cv_replacement_available' => Icons.update_outlined,
+        'profile_complete' => Icons.person_check_outlined,
+        'resume_complete' => Icons.description_outlined,
         _ => Icons.notifications_outlined,
       };
 }

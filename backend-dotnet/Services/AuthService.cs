@@ -16,12 +16,18 @@ public class AuthService : IAuthService
     private readonly PasswordHasher<User> _passwordHasher = new();
     private readonly IDocumentStorageService _documentStorage;
     private readonly IJwtService _jwtService;
+    private readonly INotificationService? _notificationService;
 
-    public AuthService(AppDbContext context, IDocumentStorageService documentStorage, IJwtService jwtService)
+    public AuthService(
+        AppDbContext context,
+        IDocumentStorageService documentStorage,
+        IJwtService jwtService,
+        INotificationService? notificationService = null)
     {
         _context = context;
         _documentStorage = documentStorage;
         _jwtService = jwtService;
+        _notificationService = notificationService;
     }
 
     public async Task<AuthRegisterResultDto> RegisterAsync(
@@ -373,6 +379,12 @@ public class AuthService : IAuthService
         }
 
         user.PasswordHash = _passwordHasher.HashPassword(user, dto.NewPassword);
+        _notificationService?.Add(
+            userId,
+            "password_updated",
+            "Password updated",
+            "Your account password was changed successfully.",
+            "profile");
         await _context.SaveChangesAsync(cancellationToken);
         return true;
     }
