@@ -117,31 +117,27 @@ class JobCard extends StatelessWidget {
           const SizedBox(height: 14),
 
           // Row 3: Tags + stipend badge at end
-          Row(
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              Expanded(
-                child: Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: tags.take(3).map((tag) => Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.backgroundLight,
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: AppColors.borderLight),
-                    ),
-                    child: Text(
-                      tag,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.textSecondaryLight,
-                      ),
-                    ),
-                  )).toList(),
+              ...tags.take(3).map((tag) => Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.backgroundLight,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: AppColors.borderLight),
                 ),
-              ),
-              const SizedBox(width: 8),
+                child: Text(
+                  tag,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textSecondaryLight,
+                  ),
+                ),
+              )),
               // Stipend badge
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -165,12 +161,14 @@ class JobCard extends StatelessWidget {
                       color: isPaid ? AppColors.accent : AppColors.textSecondaryLight,
                     ),
                     const SizedBox(width: 3),
-                    Text(
-                      isPaid ? stipend : 'Unpaid',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: isPaid ? AppColors.accent : AppColors.textSecondaryLight,
+                    Flexible(
+                      child: Text(
+                        isPaid ? stipend : 'Unpaid',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: isPaid ? AppColors.accent : AppColors.textSecondaryLight,
+                        ),
                       ),
                     ),
                   ],

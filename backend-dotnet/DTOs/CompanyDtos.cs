@@ -50,6 +50,25 @@ public class CompanyCandidateDto
     public string StatusColor { get; set; } = string.Empty;
     public string? CvPdfUrl { get; set; }
     public string? JobId { get; set; }
+    public string? CompanyMessage { get; set; }
+    public DateTime? InterviewDate { get; set; }
+    public TimeSpan? InterviewTime { get; set; }
+}
+
+public class UpdateCompanyProfileDto
+{
+    public string CompanyName { get; set; } = string.Empty;
+    public string Industry { get; set; } = string.Empty;
+    public string ContactPersonName { get; set; } = string.Empty;
+    public string ContactPersonEmail { get; set; } = string.Empty;
+    public string Phone { get; set; } = string.Empty;
+}
+
+public class RejectCandidateRequestDto
+{
+    public Guid StudentId { get; set; }
+    public Guid JobId { get; set; }
+    public string Reason { get; set; } = string.Empty;
 }
 
 public class CompanyDashboardResponseDto

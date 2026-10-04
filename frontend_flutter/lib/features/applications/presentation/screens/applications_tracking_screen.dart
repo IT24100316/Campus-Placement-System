@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/services/api_service.dart';
 import '../../../../features/jobs/presentation/screens/job_details_screen.dart';
+import '../../../../core/widgets/global_app_header.dart';
 
 class ApplicationsTrackingScreen extends StatefulWidget {
   const ApplicationsTrackingScreen({super.key});
@@ -69,7 +70,7 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
     if (_isLoading) {
       return Scaffold(
         backgroundColor: backgroundColor,
-        appBar: _buildAppBar(),
+        appBar: const GlobalAppHeader(),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
@@ -77,7 +78,7 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
     if (_errorMessage != null && _applications.isEmpty) {
       return Scaffold(
         backgroundColor: backgroundColor,
-        appBar: _buildAppBar(),
+        appBar: const GlobalAppHeader(),
         body: Center(
           child: Text('Could not load applications.\n$_errorMessage', textAlign: TextAlign.center),
         ),
@@ -91,7 +92,7 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
 
     return Scaffold(
       backgroundColor: backgroundColor,
-      appBar: _buildAppBar(),
+      appBar: const GlobalAppHeader(),
       body: RefreshIndicator(
         onRefresh: _refresh,
         child: SingleChildScrollView(

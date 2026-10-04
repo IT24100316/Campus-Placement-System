@@ -3,6 +3,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../widgets/job_card.dart';
 import '../../data/models/job_feed_model.dart';
 import '../../data/repositories/job_repository.dart';
+import '../../../../core/widgets/global_app_header.dart';
 import 'job_details_screen.dart';
 
 class JobFeedScreen extends StatefulWidget {
@@ -99,7 +100,7 @@ class _JobFeedScreenState extends State<JobFeedScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
-      appBar: _buildAppBar(),
+      appBar: const GlobalAppHeader(),
       body: CustomScrollView(
         controller: _scrollController,
         slivers: [
@@ -169,81 +170,7 @@ class _JobFeedScreenState extends State<JobFeedScreen> {
     );
   }
 
-  PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-      backgroundColor: AppColors.backgroundLight,
-      elevation: 0,
-      scrolledUnderElevation: 1,
-      title: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              color: AppColors.primary,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Icon(Icons.layers, color: Colors.white, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
-              Text(
-                'CampusAI Portal',
-                style: TextStyle(
-                  color: AppColors.textPrimaryLight,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Text(
-                'Autonomous Placement',
-                style: TextStyle(
-                  color: AppColors.textSecondaryLight,
-                  fontSize: 12,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-      actions: [
-        IconButton(
-          icon: const Badge(
-            backgroundColor: Colors.red,
-            child: Icon(Icons.notifications_none),
-          ),
-          color: AppColors.textSecondaryLight,
-          onPressed: () {},
-        ),
-        Container(
-          margin: const EdgeInsets.only(right: 16, left: 4),
-          alignment: Alignment.center,
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              const CircleAvatar(
-                radius: 16,
-                backgroundColor: AppColors.primary,
-                child: Icon(Icons.person, color: Colors.white, size: 18),
-              ),
-              Positioned(
-                bottom: -2,
-                right: -2,
-                child: Container(
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.verified, color: AppColors.primary, size: 14),
-                ),
-              )
-            ],
-          ),
-        ),
-      ],
-    );
-  }
+
 
   Widget _buildSearchBar() {
     return Padding(
