@@ -22,14 +22,10 @@ class PersonalDetailsScreen extends StatefulWidget {
 class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
   late final StudentProfileService _profileService;
   StudentProfileResponse? _profile;
-  CampusIdDocument? _campusIdDocument;
   bool _isLoading = true;
-  bool _isLoadingCampusId = false;
-  bool _isCampusIdUnavailable = false;
   bool _isEditing = false;
   bool _isSaving = false;
   String? _errorMessage;
-  String? _campusIdError;
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
@@ -80,7 +76,6 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
           _errorMessage = null;
           _syncControllers();
         });
-        _loadCampusId();
       }
     } on StudentProfileException catch (error) {
       if (mounted) {
@@ -97,99 +92,6 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
         });
       }
     }
-  }
-
-  Future<void> _loadCampusId() async {
-    final profile = _profile;
-    final token = StudentSession.token?.trim();
-    if (profile == null ||
-        profile.campusIdPhotoUrl.trim().isEmpty ||
-        token == null ||
-        token.isEmpty) {
-      return;
-    }
-
-    setState(() {
-      _isLoadingCampusId = true;
-      _isCampusIdUnavailable = false;
-      _campusIdError = null;
-    });
-    try {
-      final document = await _profileService.loadCampusId(bearerToken: token);
-      if (mounted) {
-        setState(() {
-          _campusIdDocument = document;
-          _isLoadingCampusId = false;
-          _isCampusIdUnavailable = document == null;
-        });
-      }
-    } on StudentProfileException catch (error) {
-      if (mounted) {
-        setState(() {
-          _campusIdError = error.message;
-          _isLoadingCampusId = false;
-        });
-      }
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          _campusIdError = 'Unable to load the registered ID preview.';
-          _isLoadingCampusId = false;
-        });
-      }
-    }
-  }
-
-  void _showCampusId() {
-    final document = _campusIdDocument;
-    if (document == null) return;
-    showDialog<void>(
-      context: context,
-      builder: (context) => Dialog(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'University / Campus ID',
-                style: TextStyle(
-                  color: AppColors.textPrimaryLight,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 12),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.memory(
-                  document.bytes,
-                  fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => const SizedBox(
-                    height: 180,
-                    child: Center(
-                      child: Icon(
-                        Icons.badge_outlined,
-                        color: AppColors.textSecondaryLight,
-                        size: 42,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Close'),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 
   void _startEditing() {
@@ -320,11 +222,6 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
               profile: profile,
               universityEmail: StudentSession.email?.trim() ?? '',
               hasText: _hasText,
-              campusIdDocument: _campusIdDocument,
-              isLoadingCampusId: _isLoadingCampusId,
-              isCampusIdUnavailable: _isCampusIdUnavailable,
-              campusIdError: _campusIdError,
-              onViewCampusId: _showCampusId,
             ),
     );
   }
@@ -335,21 +232,11 @@ class _PersonalDetailsView extends StatelessWidget {
     required this.profile,
     required this.universityEmail,
     required this.hasText,
-    required this.campusIdDocument,
-    required this.isLoadingCampusId,
-    required this.isCampusIdUnavailable,
-    required this.campusIdError,
-    required this.onViewCampusId,
   });
 
   final StudentProfileResponse profile;
   final String universityEmail;
   final bool Function(String?) hasText;
-  final CampusIdDocument? campusIdDocument;
-  final bool isLoadingCampusId;
-  final bool isCampusIdUnavailable;
-  final String? campusIdError;
-  final VoidCallback onViewCampusId;
 
   @override
   Widget build(BuildContext context) {
@@ -371,130 +258,6 @@ class _PersonalDetailsView extends StatelessWidget {
           const SizedBox(height: 8),
           if (fields.isNotEmpty) _DetailsSurface(fields: fields),
           if (fields.isEmpty) const _EmptyDetailsState(),
-          if (hasText(profile.campusIdPhotoUrl)) ...[
-            const SizedBox(height: 24),
-            _CampusIdPreview(
-              document: campusIdDocument,
-              isLoading: isLoadingCampusId,
-              isUnavailable: isCampusIdUnavailable,
-              errorMessage: campusIdError,
-              onView: onViewCampusId,
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _CampusIdPreview extends StatelessWidget {
-  const _CampusIdPreview({
-    required this.document,
-    required this.isLoading,
-    required this.isUnavailable,
-    required this.errorMessage,
-    required this.onView,
-  });
-
-  final CampusIdDocument? document;
-  final bool isLoading;
-  final bool isUnavailable;
-  final String? errorMessage;
-  final VoidCallback onView;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: AppColors.borderLight),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'UNIVERSITY / CAMPUS ID',
-            style: TextStyle(
-              color: AppColors.textSecondaryLight,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.9,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Container(
-                width: 72,
-                height: 52,
-                clipBehavior: Clip.antiAlias,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.07),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: isLoading
-                    ? const Padding(
-                        padding: EdgeInsets.all(15),
-                        child: CircularProgressIndicator(
-                          color: AppColors.primary,
-                          strokeWidth: 2,
-                        ),
-                      )
-                    : document != null
-                    ? Image.memory(
-                        document!.bytes,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => const Icon(
-                          Icons.badge_outlined,
-                          color: AppColors.primary,
-                        ),
-                      )
-                    : const Icon(
-                        Icons.badge_outlined,
-                        color: AppColors.primary,
-                      ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      isUnavailable
-                          ? 'No registered ID available'
-                          : 'Registered ID',
-                      style: const TextStyle(
-                        color: AppColors.textPrimaryLight,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      errorMessage ??
-                          (isUnavailable
-                              ? 'No readable campus ID is currently available.'
-                              : 'Read-only campus ID on file'),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppColors.textSecondaryLight,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (document != null)
-                TextButton(
-                  onPressed: onView,
-                  child: const Text('View ID'),
-                ),
-            ],
-          ),
         ],
       ),
     );
