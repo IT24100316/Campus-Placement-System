@@ -27,7 +27,7 @@ void main() {
   final profile = <String, dynamic>{
     'userId': 'server-student-id',
     'fullName': 'Alex Student',
-    'phone': '+94111222333',
+    'phone': '+94771234567',
     'campusIdPhotoUrl': 'campus-key',
     'portfolioUrl': 'https://example.test/portfolio',
     'universityName': 'Campus University',
@@ -79,7 +79,7 @@ void main() {
         expect(request.method, 'PUT');
         final body = jsonDecode(request.body) as Map<String, dynamic>;
         expect(body['fullName'], 'Alex Student');
-        expect(body['phone'], '+94111222333');
+        expect(body['phone'], '+94771234567');
         expect(body['campusIdPhotoUrl'], 'campus-key');
         expect(body.containsKey('studentId'), isFalse);
         expect(body.containsKey('userId'), isFalse);
@@ -297,6 +297,99 @@ void main() {
     expect(find.text('Draft Student'), findsOneWidget);
     expect(find.text('Your saved profile is ready to edit.'), findsOneWidget);
     expect(find.text('Save to continue later'), findsOneWidget);
+  });
+
+  testWidgets('rejects malformed entered phone before saving a draft', (
+    tester,
+  ) async {
+    var saves = 0;
+    final service = StudentProfileService(
+      profileEndpoint: endpoint,
+      client: MockClient((request) async {
+        if (request.method == 'GET') return http.Response('', 404);
+        saves++;
+        return http.Response(jsonEncode(profile), 201);
+      }),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ProfileScreen(profileService: service, referenceClient: references()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextFormField).at(1), '+94111222333');
+    await tester.tap(find.text('Save to continue later'));
+    await tester.pumpAndSettle();
+
+    expect(saves, 0);
+    expect(
+      find.text('Enter a valid Sri Lankan mobile number, for example 0771234567.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('rejects a malformed entered name before saving a draft', (
+    tester,
+  ) async {
+    var saves = 0;
+    final service = StudentProfileService(
+      profileEndpoint: endpoint,
+      client: MockClient((request) async {
+        if (request.method == 'GET') return http.Response('', 404);
+        saves++;
+        return http.Response(jsonEncode(profile), 201);
+      }),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ProfileScreen(profileService: service, referenceClient: references()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextFormField).first, 'Student123');
+    await tester.tap(find.text('Save to continue later'));
+    await tester.pumpAndSettle();
+
+    expect(saves, 0);
+    expect(
+      find.text('Enter a valid full name using 2 to 100 letters.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('rejects a non-HTTPS portfolio URL before saving a draft', (
+    tester,
+  ) async {
+    var saves = 0;
+    final service = StudentProfileService(
+      profileEndpoint: endpoint,
+      client: MockClient((request) async {
+        if (request.method == 'GET') return http.Response('', 404);
+        saves++;
+        return http.Response(jsonEncode(profile), 201);
+      }),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ProfileScreen(profileService: service, referenceClient: references()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byType(TextFormField).at(5),
+      'http://portfolio.example',
+    );
+    await tester.tap(find.text('Save to continue later'));
+    await tester.pumpAndSettle();
+
+    expect(saves, 0);
+    expect(find.text('Enter a valid HTTPS URL.'), findsOneWidget);
   });
 
   for (final uploadStatus in [200, 500, 401]) {

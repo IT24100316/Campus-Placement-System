@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Text.RegularExpressions;
 using backend_dotnet.Data;
 using backend_dotnet.DTOs;
 using backend_dotnet.Models;
@@ -286,6 +287,12 @@ public class StudentsController : ControllerBase
             UserId = userId
         };
 
+        var enteredValueError = ValidateEnteredValues(request);
+        if (enteredValueError != null)
+        {
+            return BadRequest(new { message = enteredValueError });
+        }
+
         ApplyProfileUpdates(profile, request);
 
         if (!request.IsDraft && !IsValidForInternshipRegistration(profile))
@@ -348,19 +355,18 @@ public class StudentsController : ControllerBase
     private static bool IsValidForInternshipRegistration(StudentProfile profile)
     {
         return IsCompleteForInternshipRegistration(profile)
-            && profile.FullName.Length <= 255
-            && profile.Phone.Length is >= 7 and <= 25
-            && System.Text.RegularExpressions.Regex.IsMatch(
-                profile.Phone,
-                @"^\+?[0-9][0-9\s\-()]{6,24}$")
+            && IsValidFullName(profile.FullName)
+            && IsValidSriLankanMobile(profile.Phone)
             && profile.CampusIdPhotoUrl.Length <= 2048
-            && (profile.PortfolioUrl == null || profile.PortfolioUrl.Length <= 2048)
-            && profile.UniversityName.Length <= 255
+            && IsValidPortfolioUrl(profile.PortfolioUrl)
+            && IsValidUniversityName(profile.UniversityName)
             && profile.AcademicStatus.Length <= 100
             && profile.DegreeProgram.Length <= 255
             && profile.DesiredJobTitle.Length <= 255
             && profile.PrimaryDomain.Length <= 150
-            && profile.CareerObjectivesSummary.Length <= 1000
+            && IsValidCareerObjective(profile.CareerObjectivesSummary)
+            && HasValidDistinctItems(profile.Skills)
+            && HasValidDistinctItems(profile.ToolsAndTechnologies)
             && profile.LectureScheduleType.Length <= 100;
     }
 
@@ -390,6 +396,73 @@ public class StudentsController : ControllerBase
             .Select(item => item.Trim())
             .Where(item => !string.IsNullOrWhiteSpace(item))
             .ToArray();
+    }
+
+    private static string? ValidateEnteredValues(StudentProfileUpsertRequest request)
+    {
+        if (HasText(request.FullName) && !IsValidFullName(request.FullName!))
+            return "Enter a valid full name using 2 to 100 letters, spaces, hyphens, or apostrophes.";
+        if (HasText(request.Phone) && !IsValidSriLankanMobile(request.Phone!))
+            return "Enter a valid Sri Lankan mobile number, for example 0771234567.";
+        if (HasText(request.UniversityName) && !IsValidUniversityName(request.UniversityName!))
+            return "Enter a valid university name using 2 to 255 characters.";
+        if (HasText(request.PortfolioUrl) && !IsValidPortfolioUrl(request.PortfolioUrl))
+            return "Enter a valid HTTPS portfolio URL.";
+        if (HasText(request.CareerObjectivesSummary) && !IsValidCareerObjective(request.CareerObjectivesSummary!))
+            return "Career objectives must be between 20 and 1000 characters.";
+        if (request.CurrentYearOfStudy.HasValue && request.CurrentYearOfStudy is < 1 or > 8)
+            return "Select a year of study from 1 to 8.";
+        if (request.GPA.HasValue && request.GPA is < 0 or > 4)
+            return "Enter a GPA from 0.00 to 4.00.";
+        if (request.ExpectedGraduationDate.HasValue && request.ExpectedGraduationDate.Value.Date < DateTime.UtcNow.Date)
+            return "Expected graduation date cannot be in the past.";
+        if (!HasValidDistinctItems(request.Skills))
+            return "Skills cannot contain empty or duplicate items.";
+        if (!HasValidDistinctItems(request.ToolsAndTechnologies))
+            return "Tools cannot contain empty or duplicate items.";
+        return null;
+    }
+
+    private static bool HasText(string? value) => !string.IsNullOrWhiteSpace(value);
+
+    private static bool IsValidFullName(string value)
+    {
+        var trimmed = value.Trim();
+        return trimmed.Length is >= 2 and <= 100
+            && Regex.IsMatch(trimmed, @"^[\p{L}\p{M}]+(?:[ '\-][\p{L}\p{M}]+)*$");
+    }
+
+    private static bool IsValidSriLankanMobile(string value) =>
+        Regex.IsMatch(value.Trim(), @"^(?:07\d{8}|\+947\d{8})$");
+
+    private static bool IsValidUniversityName(string value)
+    {
+        var trimmed = value.Trim();
+        return trimmed.Length is >= 2 and <= 255
+            && !trimmed.Any(char.IsControl)
+            && Regex.IsMatch(trimmed, @"\p{L}");
+    }
+
+    private static bool IsValidPortfolioUrl(string? value)
+    {
+        if (!HasText(value)) return true;
+        return Uri.TryCreate(value!.Trim(), UriKind.Absolute, out var uri)
+            && uri.Scheme == Uri.UriSchemeHttps
+            && !string.IsNullOrWhiteSpace(uri.Host);
+    }
+
+    private static bool IsValidCareerObjective(string value)
+    {
+        var length = value.Trim().Length;
+        return length is >= 20 and <= 1000;
+    }
+
+    private static bool HasValidDistinctItems(IEnumerable<string>? items)
+    {
+        if (items == null) return true;
+        var values = items.ToArray();
+        return values.All(HasText)
+            && values.Select(item => item.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).Count() == values.Length;
     }
 
     private static StudentProfileResponse ToResponse(StudentProfile profile)

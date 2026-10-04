@@ -103,6 +103,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _profileLoadFailed = false;
   bool _sessionExpired = false;
   bool _registrationComplete = false;
+  bool _showFinalValidation = false;
 
   List<dynamic> _domains = [];
   List<dynamic> _jobTitles = [];
@@ -384,22 +385,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   void _addSkill() {
     final text = _skillController.text.trim();
-    if (text.isNotEmpty && !_skills.contains(text)) {
-      setState(() {
+    final error = _tagEntryError(text, _skills, 'skill');
+    setState(() {
+      _skillsError = error;
+      if (error == null) {
         _skills.add(text);
         _skillController.clear();
-      });
-    }
+      }
+    });
   }
 
   void _addTool() {
     final text = _toolController.text.trim();
-    if (text.isNotEmpty && !_tools.contains(text)) {
-      setState(() {
+    final error = _tagEntryError(text, _tools, 'tool or technology');
+    setState(() {
+      _toolsError = error;
+      if (error == null) {
         _tools.add(text);
         _toolController.clear();
-      });
+      }
+    });
+  }
+
+  String? _tagEntryError(String value, List<String> items, String label) {
+    if (value.isEmpty) return 'Enter a $label before adding it.';
+    if (items.any(
+      (item) => item.trim().toLowerCase() == value.toLowerCase(),
+    )) {
+      return 'This $label has already been added.';
     }
+    return null;
   }
 
   Future<void> _selectCvFile() async {
@@ -554,9 +569,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final today = DateTime.now();
     final gpa = double.tryParse(_gpaController.text.trim());
     return <bool>[
-      _validateRequired(_fullNameController.text) == null,
-      _validatePhone(_phoneController.text) == null,
-      _validateRequired(_universityController.text) == null,
+      _validateFullName(_fullNameController.text, required: true) == null,
+      _validatePhone(_phoneController.text, required: true) == null,
+      _validateUniversityName(_universityController.text, required: true) ==
+          null,
       _selectedAcademicStatus?.trim().isNotEmpty == true,
       _selectedDegree?.trim().isNotEmpty == true,
       (_selectedYearOfStudy ?? 0) >= 1 && (_selectedYearOfStudy ?? 0) <= 8,
@@ -575,7 +591,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ?.trim()
               .isNotEmpty ==
           true,
-      _validateCareerObjectives(_careerObjectivesController.text) == null,
+      _validateCareerObjectives(
+            _careerObjectivesController.text,
+            required: true,
+          ) ==
+          null,
       _skills.isNotEmpty,
       _tools.isNotEmpty,
       _selectedWorkArrangements.isNotEmpty,
@@ -613,6 +633,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _saveDraft() async {
     if (!_hasActiveSession()) return;
+    if (!_validateDraftValues()) return;
 
     setState(() {
       _isSavingProfile = true;
@@ -656,12 +677,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _completeRegistration() async {
     if (!_hasActiveSession()) return;
 
+    setState(() => _showFinalValidation = true);
     final isFormValid = _formKey.currentState?.validate() ?? false;
     setState(() {
-      _skillsError = _skills.isEmpty ? 'Add at least one skill.' : null;
-      _toolsError = _tools.isEmpty
-          ? 'Add at least one tool or technology.'
-          : null;
+      _skillsError = _validateTagItems(
+        _skills,
+        label: 'skill',
+        required: true,
+      );
+      _toolsError = _validateTagItems(
+        _tools,
+        label: 'tool or technology',
+        required: true,
+      );
       _internshipTypeError = _selectedWorkArrangements.isEmpty
           ? 'Select at least one internship type.'
           : null;
@@ -863,9 +891,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
     final today = DateTime.now();
     final gpa = double.tryParse(_gpaController.text.trim());
-    return _validateRequired(_fullNameController.text) == null &&
-        _validatePhone(_phoneController.text) == null &&
-        _validateRequired(_universityController.text) == null &&
+    return _validateFullName(_fullNameController.text, required: true) == null &&
+        _validatePhone(_phoneController.text, required: true) == null &&
+        _validateUniversityName(_universityController.text, required: true) ==
+            null &&
         _selectedAcademicStatus?.trim().isNotEmpty == true &&
         _selectedDegree?.trim().isNotEmpty == true &&
         (_selectedYearOfStudy ?? 0) >= 1 &&
@@ -885,10 +914,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ?.trim()
                 .isNotEmpty ==
             true &&
-        _validateCareerObjectives(_careerObjectivesController.text) == null &&
+        _validateCareerObjectives(
+              _careerObjectivesController.text,
+              required: true,
+            ) ==
+            null &&
         _validateOptionalUrl(_portfolioUrlController.text) == null &&
-        _skills.isNotEmpty &&
-        _tools.isNotEmpty &&
+        _validateTagItems(_skills, label: 'skill', required: true) == null &&
+        _validateTagItems(
+              _tools,
+              label: 'tool or technology',
+              required: true,
+            ) ==
+            null &&
         _selectedWorkArrangements.isNotEmpty &&
         _selectedSchedule?.trim().isNotEmpty == true &&
         _selectedLocations.isNotEmpty;
@@ -897,9 +935,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isStoredProfileComplete(StudentProfileResponse profile) {
     final today = DateTime.now();
     final graduation = profile.expectedGraduationDate;
-    return _validateRequired(profile.fullName) == null &&
-        _validatePhone(profile.phone) == null &&
-        _validateRequired(profile.universityName) == null &&
+    return _validateFullName(profile.fullName, required: true) == null &&
+        _validatePhone(profile.phone, required: true) == null &&
+        _validateUniversityName(profile.universityName, required: true) == null &&
         profile.academicStatus.trim().isNotEmpty &&
         profile.degreeProgram.trim().isNotEmpty &&
         profile.currentYearOfStudy >= 1 &&
@@ -912,10 +950,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ) &&
         profile.desiredJobTitle.trim().isNotEmpty &&
         profile.primaryDomain.trim().isNotEmpty &&
-        _validateCareerObjectives(profile.careerObjectivesSummary) == null &&
+        _validateCareerObjectives(
+              profile.careerObjectivesSummary,
+              required: true,
+            ) ==
+            null &&
         _validateOptionalUrl(profile.portfolioUrl) == null &&
-        profile.skills.isNotEmpty &&
-        profile.toolsAndTechnologies.isNotEmpty &&
+        _validateTagItems(profile.skills, label: 'skill', required: true) ==
+            null &&
+        _validateTagItems(
+              profile.toolsAndTechnologies,
+              label: 'tool or technology',
+              required: true,
+            ) ==
+            null &&
         profile.internshipType.isNotEmpty &&
         profile.lectureScheduleType.trim().isNotEmpty &&
         profile.preferredLocations.isNotEmpty;
@@ -971,6 +1019,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             child: Form(
               key: _formKey,
+              autovalidateMode: AutovalidateMode.onUserInteraction,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -1025,8 +1074,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     icon: Icons.person_outline,
                     title: 'Personal information',
                     completedFields: _completedIn([
-                      _validateRequired(_fullNameController.text) == null,
-                      _validatePhone(_phoneController.text) == null,
+                      _validateFullName(_fullNameController.text, required: true) == null,
+                      _validatePhone(_phoneController.text, required: true) == null,
                     ]),
                     totalFields: 2,
                     children: [
@@ -1034,7 +1083,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         'Full Name',
                         Icons.person_outline,
                         _fullNameController,
-                        validator: _validateRequired,
+                        validator: (value) => _validateFullName(
+                          value,
+                          required: _showFinalValidation,
+                        ),
                       ),
                       const SizedBox(height: 16),
                       _buildInputField(
@@ -1042,7 +1094,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         Icons.phone_outlined,
                         _phoneController,
                         keyboardType: TextInputType.phone,
-                        validator: _validatePhone,
+                        validator: (value) => _validatePhone(
+                          value,
+                          required: _showFinalValidation,
+                        ),
                       ),
                     ],
                   ),
@@ -1053,7 +1108,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     icon: Icons.school,
                     title: 'Academic background',
                     completedFields: _completedIn([
-                      _validateRequired(_universityController.text) == null,
+                      _validateUniversityName(
+                            _universityController.text,
+                            required: true,
+                          ) ==
+                          null,
                       _selectedDegree?.trim().isNotEmpty == true,
                       _selectedAcademicStatus?.trim().isNotEmpty == true,
                       (_selectedYearOfStudy ?? 0) >= 1 &&
@@ -1064,6 +1123,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           (double.tryParse(_gpaController.text.trim()) ?? 5) <= 4,
                       _validateExpectedGraduationDate(
                             _expectedGraduationController.text,
+                            required: true,
                           ) ==
                           null,
                       _selectedSchedule?.trim().isNotEmpty == true,
@@ -1074,7 +1134,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         'University / Institution',
                         Icons.account_balance,
                         _universityController,
-                        validator: _validateRequired,
+                        validator: (value) => _validateUniversityName(
+                          value,
+                          required: _showFinalValidation,
+                        ),
                       ),
                       const SizedBox(height: 16),
                       _buildDegreeDropdown(),
@@ -1098,7 +1161,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               _expectedGraduationController,
                               hintText: 'YYYY-MM-DD',
                               keyboardType: TextInputType.datetime,
-                              validator: _validateExpectedGraduationDate,
+                              validator: (value) =>
+                                  _validateExpectedGraduationDate(
+                                    value,
+                                    required: _showFinalValidation,
+                                  ),
                             ),
                           ),
                         ],
@@ -1130,7 +1197,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ?.trim()
                               .isNotEmpty ==
                           true,
-                      _validateCareerObjectives(_careerObjectivesController.text) ==
+                      _validateCareerObjectives(
+                            _careerObjectivesController.text,
+                            required: true,
+                          ) ==
                           null,
                       _selectedWorkArrangements.isNotEmpty,
                       _selectedLocations.isNotEmpty,
@@ -1152,7 +1222,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       _buildTextAreaField(
                         'Career Objectives Summary',
                         _careerObjectivesController,
-                        validator: _validateCareerObjectives,
+                        validator: (value) => _validateCareerObjectives(
+                          value,
+                          required: _showFinalValidation,
+                        ),
                       ),
                       const SizedBox(height: 16),
                       _buildInternshipTypeChips(),
@@ -1675,17 +1748,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
         : null;
   }
 
-  String? _validatePhone(String? value) {
-    final phone = value?.trim() ?? '';
-    if (phone.isEmpty) return 'Phone number is required.';
-    return RegExp(r'^\+?[0-9][0-9\s\-()]{6,24}$').hasMatch(phone)
+  String? _validateFullName(String? value, {required bool required}) {
+    final name = value?.trim() ?? '';
+    if (name.isEmpty) return required ? 'Full name is required.' : null;
+    final validName = RegExp(
+      r"^[\p{L}\p{M}]+(?:[ '\-][\p{L}\p{M}]+)*$",
+      unicode: true,
+    );
+    return name.length >= 2 && name.length <= 100 && validName.hasMatch(name)
         ? null
-        : 'Enter a valid phone number.';
+        : 'Enter a valid full name using 2 to 100 letters.';
   }
 
-  String? _validateExpectedGraduationDate(String? value) {
+  String? _validatePhone(String? value, {required bool required}) {
+    final phone = value?.trim() ?? '';
+    if (phone.isEmpty) return required ? 'Phone number is required.' : null;
+    return RegExp(r'^(?:07\d{8}|\+947\d{8})$').hasMatch(phone)
+        ? null
+        : 'Enter a valid Sri Lankan mobile number, for example 0771234567.';
+  }
+
+  String? _validateUniversityName(String? value, {required bool required}) {
+    final university = value?.trim() ?? '';
+    if (university.isEmpty) return required ? 'University name is required.' : null;
+    final hasLetter = RegExp(r'\p{L}', unicode: true).hasMatch(university);
+    final hasControlCharacter = RegExp(r'[\p{Cc}\p{Cf}]', unicode: true)
+        .hasMatch(university);
+    return university.length >= 2 &&
+            university.length <= 255 &&
+            hasLetter &&
+            !hasControlCharacter
+        ? null
+        : 'Enter a valid university name using 2 to 255 characters.';
+  }
+
+  String? _validateExpectedGraduationDate(
+    String? value, {
+    required bool required,
+  }) {
     if (value == null || value.trim().isEmpty) {
-      return 'Expected graduation date is required.';
+      return required ? 'Expected graduation date is required.' : null;
     }
 
     final date = DateTime.tryParse(value.trim());
@@ -1703,17 +1805,69 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
 
     final uri = Uri.tryParse(value.trim());
-    return uri != null && uri.hasScheme && uri.hasAuthority
+    return uri != null &&
+            uri.isAbsolute &&
+            uri.scheme == 'https' &&
+            uri.host.isNotEmpty
         ? null
-        : 'Enter a valid URL.';
+        : 'Enter a valid HTTPS URL.';
   }
 
-  String? _validateCareerObjectives(String? value) {
+  String? _validateCareerObjectives(String? value, {required bool required}) {
     if (value == null || value.trim().isEmpty) {
-      return 'Career objectives are required.';
+      return required ? 'Career objectives are required.' : null;
     }
 
-    return value.trim().length < 20 ? 'Enter at least 20 characters.' : null;
+    final length = value.trim().length;
+    if (length < 20) return 'Enter at least 20 characters.';
+    if (length > 1000) {
+      return 'Keep career objectives to 1000 characters or fewer.';
+    }
+    return null;
+  }
+
+  String? _validateGpa(String? value, {required bool required}) {
+    if (value == null || value.trim().isEmpty) {
+      return required ? 'GPA is required.' : null;
+    }
+    final gpa = double.tryParse(value.trim());
+    return gpa != null && gpa >= 0 && gpa <= 4
+        ? null
+        : 'Enter a GPA from 0.00 to 4.00.';
+  }
+
+  String? _validateTagItems(
+    List<String> items, {
+    required String label,
+    required bool required,
+  }) {
+    if (items.isEmpty) return required ? 'Add at least one $label.' : null;
+    if (items.any((item) => item.trim().isEmpty)) {
+      return '${label[0].toUpperCase()}${label.substring(1)} cannot be empty.';
+    }
+    final normalized = items.map((item) => item.trim().toLowerCase()).toSet();
+    return normalized.length == items.length
+        ? null
+        : 'Duplicate $label entries are not allowed.';
+  }
+
+  bool _validateDraftValues() {
+    final formValid = _formKey.currentState?.validate() ?? false;
+    final skillsError = _validateTagItems(
+      _skills,
+      label: 'skill',
+      required: false,
+    );
+    final toolsError = _validateTagItems(
+      _tools,
+      label: 'tool or technology',
+      required: false,
+    );
+    setState(() {
+      _skillsError = skillsError;
+      _toolsError = toolsError;
+    });
+    return formValid && skillsError == null && toolsError == null;
   }
 
   Widget _buildInputField(
@@ -1827,7 +1981,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     .toList(),
             onChanged: (status) =>
                 setState(() => _selectedAcademicStatus = status),
-            validator: _validateRequired,
+            validator: (value) => _showFinalValidation
+                ? _validateRequired(value)
+                : null,
           ),
         ),
       ],
@@ -1868,7 +2024,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               return DropdownMenuItem(value: year, child: Text('Year $year'));
             }),
             onChanged: (year) => setState(() => _selectedYearOfStudy = year),
-            validator: (year) => year == null ? 'Select a year.' : null,
+            validator: (year) => _showFinalValidation && year == null
+                ? 'Select a year.'
+                : null,
           ),
         ),
       ],
@@ -1908,7 +2066,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
             Text(
-              '${controller.text.length} / 300',
+              '${controller.text.trim().length} / 1000',
               style: const TextStyle(
                 fontSize: 11,
                 color: AppColors.textSecondaryLight,
@@ -1987,7 +2145,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 setState(() => _selectedSchedule = newValue);
               }
             },
-            validator: _validateRequired,
+            validator: (value) => _showFinalValidation
+                ? _validateRequired(value)
+                : null,
           ),
         ),
       ],
@@ -2151,15 +2311,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
               isDense: true,
               contentPadding: EdgeInsets.symmetric(vertical: 12),
             ),
-            validator: (value) {
-              if (value == null || value.trim().isEmpty)
-                return 'GPA is required.';
-              final numValue = double.tryParse(value);
-              if (numValue == null || numValue < 0.0 || numValue > 4.0) {
-                return 'Enter a GPA from 0.00 to 4.00.';
-              }
-              return null;
-            },
+            validator: (value) => _validateGpa(
+              value,
+              required: _showFinalValidation,
+            ),
           ),
         ),
       ],
@@ -2216,7 +2371,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onChanged: (newValue) {
               setState(() => _selectedDegree = newValue);
             },
-            validator: _validateRequired,
+            validator: (value) => _showFinalValidation
+                ? _validateRequired(value)
+                : null,
           ),
         ),
       ],
@@ -2295,7 +2452,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 if (newValue > 0) _fetchJobTitles(newValue);
               }
             },
-            validator: (domainId) => domainId == null || domainId == -1
+            validator: (domainId) => _showFinalValidation &&
+                    (domainId == null || domainId == -1)
                 ? 'Select a primary domain.'
                 : null,
           ),
@@ -2375,7 +2533,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       });
                     }
                   },
-            validator: (jobTitleId) => jobTitleId == null || jobTitleId == -1
+            validator: (jobTitleId) => _showFinalValidation &&
+                    (jobTitleId == null || jobTitleId == -1)
                 ? 'Select a target job title.'
                 : null,
           ),
