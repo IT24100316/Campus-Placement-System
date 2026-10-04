@@ -311,7 +311,7 @@ export const StaffStudentsView: React.FC = () => {
                     )}
                   </div>
 
-                  {selectedStudent.cvPdfUrl && (
+                  {selectedStudent.cvUrl && (
                     <div>
                       <div className="flex items-center gap-2 mb-3">
                         <span className="material-symbols-outlined text-[18px] text-blue-600">verified</span>
@@ -330,7 +330,7 @@ export const StaffStudentsView: React.FC = () => {
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
                             <button type="button" onClick={() => {
-                              const url = selectedStudent.cvPdfUrl || '';
+                              const url = selectedStudent.cvUrl || '';
                               const finalUrl = url.startsWith('http') 
                                 ? url 
                                 : `https://hyxtmbncjolcepfvongh.supabase.co/storage/v1/object/public/student-cvs/${url}`;
@@ -340,7 +340,7 @@ export const StaffStudentsView: React.FC = () => {
                               <span className="text-xs font-bold">View</span>
                             </button>
                             <button type="button" onClick={() => {
-                              const url = selectedStudent.cvPdfUrl || '';
+                              const url = selectedStudent.cvUrl || '';
                               const finalUrl = url.startsWith('http') 
                                 ? url 
                                 : `https://hyxtmbncjolcepfvongh.supabase.co/storage/v1/object/public/student-cvs/${url}`;

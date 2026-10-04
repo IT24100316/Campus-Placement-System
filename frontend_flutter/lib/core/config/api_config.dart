@@ -16,7 +16,7 @@ class ApiConfig {
   static const String _desktopAndWebBaseUrl = 'http://127.0.0.1:5168/api';
 
   // Android emulator — special alias that routes to host machine
-  static const String _androidEmulatorBaseUrl = 'http://10.0.2.2:5168/api';
+  // static const String _androidEmulatorBaseUrl = 'http://10.0.2.2:5168/api';
 
   // Physical Android / iOS device — using ADB reverse over USB cable
   static const String _physicalDeviceBaseUrl = 'http://127.0.0.1:5168/api';
