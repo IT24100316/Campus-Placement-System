@@ -194,7 +194,8 @@ public class AuthService : IAuthService
             Id = user.Id,
             FullName = fullName,
             Email = user.Email,
-            Role = GetDetailedRole(user)
+            Role = GetDetailedRole(user),
+            Status = user.Status.ToString()
         };
     }
 

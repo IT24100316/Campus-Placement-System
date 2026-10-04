@@ -27,7 +27,7 @@ void main() {
   final profile = <String, dynamic>{
     'userId': 'server-student-id',
     'fullName': 'Alex Student',
-    'phone': '+94111222333',
+    'phone': '+94771234567',
     'campusIdPhotoUrl': 'campus-key',
     'portfolioUrl': 'https://example.test/portfolio',
     'universityName': 'Campus University',
@@ -79,7 +79,7 @@ void main() {
         expect(request.method, 'PUT');
         final body = jsonDecode(request.body) as Map<String, dynamic>;
         expect(body['fullName'], 'Alex Student');
-        expect(body['phone'], '+94111222333');
+        expect(body['phone'], '+94771234567');
         expect(body['campusIdPhotoUrl'], 'campus-key');
         expect(body.containsKey('studentId'), isFalse);
         expect(body.containsKey('userId'), isFalse);
@@ -135,7 +135,7 @@ void main() {
   });
 
   testWidgets(
-    'Document Upload follows all profile sections and stays scrollable',
+    'CV upload follows all resume sections and stays scrollable',
     (tester) async {
       addTearDown(() => tester.binding.setSurfaceSize(null));
       final service = StudentProfileService(
@@ -158,11 +158,11 @@ void main() {
         await tester.pumpAndSettle();
 
         final titles = [
-          'Personal Information',
-          'Academic Information',
-          'Career Goals & Preferences',
-          'Technical Profile',
-          'Document Upload',
+          'Personal information',
+          'Academic background',
+          'Career goals and preferences',
+          'Skills and tools',
+          'CV upload',
         ];
         final positions = titles.map((title) {
           final section = find.text(title);
@@ -172,7 +172,7 @@ void main() {
         expect(positions, orderedEquals([...positions]..sort()));
         expect(
           find.ancestor(
-            of: find.text('Document Upload'),
+            of: find.text('CV upload'),
             matching: find.byType(SingleChildScrollView),
           ),
           findsOneWidget,
@@ -186,20 +186,227 @@ void main() {
     },
   );
 
+  testWidgets('disables CV replacement until the server eligibility time', (
+    tester,
+  ) async {
+    final coolingProfile = <String, dynamic>{
+      ...profile,
+      'cvUploadedAt': DateTime.now().toUtc().toIso8601String(),
+      'cvNextEligibleUploadAt': DateTime.now()
+          .toUtc()
+          .add(const Duration(days: 1))
+          .toIso8601String(),
+    };
+    final service = StudentProfileService(
+      profileEndpoint: endpoint,
+      client: MockClient((_) async => http.Response(jsonEncode(coolingProfile), 200)),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ProfileScreen(
+          profileService: service,
+          referenceClient: references(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Select PDF'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.textContaining('You can update your CV again on'),
+      findsOneWidget,
+    );
+    expect(
+      tester.widget<OutlinedButton>(find.widgetWithText(OutlinedButton, 'Select PDF')).onPressed,
+      isNull,
+    );
+  });
+
+  testWidgets('saves and reloads a partial internship registration draft', (
+    tester,
+  ) async {
+    final savedDraft = <String, dynamic>{
+      ...profile,
+      'fullName': 'Draft Student',
+      'phone': '',
+      'universityName': '',
+      'academicStatus': '',
+      'degreeProgram': '',
+      'currentYearOfStudy': 0,
+      'gpa': 0,
+      'expectedGraduationDate': null,
+      'desiredJobTitle': '',
+      'primaryDomain': '',
+      'careerObjectivesSummary': '',
+      'skills': <String>[],
+      'toolsAndTechnologies': <String>[],
+      'internshipType': <String>[],
+      'lectureScheduleType': '',
+      'preferredLocations': <String>[],
+      'cvPdfUrl': '',
+    };
+    var hasSavedDraft = false;
+    final service = StudentProfileService(
+      profileEndpoint: endpoint,
+      client: MockClient((request) async {
+        if (request.method == 'GET') {
+          return hasSavedDraft
+              ? http.Response(jsonEncode(savedDraft), 200)
+              : http.Response('', 404);
+        }
+
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        expect(body['isDraft'], isTrue);
+        expect(body['fullName'], 'Draft Student');
+        expect(body['gpa'], isNull);
+        expect(body['expectedGraduationDate'], isNull);
+        hasSavedDraft = true;
+        return http.Response(jsonEncode(savedDraft), 201);
+      }),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ProfileScreen(
+          profileService: service,
+          referenceClient: references(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Save to continue later'), findsOneWidget);
+    await tester.enterText(find.byType(TextFormField).first, 'Draft Student');
+    await tester.pump();
+    await tester.tap(find.text('Save to continue later'));
+    await tester.pumpAndSettle();
+    expect(find.text('Your progress has been saved.'), findsOneWidget);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ProfileScreen(
+          profileService: service,
+          referenceClient: references(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Draft Student'), findsOneWidget);
+    expect(find.text('Your saved profile is ready to edit.'), findsOneWidget);
+    expect(find.text('Save to continue later'), findsOneWidget);
+  });
+
+  testWidgets('rejects malformed entered phone before saving a draft', (
+    tester,
+  ) async {
+    var saves = 0;
+    final service = StudentProfileService(
+      profileEndpoint: endpoint,
+      client: MockClient((request) async {
+        if (request.method == 'GET') return http.Response('', 404);
+        saves++;
+        return http.Response(jsonEncode(profile), 201);
+      }),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ProfileScreen(profileService: service, referenceClient: references()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextFormField).at(1), '+94111222333');
+    await tester.tap(find.text('Save to continue later'));
+    await tester.pumpAndSettle();
+
+    expect(saves, 0);
+    expect(
+      find.text('Enter a valid Sri Lankan mobile number, for example 0771234567.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('rejects a malformed entered name before saving a draft', (
+    tester,
+  ) async {
+    var saves = 0;
+    final service = StudentProfileService(
+      profileEndpoint: endpoint,
+      client: MockClient((request) async {
+        if (request.method == 'GET') return http.Response('', 404);
+        saves++;
+        return http.Response(jsonEncode(profile), 201);
+      }),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ProfileScreen(profileService: service, referenceClient: references()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextFormField).first, 'Student123');
+    await tester.tap(find.text('Save to continue later'));
+    await tester.pumpAndSettle();
+
+    expect(saves, 0);
+    expect(
+      find.text('Enter a valid full name using 2 to 100 letters.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('rejects a non-HTTPS portfolio URL before saving a draft', (
+    tester,
+  ) async {
+    var saves = 0;
+    final service = StudentProfileService(
+      profileEndpoint: endpoint,
+      client: MockClient((request) async {
+        if (request.method == 'GET') return http.Response('', 404);
+        saves++;
+        return http.Response(jsonEncode(profile), 201);
+      }),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ProfileScreen(profileService: service, referenceClient: references()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byType(TextFormField).at(5),
+      'http://portfolio.example',
+    );
+    await tester.tap(find.text('Save to continue later'));
+    await tester.pumpAndSettle();
+
+    expect(saves, 0);
+    expect(find.text('Enter a valid HTTPS URL.'), findsOneWidget);
+  });
+
   for (final uploadStatus in [200, 500, 401]) {
     testWidgets('saves profile before CV upload and handles $uploadStatus', (
       tester,
     ) async {
       final events = <String>[];
+      final profileWithoutCv = {...profile, 'cvPdfUrl': ''};
       final profileService = StudentProfileService(
         profileEndpoint: endpoint,
         client: MockClient((request) async {
           expect(request.headers['Authorization'], 'Bearer $token');
           if (request.method == 'GET') {
-            return http.Response(jsonEncode(profile), 200);
+            return http.Response(jsonEncode(profileWithoutCv), 200);
           }
           events.add('profile');
-          return http.Response(jsonEncode(profile), 200);
+          return http.Response(jsonEncode(profileWithoutCv), 200);
         }),
       );
       final cvService = CvUploadService(
@@ -246,13 +453,16 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      expect(find.text('Save to continue later'), findsOneWidget);
       await tester.ensureVisible(find.text('Select PDF'));
       await tester.tap(find.text('Select PDF'));
       await tester.pumpAndSettle();
+      expect(find.text('Complete Internship Registration'), findsOneWidget);
       await tester.tap(find.text('Complete Internship Registration'));
       await tester.pumpAndSettle();
       expect(events, ['profile', 'cv']);
       if (uploadStatus == 200) {
+        expect(find.text('Complete Internship Registration'), findsOneWidget);
         expect(
           find.text('Internship registration completed successfully'),
           findsOneWidget,
@@ -264,6 +474,10 @@ void main() {
             'Profile saved, but the CV still needs to be uploaded.',
           ),
           findsOneWidget,
+        );
+        expect(
+          find.text('Internship registration completed successfully'),
+          findsNothing,
         );
         if (uploadStatus == 401) {
           expect(StudentSession.token, isNull);
@@ -301,16 +515,19 @@ void main() {
     expect(find.text('Sign in again'), findsOneWidget);
   });
 
-  testWidgets('a missing CV cannot complete registration', (tester) async {
+  testWidgets('a complete profile without a stored CV remains a draft', (
+    tester,
+  ) async {
     var saves = 0;
+    final profileWithoutCv = {...profile, 'cvPdfUrl': ''};
     final service = StudentProfileService(
       profileEndpoint: endpoint,
       client: MockClient((request) async {
         if (request.method == 'GET') {
-          return http.Response(jsonEncode({...profile, 'cvPdfUrl': ''}), 200);
+          return http.Response(jsonEncode(profileWithoutCv), 200);
         }
         saves++;
-        return http.Response(jsonEncode(profile), 200);
+        return http.Response(jsonEncode(profileWithoutCv), 200);
       }),
     );
     await tester.pumpWidget(
@@ -322,13 +539,11 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Complete Internship Registration'));
+    expect(find.text('Save to continue later'), findsOneWidget);
+    await tester.tap(find.text('Save to continue later'));
     await tester.pumpAndSettle();
-    expect(saves, 0);
-    expect(
-      find.text('A PDF CV is required to complete internship registration.'),
-      findsOneWidget,
-    );
+    expect(saves, 1);
+    expect(find.text('Your progress has been saved.'), findsOneWidget);
   });
 
   testWidgets('invalid profile response prevents CV upload', (tester) async {
@@ -376,14 +591,15 @@ void main() {
   ) async {
     var saves = 0;
     var uploads = 0;
+    final profileWithoutCv = {...profile, 'cvPdfUrl': ''};
     final service = StudentProfileService(
       profileEndpoint: endpoint,
       client: MockClient((request) async {
         if (request.method == 'GET') {
-          return http.Response(jsonEncode({...profile, 'cvPdfUrl': ''}), 200);
+          return http.Response(jsonEncode(profileWithoutCv), 200);
         }
         saves++;
-        return http.Response(jsonEncode(profile), 200);
+        return http.Response(jsonEncode(profileWithoutCv), 200);
       }),
     );
     final cvService = CvUploadService(
@@ -411,9 +627,9 @@ void main() {
       find.textContaining('does not contain valid PDF content'),
       findsOneWidget,
     );
-    await tester.tap(find.text('Complete Internship Registration'));
+    await tester.tap(find.text('Save to continue later'));
     await tester.pumpAndSettle();
-    expect(saves, 0);
+    expect(saves, 1);
     expect(uploads, 0);
   });
 

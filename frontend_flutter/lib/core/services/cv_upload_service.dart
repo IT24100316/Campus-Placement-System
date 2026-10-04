@@ -62,7 +62,13 @@ class CvUploadService {
           );
         }
 
-        return CvUploadResult(storageKey: storageKey);
+        return CvUploadResult(
+          storageKey: storageKey,
+          uploadedAt: _parseUtcDate(responseData?['cvUploadedAt']),
+          nextEligibleUploadAt: _parseUtcDate(
+            responseData?['cvNextEligibleUploadAt'],
+          ),
+        );
       }
 
       throw CvUploadException(
@@ -93,6 +99,11 @@ class CvUploadService {
     }
   }
 
+  DateTime? _parseUtcDate(Object? value) {
+    if (value is! String || value.trim().isEmpty) return null;
+    return DateTime.tryParse(value)?.toUtc();
+  }
+
   String _messageForResponse(
     int statusCode,
     Map<String, dynamic>? responseData,
@@ -115,9 +126,15 @@ class CvUploadService {
 }
 
 class CvUploadResult {
-  const CvUploadResult({required this.storageKey});
+  const CvUploadResult({
+    required this.storageKey,
+    this.uploadedAt,
+    this.nextEligibleUploadAt,
+  });
 
   final String storageKey;
+  final DateTime? uploadedAt;
+  final DateTime? nextEligibleUploadAt;
 }
 
 class CvUploadException implements Exception {

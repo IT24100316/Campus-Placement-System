@@ -70,8 +70,98 @@ public class CvUploadTests
             CancellationToken.None);
 
         Assert.IsType<OkObjectResult>(result);
-        Assert.Equal(storageKey, (await context.StudentProfiles.SingleAsync()).CvPdfUrl);
+        var savedProfile = await context.StudentProfiles.SingleAsync();
+        Assert.Equal(storageKey, savedProfile.CvPdfUrl);
+        Assert.NotNull(savedProfile.CvUploadedAt);
         Assert.Empty(await context.Applications.ToListAsync());
+    }
+
+    [Fact]
+    public async Task UploadCv_RejectsReplacementBeforeCooldownWithoutStoringOrDeletingFiles()
+    {
+        var studentId = Guid.NewGuid();
+        var oldKey = $"{studentId:N}/old.pdf";
+        await using var context = CreateContext();
+        context.Users.Add(StudentUser(studentId));
+        var profile = CompleteProfile(studentId);
+        profile.CvPdfUrl = oldKey;
+        profile.CvUploadedAt = DateTime.UtcNow.AddDays(-6).AddHours(-23);
+        context.StudentProfiles.Add(profile);
+        await context.SaveChangesAsync();
+
+        var storage = new StubStorageService($"{studentId:N}/new.pdf");
+        var result = await CreateController(
+            context,
+            studentId,
+            new StubValidationService(CvFileValidationResult.Valid()),
+            storage).UploadCv(
+                CreateFile("resume.pdf", "application/pdf", "%PDF-test"u8.ToArray()),
+                CancellationToken.None);
+
+        var conflict = Assert.IsType<ConflictObjectResult>(result);
+        Assert.Contains("You can update your CV again on", conflict.Value!.ToString());
+        Assert.Equal(0, storage.StoreCount);
+        Assert.Empty(storage.DeletedKeys);
+        var unchangedProfile = await context.StudentProfiles.SingleAsync();
+        Assert.Equal(oldKey, unchangedProfile.CvPdfUrl);
+    }
+
+    [Fact]
+    public async Task UploadCv_AllowsReplacementAfterSevenFullDays()
+    {
+        var studentId = Guid.NewGuid();
+        var oldKey = $"{studentId:N}/old.pdf";
+        var newKey = $"{studentId:N}/new.pdf";
+        await using var context = CreateContext();
+        context.Users.Add(StudentUser(studentId));
+        var profile = CompleteProfile(studentId);
+        profile.CvPdfUrl = oldKey;
+        profile.CvUploadedAt = DateTime.UtcNow.AddDays(-7);
+        context.StudentProfiles.Add(profile);
+        await context.SaveChangesAsync();
+
+        var storage = new StubStorageService(newKey);
+        var result = await CreateController(
+            context,
+            studentId,
+            new StubValidationService(CvFileValidationResult.Valid()),
+            storage).UploadCv(
+                CreateFile("resume.pdf", "application/pdf", "%PDF-test"u8.ToArray()),
+                CancellationToken.None);
+
+        Assert.IsType<OkObjectResult>(result);
+        Assert.Equal(1, storage.StoreCount);
+        Assert.Equal(oldKey, Assert.Single(storage.DeletedKeys));
+        Assert.Equal(newKey, (await context.StudentProfiles.SingleAsync()).CvPdfUrl);
+    }
+
+    [Fact]
+    public async Task UploadCv_AllowsLegacyCvWithoutUploadTimestampOnce()
+    {
+        var studentId = Guid.NewGuid();
+        var oldKey = $"{studentId:N}/old.pdf";
+        var newKey = $"{studentId:N}/new.pdf";
+        await using var context = CreateContext();
+        context.Users.Add(StudentUser(studentId));
+        var profile = CompleteProfile(studentId);
+        profile.CvPdfUrl = oldKey;
+        profile.CvUploadedAt = null;
+        context.StudentProfiles.Add(profile);
+        await context.SaveChangesAsync();
+
+        var storage = new StubStorageService(newKey);
+        var result = await CreateController(
+            context,
+            studentId,
+            new StubValidationService(CvFileValidationResult.Valid()),
+            storage).UploadCv(
+                CreateFile("resume.pdf", "application/pdf", "%PDF-test"u8.ToArray()),
+                CancellationToken.None);
+
+        Assert.IsType<OkObjectResult>(result);
+        var savedProfile = await context.StudentProfiles.SingleAsync();
+        Assert.Equal(newKey, savedProfile.CvPdfUrl);
+        Assert.NotNull(savedProfile.CvUploadedAt);
     }
 
     [Fact]
@@ -174,6 +264,15 @@ public class CvUploadTests
         PreferredLocations = new[] { "Colombo" }
     };
 
+    private static User StudentUser(Guid studentId) => new()
+    {
+        Id = studentId,
+        Email = "student@example.edu",
+        PasswordHash = "test-only",
+        Role = UserRole.Student,
+        Status = AccountStatus.Approved
+    };
+
     private static CvFileValidationService CreateValidationService(long? maxFileSizeBytes = null)
     {
         return new CvFileValidationService(Options.Create(new CvStorageOptions
@@ -201,7 +300,10 @@ public class CvUploadTests
             new[] { new Claim(ClaimTypes.NameIdentifier, studentId.ToString()) },
             authenticationType: "TestAuthentication");
 
-        return new StudentsController(context, validationService, storageService,
+        return new StudentsController(
+            context,
+            validationService,
+            storageService,
             NullLogger<StudentsController>.Instance)
         {
             ControllerContext = new ControllerContext

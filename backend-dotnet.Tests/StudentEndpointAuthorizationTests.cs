@@ -396,7 +396,7 @@ public class StudentEndpointAuthorizationTests
     private static StudentProfileUpsertRequest ValidProfileRequest() => new()
     {
         FullName = "Student One",
-        Phone = "+94111222333",
+        Phone = "0771234567",
         UniversityName = "Test University",
         AcademicStatus = "Full-time Student",
         DegreeProgram = "Software Engineering",

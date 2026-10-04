@@ -348,6 +348,9 @@ namespace backend_dotnet.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<DateTime?>("CvUploadedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("DegreeProgram")
                         .IsRequired()
                         .HasColumnType("text");

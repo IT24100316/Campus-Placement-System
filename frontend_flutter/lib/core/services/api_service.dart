@@ -12,6 +12,7 @@ class StudentSession {
   static String? fullName;
   static String? email;
   static String? role;
+  static String? accountStatus;
 
   static void clear() {
     userId = null;
@@ -19,6 +20,7 @@ class StudentSession {
     fullName = null;
     email = null;
     role = null;
+    accountStatus = null;
   }
 }
 
@@ -94,6 +96,7 @@ class ApiService {
     StudentSession.fullName = user['fullName']?.toString();
     StudentSession.email = user['email']?.toString();
     StudentSession.role = user['role']?.toString();
+    StudentSession.accountStatus = user['status']?.toString();
 
     // Keep the screen-facing shape stable while taking identity exclusively
     // from the JWT-protected /me response.
@@ -103,15 +106,19 @@ class ApiService {
       'role': user['role'],
       'email': user['email'],
       'fullName': user['fullName'],
+      'status': user['status'],
       'user': user,
     };
   }
 
   Future<List<Map<String, dynamic>>> getApplications() async {
-    final studentId = StudentSession.userId;
-    if (studentId == null) return [];
+    final token = StudentSession.token;
+    if (token == null || token.trim().isEmpty) {
+      throw Exception('Sign in before loading applications.');
+    }
     final response = await http.get(
-      Uri.parse(ApiEndpoints.myApplications(studentId)),
+      Uri.parse(ApiEndpoints.myApplications),
+      headers: {'Authorization': 'Bearer $token'},
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       _decode(response);
