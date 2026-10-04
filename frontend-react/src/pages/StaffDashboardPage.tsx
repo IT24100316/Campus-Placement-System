@@ -67,38 +67,47 @@ export const StaffDashboardPage: React.FC<StaffDashboardPageProps> = ({ onLogout
           </div>
 
           {/* Right Actions */}
-          <div className="flex items-center gap-4">
-            <div className="hidden sm:flex items-center gap-3 pr-4 border-r border-slate-200">
-              <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center border border-blue-100 shrink-0">
-                <span className="text-sm font-bold text-blue-700">ST</span>
+          <div className="flex items-center gap-3">
+            {/* Profile Identity Pill */}
+            <div className="hidden sm:flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200/80 shadow-xs">
+              <div className="w-7 h-7 rounded bg-blue-700 text-white flex items-center justify-center text-xs font-bold font-mono">
+                ST
               </div>
-              <div className="flex flex-col text-left">
-                <span className="text-sm font-bold text-slate-900 flex items-center gap-1">
-                  Staff Member
-                  <ShieldCheck className="w-3.5 h-3.5 text-blue-600" />
+              <div className="flex flex-col text-left leading-tight">
+                <div className="flex items-center gap-1">
+                  <span className="text-xs font-bold text-slate-900 max-w-[170px] truncate" title="Staff Member">
+                    Staff Member
+                  </span>
+                  <ShieldCheck className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                </div>
+                <span className="text-[10px] text-slate-500 truncate max-w-[170px]">
+                  {email}
                 </span>
-                <span className="text-xs font-medium text-slate-500">{email}</span>
               </div>
             </div>
 
-            <button className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-colors relative">
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+            {/* Notification Bell */}
+            <button className="relative w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer focus:outline-none ml-1">
+              <Bell className="w-4 h-4" />
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-blue-700 rounded-full ring-2 ring-white"></span>
             </button>
             
+            {/* My Profile Button */}
             <button
               onClick={() => setProfilePanelOpen(true)}
-              className="flex items-center gap-2 px-3 py-1.5 text-sm font-semibold text-slate-600 hover:text-blue-700 hover:bg-slate-50 rounded-lg border border-transparent hover:border-slate-200 transition-all focus:outline-none"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-700 hover:text-white hover:bg-blue-700 border border-blue-700/30 hover:border-blue-700 px-3 py-2 rounded-lg transition-all shadow-xs focus:ring-2 focus:ring-blue-200 focus:outline-none cursor-pointer ml-1"
               title="View Staff Profile"
             >
-              <UserCircle2 className="w-4 h-4" />
+              <UserCircle2 className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">My Profile</span>
             </button>
+            
+            {/* Logout Button */}
             <button 
               onClick={onLogout}
-              className="flex items-center gap-2 px-3 py-1.5 text-sm font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-lg border border-transparent hover:border-rose-100 transition-all focus:outline-none"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-rose-600 hover:text-white hover:bg-rose-600 border border-rose-200 hover:border-rose-600 px-3 py-2 rounded-lg transition-all shadow-xs focus:ring-2 focus:ring-rose-200 focus:outline-none cursor-pointer"
             >
-              <LogOut className="w-4 h-4" />
+              <LogOut className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Logout</span>
             </button>
           </div>
