@@ -82,7 +82,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
             return ListView.separated(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
               itemCount: notifications.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              separatorBuilder: (_, _) => const SizedBox(height: 8),
               itemBuilder: (context, index) {
                 final notification = notifications[index];
                 return Material(
@@ -109,7 +109,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
         'password_updated' => Icons.lock_outline_rounded,
         'cv_uploaded' => Icons.upload_file_outlined,
         'cv_replacement_available' => Icons.update_outlined,
-        'profile_complete' => Icons.person_check_outlined,
+        'profile_complete' => Icons.person_outline,
         'resume_complete' => Icons.description_outlined,
         _ => Icons.notifications_outlined,
       };
