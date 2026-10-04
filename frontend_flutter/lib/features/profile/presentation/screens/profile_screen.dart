@@ -21,12 +21,16 @@ class ProfileScreen extends StatefulWidget {
     this.referenceClient,
     this.cvUploadService,
     this.pickCvFile,
+    this.showBackButton = false,
+    this.scrollToCv = false,
   });
 
   final StudentProfileService? profileService;
   final http.Client? referenceClient;
   final CvUploadService? cvUploadService;
   final Future<PlatformFile?> Function()? pickCvFile;
+  final bool showBackButton;
+  final bool scrollToCv;
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -36,6 +40,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   static const int _maxCvFileSizeBytes = 10 * 1024 * 1024;
 
   final _formKey = GlobalKey<FormState>();
+  final _cvUploadSectionKey = GlobalKey();
   final List<String> _skills = [];
   final List<String> _tools = [];
 
@@ -124,6 +129,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _initializeProfile() async {
     await _fetchDomains();
     await _loadProfile();
+    _scrollToCvIfRequested();
+  }
+
+  void _scrollToCvIfRequested() {
+    if (!widget.scrollToCv) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final targetContext = _cvUploadSectionKey.currentContext;
+      if (mounted && targetContext != null) {
+        Scrollable.ensureVisible(
+          targetContext,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+          alignment: 0.12,
+        );
+      }
+    });
   }
 
   Future<void> _fetchDomains() async {
@@ -809,7 +830,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
       appBar: AppBar(
-        automaticallyImplyLeading: false,
+        automaticallyImplyLeading: widget.showBackButton,
+        leading: widget.showBackButton
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back_rounded),
+                onPressed: () => Navigator.of(context).pop(),
+              )
+            : null,
         backgroundColor: Colors.white.withValues(alpha: 0.85),
         elevation: 0,
         surfaceTintColor: Colors.transparent,
@@ -1143,32 +1170,44 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  // Document Upload Section
-                  _buildSectionHeader(
-                    'upload_file',
-                    'Document Upload',
-                    badgeText: 'Primary Source',
-                  ),
-                  const SizedBox(height: 12),
-                  _buildDocumentUploadDropzone(),
-                  const SizedBox(height: 12),
-                  if (_uploadedCvStorageKey != null) ...[
-                    const Row(
+                  KeyedSubtree(
+                    key: _cvUploadSectionKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Icon(Icons.check_circle, color: Colors.teal, size: 18),
-                        SizedBox(width: 8),
-                        Text(
-                          'CV uploaded',
-                          style: TextStyle(
-                            color: Colors.teal,
-                            fontWeight: FontWeight.w600,
-                          ),
+                        // Document Upload Section
+                        _buildSectionHeader(
+                          'upload_file',
+                          'Document Upload',
+                          badgeText: 'Primary Source',
                         ),
+                        const SizedBox(height: 12),
+                        _buildDocumentUploadDropzone(),
+                        const SizedBox(height: 12),
+                        if (_uploadedCvStorageKey != null) ...[
+                          const Row(
+                            children: [
+                              Icon(
+                                Icons.check_circle,
+                                color: Colors.teal,
+                                size: 18,
+                              ),
+                              SizedBox(width: 8),
+                              Text(
+                                'CV uploaded',
+                                style: TextStyle(
+                                  color: Colors.teal,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+                        _buildUploadedFileItem(),
                       ],
                     ),
-                    const SizedBox(height: 12),
-                  ],
-                  _buildUploadedFileItem(),
+                  ),
                 ],
               ),
             ),

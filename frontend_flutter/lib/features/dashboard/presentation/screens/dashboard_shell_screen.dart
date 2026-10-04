@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import '../widgets/bottom_nav_bar.dart';
 import 'student_home_screen.dart';
-import '../../../../features/profile/presentation/screens/profile_screen.dart';
 import '../../../../features/profile/presentation/screens/profile_settings_screen.dart';
+import '../../../../features/profile/presentation/screens/resume_hub_screen.dart';
 import '../../../../features/applications/presentation/screens/applications_tracking_screen.dart';
 import '../../../../features/jobs/presentation/screens/job_feed_screen.dart';
 
@@ -29,7 +29,7 @@ class _DashboardShellScreenState extends State<DashboardShellScreen> {
         isActive: _currentIndex == 0,
       ),
       const JobFeedScreen(),
-      ProfileScreen(),
+      ResumeHubScreen(isActive: _currentIndex == 2),
       ApplicationsTrackingScreen(
         initialTab: _applicationsInitialTab,
         selectionRequest: _applicationsSelectionRequest,
