@@ -17,53 +17,7 @@ void main() {
   setUp(() => StudentSession.token = token);
   tearDown(StudentSession.clear);
 
-  testWidgets('shows the create-resume state when no profile exists', (
-    tester,
-  ) async {
-    await _pumpHub(
-      tester,
-      StudentProfileService(
-        profileEndpoint: profileEndpoint,
-        client: MockClient((_) async => http.Response('', 404)),
-      ),
-    );
-
-    expect(find.text('Create your resume'), findsOneWidget);
-    expect(find.text('Create resume'), findsOneWidget);
-  });
-
-  testWidgets('shows progress for a saved incomplete resume draft', (
-    tester,
-  ) async {
-    await _pumpHub(tester, _serviceFor(_profileJson(desiredJobTitle: 'Intern')));
-
-    expect(find.text('Complete your resume'), findsOneWidget);
-    expect(find.textContaining('of 16 required details completed'), findsOneWidget);
-    expect(find.text('Continue editing'), findsOneWidget);
-  });
-
-  testWidgets('requires a CV only after all resume details are complete', (
-    tester,
-  ) async {
-    await _pumpHub(tester, _serviceFor(_profileJson(complete: true)));
-
-    expect(find.text('Your resume is ready'), findsOneWidget);
-    expect(find.text('Upload CV'), findsOneWidget);
-  });
-
-  testWidgets('marks the resume complete only with a stored CV', (
-    tester,
-  ) async {
-    await _pumpHub(
-      tester,
-      _serviceFor(_profileJson(complete: true, cvPdfUrl: 'stored-cv-key')),
-    );
-
-    expect(find.text('Your resume is complete'), findsOneWidget);
-    expect(find.text('Edit resume'), findsOneWidget);
-  });
-
-  Future<void> _pumpHub(
+  Future<void> pumpHub(
     WidgetTester tester,
     StudentProfileService service,
   ) async {
@@ -73,7 +27,7 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  StudentProfileService _serviceFor(Map<String, Object?> response) {
+  StudentProfileService serviceFor(Map<String, Object?> response) {
     return StudentProfileService(
       profileEndpoint: profileEndpoint,
       client: MockClient((request) async {
@@ -83,7 +37,7 @@ void main() {
     );
   }
 
-  Map<String, Object?> _profileJson({
+  Map<String, Object?> profileJson({
     bool complete = false,
     String desiredJobTitle = '',
     String cvPdfUrl = '',
@@ -109,6 +63,54 @@ void main() {
       'lectureScheduleType': complete ? 'Weekday' : '',
       'preferredLocations': complete ? ['Colombo'] : <String>[],
       'cvPdfUrl': cvPdfUrl,
+      'isLookingForInternship': true,
     };
   }
+
+  testWidgets('shows the create-resume state when no profile exists', (
+    tester,
+  ) async {
+    await pumpHub(
+      tester,
+      StudentProfileService(
+        profileEndpoint: profileEndpoint,
+        client: MockClient((_) async => http.Response('', 404)),
+      ),
+    );
+
+    expect(find.text('Create your resume'), findsOneWidget);
+    expect(find.text('Create resume'), findsOneWidget);
+  });
+
+  testWidgets('shows progress for a saved incomplete resume draft', (
+    tester,
+  ) async {
+    await pumpHub(tester, serviceFor(profileJson(desiredJobTitle: 'Intern')));
+
+    expect(find.text('Complete your resume'), findsOneWidget);
+    expect(find.textContaining('of 16 required details completed'), findsOneWidget);
+    expect(find.text('Continue editing'), findsOneWidget);
+  });
+
+  testWidgets('requires a CV only after all resume details are complete', (
+    tester,
+  ) async {
+    await pumpHub(tester, serviceFor(profileJson(complete: true)));
+
+    expect(find.text('Your resume is ready'), findsOneWidget);
+    expect(find.text('Upload CV'), findsOneWidget);
+  });
+
+  testWidgets('marks the resume complete only with a stored CV', (
+    tester,
+  ) async {
+    await pumpHub(
+      tester,
+      serviceFor(profileJson(complete: true, cvPdfUrl: 'stored-cv-key')),
+    );
+
+    expect(find.text('Your resume is complete'), findsOneWidget);
+    expect(find.text('Edit resume'), findsOneWidget);
+  });
+
 }
