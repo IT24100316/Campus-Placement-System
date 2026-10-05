@@ -178,7 +178,7 @@ public class CompanyService : ICompanyService
             OrgCode = orgCode,
             Stats = new CompanyStatsDto
             {
-                ActiveJobDrives = Math.Max(activeJobs.Count, 3),
+                ActiveJobDrives = activeJobs.Count,
                 PrescreenedStudents = screened.Count,
                 InterviewsScheduled = screened.Count(a => a.Status == ApplicationStatus.Company_Scheduled || a.Status == ApplicationStatus.Student_Accepted),
                 PartnerUniversityReach = 34
