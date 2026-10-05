@@ -111,6 +111,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
         'cv_replacement_available' => Icons.update_outlined,
         'profile_complete' => Icons.person_outline,
         'resume_complete' => Icons.description_outlined,
+        'email_notification' => Icons.email_outlined,
         _ => Icons.notifications_outlined,
       };
 }
