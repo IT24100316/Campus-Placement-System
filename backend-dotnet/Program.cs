@@ -46,6 +46,7 @@ builder.Services.AddScoped<ICompanyService, CompanyService>();
 builder.Services.AddScoped<ICvFileValidationService, CvFileValidationService>();
 builder.Services.AddHttpClient<ICvStorageService, SupabaseCvStorageService>();
 builder.Services.AddScoped<IJobService, JobService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
 
 // 2.7 Register Background Services
 // builder.Services.AddHostedService<EvaluationTriggerService>();

@@ -150,6 +150,53 @@ class ApiService {
     }
   }
 
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final token = StudentSession.token?.trim();
+    if (token == null || token.isEmpty) {
+      throw Exception('Sign in again before changing your password.');
+    }
+    final response = await http.put(
+      Uri.parse(ApiEndpoints.changePassword),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'currentPassword': currentPassword,
+        'newPassword': newPassword,
+      }),
+    );
+    _decode(response);
+  }
+
+  Future<String> requestPasswordReset(String email) async {
+    final response = await http.post(
+      Uri.parse(ApiEndpoints.requestPasswordReset),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'email': email.trim()}),
+    );
+    return _decode(response)['message']?.toString() ??
+        'If this is an approved student account, a reset code has been sent.';
+  }
+
+  Future<void> resetPassword({
+    required String email,
+    required String newPassword,
+  }) async {
+    final response = await http.post(
+      Uri.parse(ApiEndpoints.resetPassword),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'email': email.trim(),
+        'newPassword': newPassword,
+      }),
+    );
+    _decode(response);
+  }
+
   Map<String, dynamic> _decode(http.Response response) {
     final data = response.body.isEmpty
         ? <String, dynamic>{}

@@ -18,19 +18,22 @@ public class ApplicationService : IApplicationService
     private readonly IConfiguration _configuration;
     private readonly IEmailService _emailService;
     private readonly IDocumentStorageService _documentStorage;
+    private readonly INotificationService? _notificationService;
 
     public ApplicationService(
         AppDbContext context,
         IHttpClientFactory httpClientFactory,
         IConfiguration configuration,
         IEmailService emailService,
-        IDocumentStorageService documentStorage)
+        IDocumentStorageService documentStorage,
+        INotificationService? notificationService = null)
     {
         _context = context;
         _httpClientFactory = httpClientFactory;
         _configuration = configuration;
         _emailService = emailService;
         _documentStorage = documentStorage;
+        _notificationService = notificationService;
     }
 
     // Fetches all the applications for a specific job, and grabs the candidate details too.
@@ -136,6 +139,13 @@ public class ApplicationService : IApplicationService
             Status = ApplicationStatus.Pending, SummaryReport = "{}"
         };
         _context.Applications.Add(application);
+        _notificationService?.Add(
+            application.StudentId,
+            "application_received",
+            "Application received",
+            "Your application has been submitted and is awaiting review.",
+            "applications",
+            application.AppId);
         await _context.SaveChangesAsync(cancellationToken);
         return application;
     }
@@ -171,6 +181,13 @@ public class ApplicationService : IApplicationService
             application.SummaryReport = payload.ResultJson ?? "{}";
             application.MatchScore = payload.MatchScore;
             application.Status = ApplicationStatus.Agent_Evaluated;
+            _notificationService?.Add(
+                application.StudentId,
+                "application_update",
+                "Application update",
+                "Your application has completed the initial review.",
+                "applications",
+                application.AppId);
         }
         else
         {
@@ -235,6 +252,15 @@ public class ApplicationService : IApplicationService
         if (approved) {
             application.DecisionDeadline = DateTime.UtcNow.AddDays(3);
         }
+        _notificationService?.Add(
+            application.StudentId,
+            approved ? "action_required" : "application_update",
+            approved ? "Action required: respond to your offer" : "Application update",
+            approved
+                ? "You have been shortlisted. Review and respond to the offer within three days."
+                : "Your application was not selected on this occasion.",
+            "applications",
+            application.AppId);
         await _context.SaveChangesAsync(cancellationToken);
         return application;
     }
@@ -318,6 +344,13 @@ public class ApplicationService : IApplicationService
         // 5. Database Consistency: Only save state to DB if the third-party SendGrid request succeeded
         application.InterviewStatus = InterviewStatus.Invited;
         application.Status = ApplicationStatus.Company_Scheduled;
+        _notificationService?.Add(
+            application.StudentId,
+            "interview",
+            "Interview scheduled",
+            $"Your interview for {jobTitle} has been scheduled.",
+            "applications",
+            application.AppId);
 
         await _context.SaveChangesAsync();
 
@@ -355,6 +388,13 @@ public class ApplicationService : IApplicationService
 
         application.Status = ApplicationStatus.Rejected;
         application.CompanyMessage = request.Reason; // Save reason in CompanyMessage or just leave it for now.
+        _notificationService?.Add(
+            application.StudentId,
+            "application_update",
+            "Application update",
+            $"Your application for {jobTitle} was not selected.",
+            "applications",
+            application.AppId);
 
         await _context.SaveChangesAsync();
         return true;

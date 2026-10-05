@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_colors.dart';
-import '../../../../core/widgets/authenticated_brand_header.dart';
+import '../../../../core/widgets/global_app_header.dart';
 import '../../data/models/job_feed_model.dart';
 import '../../data/repositories/job_repository.dart';
 import '../widgets/job_card.dart';
@@ -191,7 +191,7 @@ class _JobFeedScreenState extends State<JobFeedScreen> {
     final jobs = _visibleJobs;
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
-      appBar: _buildAppBar(),
+      appBar: const GlobalAppHeader(),
       body: CustomScrollView(
         controller: _scrollController,
         slivers: [
@@ -341,28 +341,6 @@ class _JobFeedScreenState extends State<JobFeedScreen> {
           );
         }, childCount: jobs.length + (_hasMore ? 1 : 0)),
       ),
-    );
-  }
-
-  PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-      backgroundColor: AppColors.backgroundLight,
-      elevation: 0,
-      scrolledUnderElevation: 1,
-      title: const AuthenticatedBrandHeader(),
-      actions: [
-        Padding(
-          padding: const EdgeInsets.only(right: 8),
-          child: IconButton(
-            icon: const Badge(
-              backgroundColor: Colors.red,
-              child: Icon(Icons.notifications_none),
-            ),
-            color: AppColors.textSecondaryLight,
-            onPressed: () {},
-          ),
-        ),
-      ],
     );
   }
 
