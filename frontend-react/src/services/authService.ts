@@ -59,35 +59,7 @@ const INITIAL_COMPANIES: ApprovedCompanyOption[] = [
   },
 ];
 
-const INITIAL_REGISTRATIONS: RegistrationRecord[] = [
-  {
-    id: 'reg-init-1',
-    role: 'hr',
-    fullName: 'Clara Vance',
-    email: 'c.vance@acmeglobal.tech',
-    phone: '+1 (555) 234-5678',
-    companyName: 'Acme Global Technologies Inc.',
-    industry: 'Software, Cloud & Artificial Intelligence',
-    documentName: 'Acme_Incorporation_BR.pdf',
-    documentSize: '2.4 MB',
-    status: 'Pending',
-    submittedAt: 'Today, 10:45 AM',
-    refCode: 'REG-2025-08492',
-  },
-  {
-    id: 'reg-init-2',
-    role: 'staff',
-    fullName: 'David Miller',
-    email: 'd.miller@acmeglobal.tech',
-    phone: '+1 (555) 345-6789',
-    companyName: 'Acme Global Technologies Inc.',
-    staffId: 'ACM-STF-1042',
-    jobPosition: 'Senior Talent Acquisition Lead',
-    status: 'Pending',
-    submittedAt: 'Today, 11:15 AM',
-    refCode: 'STF-2025-01948',
-  },
-];
+const INITIAL_REGISTRATIONS: RegistrationRecord[] = [];
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5168/api';
 
@@ -100,12 +72,6 @@ export const authService = {
     }
     try {
       const parsed: RegistrationRecord[] = JSON.parse(raw);
-      // Ensure demo staff account is available if missing
-      if (!parsed.some((r) => r.email.toLowerCase() === 'd.miller@acmeglobal.tech')) {
-        const withStaff = [...parsed, INITIAL_REGISTRATIONS[1]];
-        localStorage.setItem(STORAGE_KEY_REGISTRATIONS, JSON.stringify(withStaff));
-        return withStaff;
-      }
       return parsed;
     } catch {
       return INITIAL_REGISTRATIONS;
@@ -451,17 +417,8 @@ export const authService = {
           refCode: `REG-${u.userId.substring(0, 8).toUpperCase()}`,
         }));
 
-        if (mapped.length > 0) {
-          const local = this.getRegistrations();
-          const merged = [...mapped];
-          for (const item of local) {
-            if (!merged.some((m) => m.email.toLowerCase() === item.email.toLowerCase())) {
-              merged.push(item);
-            }
-          }
-          localStorage.setItem(STORAGE_KEY_REGISTRATIONS, JSON.stringify(merged));
-          return merged;
-        }
+          localStorage.setItem(STORAGE_KEY_REGISTRATIONS, JSON.stringify(mapped));
+          return mapped;
       }
     } catch {
       // Ignore network errors

@@ -102,7 +102,7 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
       
       const mapped: Candidate[] = data.map((item: any) => {
         let aiPoints: { topic: string; content: string }[] = [{ topic: 'Status', content: 'Awaiting detailed AI analysis...' }];
-        const careerObj = 'No AI summary available.';
+        const careerObj = item.careerObjectives || 'No objectives specified.';
         
         let valInfo: any = undefined;
         if (item.validationReport && item.validationReport !== '{}') {
