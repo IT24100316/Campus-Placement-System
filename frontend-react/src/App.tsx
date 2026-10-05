@@ -29,9 +29,8 @@ function App() {
       const saved = localStorage.getItem('campusai_auth_user');
       if (saved) {
         const u = JSON.parse(saved);
-        if (u?.role?.toLowerCase().includes('staff')) {
-          return 'staff';
-        }
+        if (u?.role?.toLowerCase() === 'companystaff') return 'hr';
+        if (u?.role?.toLowerCase().includes('staff')) return 'staff';
       }
     } catch {}
     return 'landing';
@@ -53,9 +52,8 @@ function App() {
         const verifiedUser = { email: user.email, role: user.role, companyName: (user as any).companyName };
         setCurrentUser(verifiedUser);
         localStorage.setItem('campusai_auth_user', JSON.stringify(verifiedUser));
-        if (user.role && user.role.toLowerCase().includes('staff')) {
-          setCurrentView('staff');
-        }
+        if (user.role?.toLowerCase() === 'companystaff') setCurrentView('hr');
+        else if (user.role?.toLowerCase().includes('staff')) setCurrentView('staff');
       })
       .catch(() => {
         setCurrentUser(null);
@@ -80,6 +78,8 @@ function App() {
 
     if (normalizedRole === 'admin') {
       setCurrentView('admin');
+    } else if (normalizedRole === 'companystaff') {
+      setCurrentView('hr');
     } else if (normalizedRole.includes('staff')) {
       // Staff members go directly to the new Staff Dashboard
       setCurrentView('staff');

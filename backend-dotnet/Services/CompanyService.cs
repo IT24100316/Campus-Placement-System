@@ -112,6 +112,7 @@ public class CompanyService : ICompanyService
                 a.Job.CompanyId == company.UserId &&
                 (a.Status == ApplicationStatus.Student_Accepted ||
                  a.Status == ApplicationStatus.Company_Scheduled ||
+                 a.Status == ApplicationStatus.Company_Approved ||
                  a.Status == ApplicationStatus.Rejected))
             .OrderByDescending(a => a.MatchScore)
             .ToListAsync();
@@ -130,6 +131,7 @@ public class CompanyService : ICompanyService
             ApplicationStatus.Admin_Approved    => ("Shortlisted",          "blue"),
             ApplicationStatus.Company_Scheduled => ("Interview Confirmed",  "purple"),
             ApplicationStatus.Student_Accepted  => ("Accepted",             "green"),
+            ApplicationStatus.Company_Approved  => ("Under Review",         "blue"),
             ApplicationStatus.Rejected          => ("Rejected",             "rose"),
             _                                   => ("In Review",            "gray")
         };

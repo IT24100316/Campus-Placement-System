@@ -24,7 +24,8 @@ public enum ApplicationStatus
     Company_Scheduled,
     Student_Accepted,
     Processing,
-    Evaluation_Failed
+    Evaluation_Failed,
+    Company_Approved
 }
 
 public enum InterviewStatus

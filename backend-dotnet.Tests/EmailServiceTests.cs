@@ -37,6 +37,23 @@ public class EmailServiceTests
         Assert.Contains("person@example.com", handler.LastBody);
     }
 
+    [Fact]
+    public async Task ShortlistApproval_EmailsStudentAboutFurtherReview()
+    {
+        var handler = new RecordingHandler { ResponseStatus = HttpStatusCode.Accepted };
+        var service = CreateService(handler, new Dictionary<string, string?>
+        {
+            ["BrevoApi:ApiKey"] = "test-key",
+            ["BrevoApi:SenderEmail"] = "placement@example.edu"
+        });
+
+        var sent = await service.SendCompanyShortlistApprovedAsync("student@example.edu", "Student", "Example Company", "Engineering Intern");
+
+        Assert.True(sent);
+        Assert.Contains("student@example.edu", handler.LastBody);
+        Assert.Contains("approved for the shortlist and sent for further review", handler.LastBody);
+    }
+
     private static BrevoEmailService CreateService(RecordingHandler handler, Dictionary<string, string?> settings)
     {
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(settings).Build();

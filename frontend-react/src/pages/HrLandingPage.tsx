@@ -55,6 +55,7 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [dashboardData, setDashboardData] = useState<CompanyDashboardData | null>(null);
   const [interviewInvited, setInterviewInvited] = useState<Record<string, boolean>>({});
+  const [approvingCandidate, setApprovingCandidate] = useState<string | null>(null);
 
   // --- Active Placement Drives Filtering & Pagination State ---
   const [jobSearchQuery, setJobSearchQuery] = useState('');
@@ -291,6 +292,26 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
 
   const handleInvite = (id: string) => {
     setInterviewInvited((prev) => ({ ...prev, [id]: true }));
+  };
+
+  const handleApproveShortlist = async (candidate: { id: string; jobId?: string }) => {
+    if (!candidate.jobId) return;
+    setApprovingCandidate(candidate.id);
+    try {
+      const approved = await companyService.approveShortlist(candidate.id, candidate.jobId);
+      if (!approved) {
+        alert('Could not approve this shortlist or send the email. Please try again.');
+        return;
+      }
+      setDashboardData(prev => prev ? {
+        ...prev,
+        shortlistedCandidates: prev.shortlistedCandidates.map(c =>
+          c.id === candidate.id && c.jobId === candidate.jobId ? { ...c, status: 'Under Review' } : c
+        ),
+      } : prev);
+    } finally {
+      setApprovingCandidate(null);
+    }
   };
 
   const openInviteModal = (candidate: any) => {
@@ -1691,6 +1712,7 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                       >
                         <option value="all">All Statuses</option>
                         <option value="Shortlisted">Shortlisted</option>
+                        <option value="Under Review">Under Review</option>
                         <option value="Pre-screen Cleared">Pre-screen Cleared</option>
                         <option value="Interview Confirmed">Interview Confirmed</option>
                         <option value="Rejected">Rejected</option>
@@ -1883,6 +1905,17 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                                   </div>
                                 ) : (
                                   <div className="flex items-center justify-end gap-2">
+                                    {c.status === 'Accepted' && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleApproveShortlist(c)}
+                                        disabled={approvingCandidate === c.id || !c.jobId}
+                                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold disabled:opacity-50"
+                                      >
+                                        <CheckCircle2 className="w-3.5 h-3.5" />
+                                        <span>{approvingCandidate === c.id ? 'Approving...' : 'Approve for review'}</span>
+                                      </button>
+                                    )}
                                     <button
                                       type="button"
                                       onClick={() => openRejectModal(c)}
@@ -1891,13 +1924,15 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                                       <X className="w-3.5 h-3.5" />
                                       <span>Reject</span>
                                     </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => openInviteModal(c)}
-                                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary hover:bg-blue-700 text-white text-xs font-semibold transition-all shadow-xs cursor-pointer"
-                                    >
-                                      <span>Invite</span>
-                                    </button>
+                                    {c.status === 'Under Review' && (
+                                      <button
+                                        type="button"
+                                        onClick={() => openInviteModal(c)}
+                                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary hover:bg-blue-700 text-white text-xs font-semibold transition-all shadow-xs cursor-pointer"
+                                      >
+                                        <span>Invite</span>
+                                      </button>
+                                    )}
                                   </div>
                                 )}
                               </td>

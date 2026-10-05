@@ -310,7 +310,7 @@ public class ApplicationService : IApplicationService
                 .ThenInclude(j => j.Company)
             .FirstOrDefaultAsync(a => a.StudentId == request.StudentId && a.JobId == request.JobId);
 
-        if (application == null || application.Status != ApplicationStatus.Student_Accepted)
+        if (application == null || application.Status != ApplicationStatus.Company_Approved)
         {
             return false;
         }
@@ -354,6 +354,31 @@ public class ApplicationService : IApplicationService
 
         await _context.SaveChangesAsync();
 
+        return true;
+    }
+
+    public async Task<bool> ApproveCandidateForReviewAsync(Guid studentId, Guid jobId, Guid companyId, CancellationToken cancellationToken = default)
+    {
+        var application = await _context.Applications
+            .Include(a => a.Student).ThenInclude(u => u.StudentProfile)
+            .Include(a => a.Job).ThenInclude(j => j.Company)
+            .FirstOrDefaultAsync(a => a.StudentId == studentId && a.JobId == jobId && a.Job.CompanyId == companyId, cancellationToken);
+
+        if (application is null || application.Status != ApplicationStatus.Student_Accepted)
+            return false;
+
+        var emailSent = await _emailService.SendCompanyShortlistApprovedAsync(
+            application.Student.Email,
+            application.Student.StudentProfile?.FullName ?? "Student",
+            application.Job.Company.CompanyName,
+            application.Job.JobTitle,
+            cancellationToken);
+        if (!emailSent) return false;
+
+        application.Status = ApplicationStatus.Company_Approved;
+        _notificationService?.Add(application.StudentId, "application_update", "Shortlist approved",
+            $"Your application for {application.Job.JobTitle} has been sent for further review.", "applications", application.AppId);
+        await _context.SaveChangesAsync(cancellationToken);
         return true;
     }
 

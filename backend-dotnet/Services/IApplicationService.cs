@@ -20,4 +20,5 @@ public interface IApplicationService
     Task<IEnumerable<object>> GetStudentApplicationsAsync(Guid studentId, CancellationToken cancellationToken = default);
     Task<bool> ScheduleInterviewAsync(ScheduleInterviewRequestDto request);
     Task<bool> RejectCandidateAsync(RejectCandidateRequestDto request);
+    Task<bool> ApproveCandidateForReviewAsync(Guid studentId, Guid jobId, Guid companyId, CancellationToken cancellationToken = default);
 }

@@ -9,6 +9,7 @@ public interface IEmailService
     Task<bool> SendAccountDecisionAsync(string recipient, string displayName, bool approved, CancellationToken cancellationToken = default);
     Task<bool> SendInterviewScheduledAsync(string toEmail, string studentName, string companyName, string jobTitle, DateTime interviewDate, TimeSpan interviewTime, string? meetingLink, CancellationToken cancellationToken = default);
     Task<bool> SendCandidateRejectedAsync(string toEmail, string studentName, string companyName, string jobTitle, string reason, CancellationToken cancellationToken = default);
+    Task<bool> SendCompanyShortlistApprovedAsync(string toEmail, string studentName, string companyName, string jobTitle, CancellationToken cancellationToken = default);
 }
 
 public sealed class BrevoEmailService : IEmailService
@@ -117,6 +118,13 @@ public sealed class BrevoEmailService : IEmailService
         ";
 
         return SendAsync(toEmail, studentName, subject, htmlContent, null, cancellationToken, isHtml: true, fromNameOverride: companyName);
+    }
+
+    public Task<bool> SendCompanyShortlistApprovedAsync(string toEmail, string studentName, string companyName, string jobTitle, CancellationToken cancellationToken = default)
+    {
+        var subject = $"Your application is under review – {jobTitle} at {companyName}";
+        var body = $"Your application for {jobTitle} at {companyName} has been approved for the shortlist and sent for further review. We will email you if the company schedules an interview.";
+        return SendAsync(toEmail, studentName, subject, body, null, cancellationToken);
     }
 
     private async Task<bool> SendAsync(string recipient, string displayName, string subject, string body, object? attachment, CancellationToken cancellationToken, bool isHtml = false, string? fromNameOverride = null)

@@ -113,7 +113,7 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
 
     // Categorize applications
     final actionRequired = _applications.where((app) => app['status'] == 'Admin_Approved' || app['status'] == 'Company_Scheduled').toList();
-    final pending = _applications.where((app) => app['status'] == 'Pending' || app['status'] == 'Agent_Evaluated').toList();
+    final pending = _applications.where((app) => app['status'] == 'Pending' || app['status'] == 'Agent_Evaluated' || app['status'] == 'Company_Approved').toList();
     final history = _applications.where((app) => app['status'] == 'Student_Accepted' || app['status'] == 'Rejected' || app['status'] == 'Archived').toList();
 
     return Scaffold(
@@ -596,8 +596,10 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
               date: 'Applied Recently',
               title: title,
               subtitle: 'Software Engineering',
-              badge: 'Pending: $status',
-              statusDescription: status == 'Agent_Evaluated' 
+              badge: status == 'Company_Approved' ? 'Under review' : 'Pending: $status',
+              statusDescription: status == 'Company_Approved'
+                  ? 'The company approved your shortlist and sent your application for further review.'
+                  : status == 'Agent_Evaluated'
                   ? 'Your profile has been evaluated by AI. Awaiting HR review.' 
                   : 'Currently being reviewed by the AI matching system.',
             ),

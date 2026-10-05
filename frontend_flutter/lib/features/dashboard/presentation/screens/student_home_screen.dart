@@ -1442,7 +1442,7 @@ class _ApplicationCounts {
       }).length,
       pending: applications.where((application) {
         final status = application['status'];
-        return status == 'Pending' || status == 'Agent_Evaluated';
+        return status == 'Pending' || status == 'Agent_Evaluated' || status == 'Company_Approved';
       }).length,
       history: applications.where((application) {
         final status = application['status'];

@@ -156,6 +156,22 @@ export const companyService = {
     }
   },
 
+  async approveShortlist(studentId: string, jobId: string): Promise<boolean> {
+    try {
+      const res = await fetch(`${API_BASE}/interviews/approve-shortlist`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
+        },
+        body: JSON.stringify({ studentId, jobId }),
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  },
+
   async rejectCandidate(studentId: string, jobId: string, reason: string): Promise<boolean> {
     try {
       const url = `${API_BASE}/interviews/reject`;
