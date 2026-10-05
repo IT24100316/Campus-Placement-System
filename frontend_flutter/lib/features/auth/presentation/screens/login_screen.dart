@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/services/api_service.dart';
+import '../../../../core/widgets/campus_ai_logo.dart';
 import '../../../dashboard/presentation/screens/dashboard_shell_screen.dart';
 import 'account_pending_screen.dart';
 import 'forgot_password_screen.dart';
@@ -28,9 +29,28 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _login() async {
+    final email = _email.text.trim();
+    final password = _password.text;
+    if (email.isEmpty && password.isEmpty) {
+      setState(() => _error = 'Enter your university email and password to sign in.');
+      return;
+    }
+    if (email.isEmpty) {
+      setState(() => _error = 'Enter your university email address.');
+      return;
+    }
+    if (password.isEmpty) {
+      setState(() => _error = 'Enter your password.');
+      return;
+    }
+    if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email)) {
+      setState(() => _error = 'Enter a valid university email address.');
+      return;
+    }
+
     setState(() { _isSubmitting = true; _error = null; });
     try {
-      final result = await ApiService().login(_email.text, _password.text);
+      final result = await ApiService().login(email, password);
       if (result['isPending'] == true) {
         if (!mounted) return;
         Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AccountPendingScreen()));
@@ -78,6 +98,45 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ),
         leadingWidth: 64,
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: AppColors.primary,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const CampusAILogo(size: 20, color: Colors.white),
+            ),
+            const SizedBox(width: 10),
+            const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'CampusAI',
+                  style: TextStyle(
+                    color: AppColors.textPrimaryLight,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    height: 1.1,
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  'STUDENT PORTAL',
+                  style: TextStyle(
+                    color: AppColors.primary,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.5,
+                    height: 1.1,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -86,37 +145,28 @@ class _LoginScreenState extends State<LoginScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Container(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
                 decoration: BoxDecoration(
-                  color: AppColors.primary,
-                  borderRadius: BorderRadius.circular(20),
+                  color: const Color(0xFFEAF2FF),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.12)),
                 ),
                 child: const Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 17,
-                          backgroundColor: Colors.white,
-                          child: Icon(Icons.school_outlined, color: AppColors.primary, size: 20),
-                        ),
-                        SizedBox(width: 10),
-                        Text(
-                          'CAMPUSAI',
-                          style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 1.1),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 22),
                     Text(
                       'Welcome back',
-                      style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: -0.5),
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimaryLight,
+                        letterSpacing: -0.5,
+                      ),
                     ),
                     SizedBox(height: 7),
                     Text(
                       'Sign in to explore internship opportunities, manage applications, and stay updated on your placement journey.',
-                      style: TextStyle(fontSize: 14, color: Color(0xFFE8F0FF), height: 1.4),
+                      style: TextStyle(fontSize: 14, color: AppColors.textSecondaryLight, height: 1.4),
                     ),
                   ],
                 ),

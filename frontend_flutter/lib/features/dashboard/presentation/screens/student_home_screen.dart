@@ -262,7 +262,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen>
                       onViewApplications: () => widget.onOpenApplications(0),
                     ),
                     const SizedBox(height: 28),
-                    const DashboardSectionTitle(title: 'Application status'),
+                    const DashboardSectionTitle(title: 'Action Required Applications'),
                     const SizedBox(height: 12),
                     _ApplicationStatusPanel(
                       applications: _applications,
@@ -1239,7 +1239,10 @@ class _ApplicationStatusPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final counts = _ApplicationCounts.fromApplications(applications);
+    final actionRequired = applications.where((application) {
+      final status = application['status']?.toString();
+      return status == 'Admin_Approved' || status == 'Company_Scheduled';
+    }).toList();
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -1261,63 +1264,161 @@ class _ApplicationStatusPanel extends StatelessWidget {
             )
           : errorMessage != null
           ? _DashboardLoadError(message: errorMessage!, onRetry: onRetry)
-          : counts.isEmpty
-          ? const _ApplicationsEmptyState()
-          : LayoutBuilder(
-              builder: (context, constraints) {
-                final useColumn = constraints.maxWidth < 420;
-                final countButtons = [
-                  if (counts.actionRequired > 0)
-                    _ApplicationCountButton(
-                      label: 'Action Required',
-                      count: counts.actionRequired,
-                      onTap: () => onOpenApplications(0),
-                    ),
-                  if (counts.pending > 0)
-                    _ApplicationCountButton(
-                      label: 'Pending',
-                      count: counts.pending,
-                      onTap: () => onOpenApplications(1),
-                    ),
-                  if (counts.history > 0)
-                    _ApplicationCountButton(
-                      label: 'History',
-                      count: counts.history,
-                      onTap: () => onOpenApplications(2),
-                    ),
-                ];
-
-                if (useColumn) {
-                  return Column(
-                    children: [
-                      for (var index = 0; index < countButtons.length; index++) ...[
-                        countButtons[index],
-                        if (index < countButtons.length - 1)
-                          const Divider(height: 1, color: AppColors.borderLight),
-                      ],
-                    ],
-                  );
-                }
-
-                return Row(
+          : actionRequired.isEmpty
+          ? const _NoActionRequiredState()
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   children: [
-                    for (var index = 0; index < countButtons.length; index++) ...[
-                      Expanded(child: countButtons[index]),
-                      if (index < countButtons.length - 1)
-                        const SizedBox(
-                          height: 44,
-                          child: VerticalDivider(
-                            width: 1,
-                            color: AppColors.borderLight,
-                          ),
-                        ),
-                    ],
+                    const Icon(Icons.priority_high_rounded, size: 18, color: Color(0xFFB45309)),
+                    const SizedBox(width: 6),
+                    Text(
+                      '${actionRequired.length} action ${actionRequired.length == 1 ? 'needs' : 'need'} your attention',
+                      style: const TextStyle(
+                        color: AppColors.textPrimaryLight,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ],
-                );
-              },
+                ),
+                const SizedBox(height: 10),
+                for (var index = 0; index < actionRequired.length; index++) ...[
+                  _ActionRequiredApplicationRow(
+                    application: actionRequired[index],
+                    onTap: () => onOpenApplications(0),
+                  ),
+                  if (index < actionRequired.length - 1)
+                    const Divider(height: 20, color: AppColors.borderLight),
+                ],
+              ],
             ),
     );
   }
+}
+
+class _ActionRequiredApplicationRow extends StatelessWidget {
+  const _ActionRequiredApplicationRow({
+    required this.application,
+    required this.onTap,
+  });
+
+  final Map<String, dynamic> application;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final company = application['companyName']?.toString() ?? 'Company';
+    final role = application['jobTitle']?.toString() ?? 'Internship opportunity';
+    final status = application['status']?.toString();
+    final isOffer = status == 'Admin_Approved';
+    final label = isOffer ? 'Offer awaiting response' : 'Interview scheduled';
+    final deadline = _dateFrom(application['decisionDeadline']);
+    final interviewDate = _dateFrom(application['interviewDate']);
+    final timeLabel = deadline != null
+        ? 'Respond by ${_formatDate(deadline)}'
+        : interviewDate != null
+        ? 'Interview: ${_formatDate(interviewDate)}'
+        : label;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: (isOffer ? const Color(0xFFFFF4E5) : const Color(0xFFEAF2FF)),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                isOffer ? Icons.assignment_turned_in_outlined : Icons.event_available_outlined,
+                color: isOffer ? const Color(0xFFB45309) : AppColors.primary,
+                size: 21,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    role,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppColors.textPrimaryLight,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    company,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: AppColors.textSecondaryLight, fontSize: 12),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    timeLabel,
+                    style: TextStyle(
+                      color: isOffer ? const Color(0xFFB45309) : AppColors.primary,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondaryLight),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static DateTime? _dateFrom(dynamic value) {
+    final rawValue = value?.toString().trim();
+    if (rawValue == null || rawValue.isEmpty) return null;
+    return DateTime.tryParse(rawValue)?.toLocal();
+  }
+
+  static String _formatDate(DateTime value) {
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    final today = DateTime.now();
+    final todayDate = DateTime(today.year, today.month, today.day);
+    final itemDate = DateTime(value.year, value.month, value.day);
+    if (itemDate == todayDate) return 'today';
+    if (itemDate == todayDate.add(const Duration(days: 1))) return 'tomorrow';
+    return '${months[value.month - 1]} ${value.day}';
+  }
+}
+
+class _NoActionRequiredState extends StatelessWidget {
+  const _NoActionRequiredState();
+
+  @override
+  Widget build(BuildContext context) => const Row(
+        children: [
+          Icon(Icons.task_alt_rounded, color: Color(0xFF15803D), size: 22),
+          SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'You are all caught up. Any offers or interview updates that need your response will appear here.',
+              style: TextStyle(color: AppColors.textSecondaryLight, fontSize: 13, height: 1.35),
+            ),
+          ),
+        ],
+      );
 }
 
 class _ApplicationCounts {
