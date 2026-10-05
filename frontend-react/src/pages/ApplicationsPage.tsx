@@ -23,6 +23,7 @@ interface Candidate {
   avatarBgClass: string;
   avatarTextClass: string;
   role: string;
+  companyName?: string;
   cvUrl?: string;
   jobDescription?: string;
   jobDuration?: number;
@@ -149,6 +150,7 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
           avatarBgClass: 'bg-blue-50 border-blue-100',
           avatarTextClass: 'text-blue-600',
           role: item.jobTitle || 'Unknown Role',
+          companyName: item.companyName || 'Unknown Company',
           jobDescription: item.jobDescription || 'No description provided.',
           jobDuration: item.jobDuration || 6,
           jobStipend: item.jobStipend || false,
@@ -951,6 +953,8 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
               <div>
                 <h3 className="text-xl font-bold text-slate-900">{viewingJobFor.role}</h3>
                 <div className="text-sm font-medium text-slate-500 mt-1 flex items-center gap-2">
+                  <span className="font-semibold text-slate-700">{viewingJobFor.companyName}</span>
+                  <span>•</span>
                   <span>Software Engineering</span>
                   <span>•</span>
                   <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[16px]">location_on</span> Remote</span>
@@ -970,16 +974,16 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
               {/* 3 Metric Cards */}
               <div className="grid grid-cols-3 gap-4">
                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex flex-col items-center justify-center text-center">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Duration</span>
-                  <span className="text-base font-semibold text-slate-900">{viewingJobFor.jobDuration} Months</span>
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Duration</span>
+                  <span className="text-base font-semibold text-slate-900 flex items-center h-6">{viewingJobFor.jobDuration} Months</span>
                 </div>
                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex flex-col items-center justify-center text-center">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Compensation</span>
-                  <span className="text-base font-semibold text-slate-900">{viewingJobFor.jobStipend ? 'Stipend Offered' : 'Unpaid'}</span>
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Compensation</span>
+                  <span className="text-base font-semibold text-slate-900 flex items-center h-6">{viewingJobFor.jobStipend ? 'Stipend Offered' : 'Unpaid'}</span>
                 </div>
                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex flex-col items-center justify-center text-center">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Matches Verified</span>
-                  <span className="text-sm font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 mt-1">100% Match</span>
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Matches Verified</span>
+                  <span className="text-sm font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 flex items-center h-6">100% Match</span>
                 </div>
               </div>
 
