@@ -1292,18 +1292,6 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                             </div>
                           </div>
                         </div>
-
-                        <div className="bg-slate-50 p-3 rounded-lg flex items-center justify-between mt-3 border border-slate-100 shadow-inner">
-                          <div className="flex flex-col">
-                            <span className="font-display text-base font-bold text-slate-900">
-                              {job.matchesVerified}
-                            </span>
-                            <span className="text-[10px] text-slate-500 font-medium">Matches Verified</span>
-                          </div>
-                          <span className="text-[11px] text-emerald-600 font-bold bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100">
-                            ✓ 100% Gated Match
-                          </span>
-                        </div>
                       </div>
 
                       <div className="pt-4 mt-4 border-t border-slate-100 flex flex-col gap-3">
