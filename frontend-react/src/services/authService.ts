@@ -417,17 +417,8 @@ export const authService = {
           refCode: `REG-${u.userId.substring(0, 8).toUpperCase()}`,
         }));
 
-        if (mapped.length > 0) {
-          const local = this.getRegistrations();
-          const merged = [...mapped];
-          for (const item of local) {
-            if (!merged.some((m) => m.email.toLowerCase() === item.email.toLowerCase())) {
-              merged.push(item);
-            }
-          }
-          localStorage.setItem(STORAGE_KEY_REGISTRATIONS, JSON.stringify(merged));
-          return merged;
-        }
+          localStorage.setItem(STORAGE_KEY_REGISTRATIONS, JSON.stringify(mapped));
+          return mapped;
       }
     } catch {
       // Ignore network errors
