@@ -1432,8 +1432,6 @@ class _ApplicationCounts {
   final int pending;
   final int history;
 
-  bool get isEmpty => actionRequired + pending + history == 0;
-
   factory _ApplicationCounts.fromApplications(
     List<Map<String, dynamic>> applications,
   ) {
@@ -1452,84 +1450,6 @@ class _ApplicationCounts {
             status == 'Rejected' ||
             status == 'Archived';
       }).length,
-    );
-  }
-}
-
-class _ApplicationCountButton extends StatelessWidget {
-  const _ApplicationCountButton({
-    required this.label,
-    required this.count,
-    required this.onTap,
-  });
-
-  final String label;
-  final int count;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              '$count',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                color: AppColors.textPrimaryLight,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: AppColors.textSecondaryLight,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ApplicationsEmptyState extends StatelessWidget {
-  const _ApplicationsEmptyState();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      child: Column(
-        children: [
-          Text(
-            'No applications yet',
-            style: TextStyle(
-              color: AppColors.textPrimaryLight,
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          SizedBox(height: 6),
-          Text(
-            'Submit your CV and apply for opportunities to track your application status here.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: AppColors.textSecondaryLight,
-              fontSize: 13,
-              height: 1.4,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
