@@ -9,10 +9,12 @@ class ApplicationsTrackingScreen extends StatefulWidget {
     super.key,
     this.initialTab = 0,
     this.selectionRequest = 0,
+    this.onProfilePressed,
   });
 
   final int initialTab;
   final int selectionRequest;
+  final VoidCallback? onProfilePressed;
 
   @override
   State<ApplicationsTrackingScreen> createState() => _ApplicationsTrackingScreenState();
@@ -94,7 +96,7 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
     if (_isLoading) {
       return Scaffold(
         backgroundColor: backgroundColor,
-        appBar: const GlobalAppHeader(),
+        appBar: GlobalAppHeader(onProfilePressed: widget.onProfilePressed),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
@@ -102,7 +104,7 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
     if (_errorMessage != null && _applications.isEmpty) {
       return Scaffold(
         backgroundColor: backgroundColor,
-        appBar: const GlobalAppHeader(),
+        appBar: GlobalAppHeader(onProfilePressed: widget.onProfilePressed),
         body: Center(
           child: Text('Could not load applications.\n$_errorMessage', textAlign: TextAlign.center),
         ),
@@ -116,7 +118,7 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
 
     return Scaffold(
       backgroundColor: backgroundColor,
-      appBar: const GlobalAppHeader(),
+      appBar: GlobalAppHeader(onProfilePressed: widget.onProfilePressed),
       body: RefreshIndicator(
         onRefresh: _refresh,
         child: SingleChildScrollView(

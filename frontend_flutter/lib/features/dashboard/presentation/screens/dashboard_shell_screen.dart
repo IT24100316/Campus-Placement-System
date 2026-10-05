@@ -28,11 +28,15 @@ class _DashboardShellScreenState extends State<DashboardShellScreen> {
         onExploreJobs: _openJobsTab,
         isActive: _currentIndex == 0,
       ),
-      const JobFeedScreen(),
-      ResumeHubScreen(isActive: _currentIndex == 2),
+      JobFeedScreen(onProfilePressed: () => _setCurrentIndex(4)),
+      ResumeHubScreen(
+        isActive: _currentIndex == 2,
+        onProfilePressed: () => _setCurrentIndex(4),
+      ),
       ApplicationsTrackingScreen(
         initialTab: _applicationsInitialTab,
         selectionRequest: _applicationsSelectionRequest,
+        onProfilePressed: () => _setCurrentIndex(4),
       ),
       ProfileSettingsScreen(), // Now using the actual Profile Settings Screen
     ];

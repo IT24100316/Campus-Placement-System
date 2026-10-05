@@ -10,7 +10,9 @@ import 'job_details_screen.dart';
 enum _JobSort { newest, closingSoon, companyAZ }
 
 class JobFeedScreen extends StatefulWidget {
-  const JobFeedScreen({super.key});
+  const JobFeedScreen({super.key, this.onProfilePressed});
+
+  final VoidCallback? onProfilePressed;
 
   @override
   State<JobFeedScreen> createState() => _JobFeedScreenState();
@@ -189,7 +191,7 @@ class _JobFeedScreenState extends State<JobFeedScreen> {
     final jobs = _visibleJobs;
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
-      appBar: const GlobalAppHeader(),
+      appBar: GlobalAppHeader(onProfilePressed: widget.onProfilePressed),
       body: CustomScrollView(
         slivers: [
           SliverToBoxAdapter(child: _buildPageIntro()),
