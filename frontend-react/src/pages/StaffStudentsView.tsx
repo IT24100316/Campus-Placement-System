@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, MapPin, GraduationCap } from 'lucide-react';
+import { API_BASE } from '../config/api';
 
 interface StudentProfile {
   userId: string;
@@ -21,7 +22,6 @@ interface StudentProfile {
   cvUrl?: string;
 }
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5168/api';
 
 export const StaffStudentsView: React.FC = () => {
   const [students, setStudents] = useState<StudentProfile[]>([]);

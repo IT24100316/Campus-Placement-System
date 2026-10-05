@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { API_BASE } from '../config/api';
 import {
   LogOut,
   ShieldCheck,
@@ -33,7 +34,6 @@ import {
 import type { CompanyDashboardData } from '../types/company';
 import { companyService } from '../services/companyService';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5168/api';
 
 interface HrLandingPageProps {
   userEmail?: string;

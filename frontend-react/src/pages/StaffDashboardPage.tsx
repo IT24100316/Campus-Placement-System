@@ -4,13 +4,13 @@ import { StaffStudentsView } from './StaffStudentsView';
 import { StaffJobsView } from './StaffJobsView';
 import { ApplicationsPage } from './ApplicationsPage';
 import { Footer } from '../components/layout/Footer';
+import { API_BASE } from '../config/api';
 
 interface StaffDashboardPageProps {
   onLogout?: () => void;
   userEmail?: string;
 }
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5168/api';
 
 // This is the main dashboard shell for University Staff!
 // It acts as a container, holding the top navigation bar and switching between the Students, Jobs, and Applications views.

@@ -1,6 +1,5 @@
 import type { CompanyDashboardData } from '../types/company';
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5168/api';
+import { API_BASE } from '../config/api';
 
 const DEFAULT_DASHBOARD_DATA: CompanyDashboardData = {
   companyId: 'vir-default-1',

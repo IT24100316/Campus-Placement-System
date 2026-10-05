@@ -3,8 +3,7 @@ import { Footer } from '../components/layout/Footer';
 // @ts-ignore
 import InternalMemosPanel from '../components/admin/InternalMemosPanel';
 import { Building2, PlusCircle, Users, CheckCircle2, Bell, LogOut, Loader2 } from 'lucide-react';
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5168/api';
+import { API_BASE } from '../config/api';
 
 interface Candidate {
   id: string;

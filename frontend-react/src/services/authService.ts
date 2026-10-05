@@ -5,6 +5,7 @@ import type {
   CompanyStaffRegistration,
   RegistrationRecord,
 } from '../types/auth';
+import { API_BASE } from '../config/api';
 
 const STORAGE_KEY_REGISTRATIONS = 'campusai_registrations';
 const STORAGE_KEY_COMPANIES = 'campusai_approved_companies';
@@ -58,8 +59,6 @@ const INITIAL_COMPANIES: ApprovedCompanyOption[] = [
     industry: 'Banking, Fintech & Quantitative Trading',
   },
 ];
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5168/api';
 
 export const authService = {
   getRegistrations(): RegistrationRecord[] {

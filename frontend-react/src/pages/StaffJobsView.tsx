@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, MapPin, Building2, Calendar } from 'lucide-react';
+import { API_BASE } from '../config/api';
 
 interface JobFeedDto {
   jobId: string;
@@ -19,7 +20,6 @@ interface JobFeedDto {
   allowedYears?: number[];
 }
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5168/api';
 
 export const StaffJobsView: React.FC = () => {
   const [jobs, setJobs] = useState<JobFeedDto[]>([]);
