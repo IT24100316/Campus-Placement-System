@@ -1,11 +1,13 @@
 using backend_dotnet.DTOs;
 using backend_dotnet.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace backend_dotnet.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize(Roles = "Admin")]
 public class AdminController : ControllerBase
 {
     private readonly IAdminService _adminService;
@@ -31,11 +33,15 @@ public class AdminController : ControllerBase
     [HttpPost("approve/{identifier}")]
     public async Task<IActionResult> ApproveUser(string identifier)
     {
-        var result = await _adminService.ApproveUserAsync(identifier);
-        if (result == null)
-            return NotFound(new { message = "User not found." });
-
-        return Ok(result);
+        try
+        {
+            var result = await _adminService.ApproveUserAsync(identifier);
+            return result == null ? NotFound(new { message = "User not found." }) : Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
     }
 
     /// <summary>
@@ -44,11 +50,15 @@ public class AdminController : ControllerBase
     [HttpPost("reject/{identifier}")]
     public async Task<IActionResult> RejectUser(string identifier)
     {
-        var result = await _adminService.RejectUserAsync(identifier);
-        if (result == null)
-            return NotFound(new { message = "User not found." });
-
-        return Ok(result);
+        try
+        {
+            var result = await _adminService.RejectUserAsync(identifier);
+            return result == null ? NotFound(new { message = "User not found." }) : Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
     }
 
     /// <summary>

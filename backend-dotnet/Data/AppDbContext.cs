@@ -19,6 +19,7 @@ public class AppDbContext : DbContext
     public DbSet<JobTitleReference> JobTitles => Set<JobTitleReference>();
     public DbSet<SkillEquivalence> SkillEquivalences => Set<SkillEquivalence>();
     public DbSet<ApplicationMemo> Memos => Set<ApplicationMemo>();
+    public DbSet<StudentNotification> Notifications => Set<StudentNotification>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -267,6 +268,20 @@ public class AppDbContext : DbContext
             entity.HasOne(a => a.Job)
                 .WithMany(j => j.Applications)
                 .HasForeignKey(a => a.JobId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<StudentNotification>(entity =>
+        {
+            entity.HasKey(notification => notification.Id);
+            entity.Property(notification => notification.Type).HasMaxLength(80).IsRequired();
+            entity.Property(notification => notification.Title).HasMaxLength(160).IsRequired();
+            entity.Property(notification => notification.Message).HasMaxLength(500).IsRequired();
+            entity.Property(notification => notification.Destination).HasMaxLength(40).IsRequired();
+            entity.HasIndex(notification => new { notification.UserId, notification.IsRead, notification.CreatedAt });
+            entity.HasOne(notification => notification.User)
+                .WithMany()
+                .HasForeignKey(notification => notification.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 

@@ -6,6 +6,9 @@ class ApiEndpoints {
   // Auth
   static String get login => '$baseUrl/auth/login';
   static String get currentUser => '$baseUrl/auth/me';
+  static String get changePassword => '$baseUrl/auth/change-password';
+  static String get requestPasswordReset => '$baseUrl/auth/request-password-reset';
+  static String get resetPassword => '$baseUrl/auth/reset-password';
   static String get registerStudent => '$baseUrl/Auth/register-student';
 
   // Profile
@@ -17,6 +20,9 @@ class ApiEndpoints {
   static String jobDetails(String id) => '$baseUrl/jobs/$id';
 
   // Applications
-  static String myApplications(String studentId) =>
-      '$baseUrl/applications/student/$studentId';
+  static String get myApplications => '$baseUrl/applications/me';
+
+  // Notifications
+  static String get notifications => '$baseUrl/notifications';
+  static String get notificationsUnreadCount => '$notifications/unread-count';
 }

@@ -19,6 +19,8 @@ public class MemosController : ControllerBase
         _context = context;
     }
 
+    // Grabs all the internal memos written for a specific application.
+    // Useful when staff need to review the discussion history of a candidate.
     [HttpGet("application/{applicationId}")]
     public async Task<IActionResult> GetMemos(Guid applicationId)
     {
@@ -41,6 +43,8 @@ public class MemosController : ControllerBase
         return Ok(memos);
     }
 
+    // Quick summary endpoint that returns a list of application IDs that currently have unresolved, pending memos.
+    // Used to show those little notification badges on the admin dashboard!
     [HttpGet("pending-summary")]
     public async Task<IActionResult> GetPendingMemosSummary()
     {
@@ -53,6 +57,8 @@ public class MemosController : ControllerBase
         return Ok(appIds);
     }
 
+    // Creates a brand new memo for an application.
+    // Staff can use this to drop notes, flag issues, or ask questions before making a final decision.
     [HttpPost]
     public async Task<IActionResult> CreateMemo([FromBody] CreateMemoDto dto)
     {
@@ -95,6 +101,8 @@ public class MemosController : ControllerBase
         return CreatedAtAction(nameof(GetMemos), new { applicationId = memo.ApplicationId }, response);
     }
 
+    // Updates the text of an existing memo.
+    // Handy for fixing typos or adding more context to an ongoing discussion.
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateMemo(Guid id, [FromBody] UpdateMemoDto dto)
     {
@@ -118,6 +126,8 @@ public class MemosController : ControllerBase
         return Ok();
     }
 
+    // Marks a memo as "Resolved" when the issue or question has been addressed!
+    // This clears the roadblock so the application can finally be approved.
     [HttpPatch("{id}/resolve")]
     public async Task<IActionResult> ResolveMemo(Guid id)
     {
@@ -130,6 +140,7 @@ public class MemosController : ControllerBase
         return Ok();
     }
 
+    // Deletes a memo completely from the system.
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteMemo(Guid id)
     {

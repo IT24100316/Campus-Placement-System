@@ -31,12 +31,14 @@ export const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
   const [filter, setFilter] = useState<'all' | 'hr' | 'staff' | 'student' | 'pending'>('pending');
   const [selectedRecord, setSelectedRecord] = useState<RegistrationRecord | null>(null);
   const [actionError, setActionError] = useState('');
+  const [documentPreviewUrl, setDocumentPreviewUrl] = useState<string | null>(null);
+  const [documentError, setDocumentError] = useState('');
 
   // Register Employee Modal State
   const [isAddStaffOpen, setIsAddStaffOpen] = useState(false);
   const [newStaffName, setNewStaffName] = useState('');
   const [newStaffEmail, setNewStaffEmail] = useState('');
-  const [newStaffPassword, setNewStaffPassword] = useState('StaffPass@2025!');
+  const [newStaffPassword, setNewStaffPassword] = useState('');
   const [newStaffId, setNewStaffId] = useState('');
   const [newStaffJobPosition, setNewStaffJobPosition] = useState('Platform Operations Officer');
   const [newStaffError, setNewStaffError] = useState('');
@@ -44,19 +46,45 @@ export const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
   const [isSubmittingStaff, setIsSubmittingStaff] = useState(false);
 
   useEffect(() => {
-    setRecords(authService.getRegistrations());
-
     // Sync live from PostgreSQL database
     authService.syncRegistrationsFromBackend().then((synced) => {
       setRecords([...synced]);
+    }).catch((error) => {
+      setRecords([]);
+      setActionError(error instanceof Error ? error.message : 'Could not load the verification queue.');
     });
   }, []);
+
+  useEffect(() => {
+    const sourceUrl = selectedRecord?.role === 'student'
+      ? selectedRecord.campusIdPhotoUrl
+      : selectedRecord?.documentUrl;
+    setDocumentPreviewUrl(null);
+    setDocumentError('');
+    if (!sourceUrl) return;
+    let cancelled = false;
+    let blobUrl: string | null = null;
+    authService.getProtectedDocumentUrl(sourceUrl).then((url) => {
+      if (cancelled) URL.revokeObjectURL(url);
+      else {
+        blobUrl = url;
+        setDocumentPreviewUrl(url);
+      }
+    }).catch((error) => {
+      if (!cancelled) setDocumentError(error instanceof Error ? error.message : 'Document unavailable.');
+    });
+    return () => {
+      cancelled = true;
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
+    };
+  }, [selectedRecord]);
 
   const handleAction = async (id: string, newStatus: 'Approved' | 'Rejected') => {
     setActionError('');
     try {
       const updated = await authService.updateStatus(id, newStatus);
-      setRecords([...updated]);
+      setRecords([...updated.records]);
+      if (!updated.emailSent) setActionError('Account status saved, but the decision email was not sent.');
       if (selectedRecord && selectedRecord.id === id) setSelectedRecord({ ...selectedRecord, status: newStatus });
     } catch (error) {
       setActionError(error instanceof Error ? error.message : 'The account status could not be updated.');
@@ -343,17 +371,9 @@ export const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
                           className="group inline-flex items-center gap-2 rounded-lg border border-violet-200 bg-violet-50 p-1.5 pr-2.5 text-violet-700 hover:bg-violet-100 transition-colors cursor-pointer"
                           title="View campus ID image"
                         >
-                          {item.campusIdPhotoUrl ? (
-                            <img
-                              src={item.campusIdPhotoUrl}
-                              alt={`${item.fullName}'s campus ID`}
-                              className="h-10 w-14 rounded object-cover border border-violet-200 bg-white"
-                            />
-                          ) : (
-                            <span className="flex h-10 w-14 items-center justify-center rounded border border-violet-200 bg-white">
-                              <ImageIcon className="h-5 w-5" />
-                            </span>
-                          )}
+                          <span className="flex h-10 w-14 items-center justify-center rounded border border-violet-200 bg-white">
+                            <ImageIcon className="h-5 w-5" />
+                          </span>
                           <span className="font-semibold text-[11px]">View ID</span>
                         </button>
                       ) : item.role === 'hr' ? (
@@ -516,10 +536,10 @@ export const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
                         </p>
                       </div>
                     </div>
-                    {selectedRecord.documentUrl ? (
-                      <a href={selectedRecord.documentUrl} target="_blank" rel="noreferrer" className="px-2 py-1 bg-blue-50 text-primary font-semibold text-[11px] rounded hover:bg-blue-100">Open Document</a>
+                    {documentPreviewUrl ? (
+                      <a href={documentPreviewUrl} target="_blank" rel="noreferrer" className="px-2 py-1 bg-blue-50 text-primary font-semibold text-[11px] rounded hover:bg-blue-100">Open Document</a>
                     ) : (
-                      <span className="px-2 py-0.5 bg-slate-100 text-slate-500 font-semibold text-[11px] rounded">No upload</span>
+                      <span className="px-2 py-0.5 bg-slate-100 text-slate-500 font-semibold text-[11px] rounded">{documentError || (selectedRecord.documentUrl ? 'Loading document...' : 'No upload')}</span>
                     )}
                   </div>
                 </div>
@@ -533,10 +553,10 @@ export const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
                       <ImageIcon className="w-3.5 h-3.5" /> Identity evidence
                     </span>
                   </div>
-                  {selectedRecord.campusIdPhotoUrl ? (
-                    <a href={selectedRecord.campusIdPhotoUrl} target="_blank" rel="noreferrer" className="block">
+                  {documentPreviewUrl ? (
+                    <a href={documentPreviewUrl} target="_blank" rel="noreferrer" className="block">
                       <img
-                        src={selectedRecord.campusIdPhotoUrl}
+                        src={documentPreviewUrl}
                         alt={`${selectedRecord.fullName}'s campus ID document`}
                         className="max-h-80 w-full rounded-xl border border-slate-200 bg-white object-contain shadow-sm"
                       />
@@ -546,7 +566,7 @@ export const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
                     </a>
                   ) : (
                     <div className="rounded-lg border border-dashed border-violet-300 bg-white px-4 py-8 text-center text-slate-500">
-                      Campus ID image is unavailable.
+                      {documentError || (selectedRecord.campusIdPhotoUrl ? 'Loading campus ID...' : 'Campus ID image is unavailable.')}
                     </div>
                   )}
                 </div>
@@ -627,8 +647,8 @@ export const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
             <form
               onSubmit={async (e) => {
                 e.preventDefault();
-                if (!newStaffName.trim() || !newStaffEmail.trim() || !newStaffId.trim()) {
-                  setNewStaffError('Please provide employee full name, work email, and employee ID.');
+                if (!newStaffName.trim() || !newStaffEmail.trim() || !newStaffId.trim() || newStaffPassword.trim().length < 8) {
+                  setNewStaffError('Provide a name, work email, employee ID, and password of at least 8 characters.');
                   return;
                 }
                 setIsSubmittingStaff(true);
@@ -638,7 +658,7 @@ export const AdminApprovalsView: React.FC<AdminApprovalsViewProps> = ({
                 const res = await authService.registerEmployeeByAdmin({
                   fullName: newStaffName.trim(),
                   email: newStaffEmail.trim().toLowerCase(),
-                  password: newStaffPassword.trim() || 'StaffPass@2025!',
+                  password: newStaffPassword.trim(),
                   companyName: 'CampusAI',
                   staffId: newStaffId.trim(),
                   jobPosition: newStaffJobPosition.trim() || 'Platform Operations Officer',

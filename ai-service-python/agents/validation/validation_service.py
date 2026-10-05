@@ -2,6 +2,9 @@ import base64
 import io
 import json
 import re
+import difflib
+import os
+from urllib.parse import quote
 from dataclasses import asdict
 from typing import Any
 import requests
@@ -12,6 +15,18 @@ STOP_WORDS = {
     "about", "after", "also", "and", "are", "because", "been", "before", "being",
     "candidate", "for", "from", "has", "have", "into", "its", "that", "the", "their",
     "this", "was", "were", "with", "years", "student", "summary", "skills",
+    "excellent", "strong", "proficient", "developed", "demonstrated", "experienced", 
+    "knowledge", "working", "understanding", "good", "advanced", "basic", "familiar", 
+    "using", "used", "built", "created", "designed", "implemented", "managed", "led", 
+    "team", "project", "work", "experience", "highly", "skilled", "various", "multiple",
+    "technologies", "tools", "frameworks", "languages", "environments", "applications"
+}
+
+# Concrete qualifications must be supported even if surrounding prose has high overlap.
+MATERIAL_TERMS = {
+    "python", "java", "javascript", "typescript", "c#", "c++", "rust", "go",
+    "postgresql", "mysql", "mongodb", "kubernetes", "docker", "react",
+    "flutter", "fastapi", "pytorch", "tensorflow", "aws", "azure",
 }
 
 def extract_pdf_text(pdf_bytes: bytes) -> str:
@@ -26,9 +41,32 @@ def extract_pdf_text(pdf_bytes: bytes) -> str:
 def load_pdf(*, url: str | None = None, encoded: str | None = None) -> bytes:
     if encoded:
         try:
-            return base64.b64decode(encoded, validate=True)
+            pdf_bytes = base64.b64decode(encoded, validate=True)
         except ValueError as exc:
             raise ValueError("cv_pdf_base64 is invalid.") from exc
+        if len(pdf_bytes) > 10 * 1024 * 1024:
+            raise ValueError("CV PDF exceeds the 10 MB validation limit.")
+        return pdf_bytes
+    if url and url.startswith("supabase://"):
+        bucket_and_path = url[len("supabase://"):]
+        bucket, separator, object_path = bucket_and_path.partition("/")
+        if not separator or bucket != "student-cvs" or not object_path or ".." in object_path.split("/"):
+            raise ValueError("Invalid private CV storage key.")
+        base_url = os.getenv("SUPABASE_URL", "").rstrip("/")
+        service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+        if not base_url.startswith("https://") or not service_key:
+            raise ValueError("Private CV storage is not configured.")
+        storage_url = f"{base_url}/storage/v1/object/{bucket}/{quote(object_path, safe='/')}"
+        response = requests.get(
+            storage_url,
+            headers={"Authorization": f"Bearer {service_key}", "apikey": service_key},
+            timeout=15,
+            allow_redirects=False,
+        )
+        response.raise_for_status()
+        if len(response.content) > 10 * 1024 * 1024:
+            raise ValueError("CV PDF exceeds the 10 MB validation limit.")
+        return response.content
     if not url or not url.lower().startswith(("http://", "https://")):
         raise ValueError("Provide an HTTP(S) CV URL or base64-encoded PDF.")
     response = requests.get(url, timeout=15, allow_redirects=True)
@@ -64,15 +102,50 @@ def validate_summary_against_cv(summary: Any, cv_text: str) -> ValidationResult:
     if not summary_terms:
         return ValidationResult(False, 0.0, [], [], ["Summary contains no verifiable terms."])
 
-    supported = sorted(summary_terms & cv_terms)
-    unsupported = sorted(summary_terms - cv_terms)
+    supported = []
+    unsupported = []
+    cv_terms_list = list(cv_terms)
+    
+    for term in summary_terms:
+        if term in cv_terms:
+            supported.append(term)
+        elif term in MATERIAL_TERMS:
+            unsupported.append(term)
+        else:
+            matches = difflib.get_close_matches(term, cv_terms_list, n=1, cutoff=0.8)
+            if matches:
+                supported.append(term)
+            else:
+                unsupported.append(term)
+
+    supported = sorted(supported)
+    unsupported = sorted(unsupported)
     confidence = round(len(supported) / len(summary_terms), 3)
     warnings = []
     if unsupported:
         warnings.append("Some summary terms were not found in the CV and require administrator review.")
     if confidence < 0.55:
         warnings.append("Low evidence overlap: do not approve automatically.")
-    return ValidationResult(confidence >= 0.55, confidence, supported, unsupported, warnings)
+    unsupported_claims = sorted(set(unsupported) & MATERIAL_TERMS)
+    summary_text = _flatten_summary(summary).lower()
+    cv_text_lower = cv_text.lower()
+    for match in re.finditer(r"\bgpa\s*(?:of|:|=)?\s*([0-4]\.\d{1,2})\b", summary_text):
+        claim = f"GPA {match.group(1)}"
+        if not re.search(r"\bgpa\s*(?:of|:|=)?\s*" + re.escape(match.group(1)) + r"\b", cv_text_lower):
+            unsupported_claims.append(claim)
+    if unsupported_claims:
+        warnings.append("Material qualification claims lack CV evidence and require revision or explicit administrator review.")
+    cv_lines = [line.strip() for line in cv_text.splitlines() if line.strip()]
+    evidence = {
+        term: next((line[:240] for line in cv_lines if re.search(r"(?<!\w)" + re.escape(term) + r"(?!\w)", line.lower())), "")
+        for term in sorted(set(supported) & MATERIAL_TERMS)
+    }
+    return ValidationResult(
+        confidence >= 0.55 and not unsupported_claims,
+        confidence, supported, unsupported, warnings,
+        unsupported_claims=unsupported_claims,
+        evidence=evidence,
+    )
 
 def run_validation(summary: Any, *, cv_pdf_url: str | None = None, cv_pdf_base64: str | None = None) -> dict[str, Any]:
     pdf_text = extract_pdf_text(load_pdf(url=cv_pdf_url, encoded=cv_pdf_base64))

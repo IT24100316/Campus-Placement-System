@@ -59,56 +59,16 @@ const INITIAL_COMPANIES: ApprovedCompanyOption[] = [
   },
 ];
 
-const INITIAL_REGISTRATIONS: RegistrationRecord[] = [
-  {
-    id: 'reg-init-1',
-    role: 'hr',
-    fullName: 'Clara Vance',
-    email: 'c.vance@acmeglobal.tech',
-    phone: '+1 (555) 234-5678',
-    companyName: 'Acme Global Technologies Inc.',
-    industry: 'Software, Cloud & Artificial Intelligence',
-    documentName: 'Acme_Incorporation_BR.pdf',
-    documentSize: '2.4 MB',
-    status: 'Pending',
-    submittedAt: 'Today, 10:45 AM',
-    refCode: 'REG-2025-08492',
-  },
-  {
-    id: 'reg-init-2',
-    role: 'staff',
-    fullName: 'David Miller',
-    email: 'd.miller@acmeglobal.tech',
-    phone: '+1 (555) 345-6789',
-    companyName: 'Acme Global Technologies Inc.',
-    staffId: 'ACM-STF-1042',
-    jobPosition: 'Senior Talent Acquisition Lead',
-    status: 'Pending',
-    submittedAt: 'Today, 11:15 AM',
-    refCode: 'STF-2025-01948',
-  },
-];
-
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5168/api';
 
 export const authService = {
   getRegistrations(): RegistrationRecord[] {
     const raw = localStorage.getItem(STORAGE_KEY_REGISTRATIONS);
-    if (!raw) {
-      localStorage.setItem(STORAGE_KEY_REGISTRATIONS, JSON.stringify(INITIAL_REGISTRATIONS));
-      return INITIAL_REGISTRATIONS;
-    }
+    if (!raw) return [];
     try {
-      const parsed: RegistrationRecord[] = JSON.parse(raw);
-      // Ensure demo staff account is available if missing
-      if (!parsed.some((r) => r.email.toLowerCase() === 'd.miller@acmeglobal.tech')) {
-        const withStaff = [...parsed, INITIAL_REGISTRATIONS[1]];
-        localStorage.setItem(STORAGE_KEY_REGISTRATIONS, JSON.stringify(withStaff));
-        return withStaff;
-      }
-      return parsed;
+      return JSON.parse(raw) as RegistrationRecord[];
     } catch {
-      return INITIAL_REGISTRATIONS;
+      return [];
     }
   },
 
@@ -352,11 +312,11 @@ export const authService = {
     try {
       const res = await fetch(`${API_BASE}/admin/register-employee`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem(STORAGE_KEY_TOKEN) || ''}` },
         body: JSON.stringify({
           fullName: data.fullName,
           email: data.email,
-          password: data.password || 'StaffPass@2025!',
+          password: data.password,
           companyId: data.companyId && data.companyId !== 'other' ? data.companyId : null,
           companyName: data.companyName || 'CampusAI',
           staffId: data.staffId,
@@ -396,39 +356,17 @@ export const authService = {
         record: newRecord,
       };
     } catch {
-      // Offline fallback
-      const newRecord: RegistrationRecord = {
-        id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
-        role: 'staff',
-        fullName: data.fullName,
-        email: data.email,
-        phone: '+1 (555) 000-0000',
-        companyName: data.companyName || 'CampusAI',
-        staffId: data.staffId,
-        jobPosition: data.jobPosition,
-        status: 'Approved',
-        submittedAt: 'Today, ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        refCode,
-      };
-
-      const current = this.getRegistrations();
-      const updated = [newRecord, ...current];
-      localStorage.setItem(STORAGE_KEY_REGISTRATIONS, JSON.stringify(updated));
-
-      return {
-        success: true,
-        message: 'Employee registered locally (backend service unreachable).',
-        record: newRecord,
-      };
+      return { success: false, message: 'The employee was not registered because the backend is unavailable.' };
     }
   },
 
   async syncRegistrationsFromBackend(): Promise<RegistrationRecord[]> {
-    try {
-      const res = await fetch(`${API_BASE}/admin/pending-approvals`);
-      if (res.ok) {
-        const backendUsers: BackendRegistration[] = await res.json();
-        const mapped: RegistrationRecord[] = backendUsers.map((u) => ({
+      const res = await fetch(`${API_BASE}/admin/pending-approvals`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem(STORAGE_KEY_TOKEN) || ''}` },
+      });
+      if (!res.ok) throw new Error('Could not load the verification queue. Sign in as an admin and try again.');
+      const backendUsers: BackendRegistration[] = await res.json();
+      const mapped: RegistrationRecord[] = backendUsers.map((u) => ({
           id: u.userId,
           role: u.role === 'Student' ? 'student' : (u.role === 'Company HR' ? 'hr' : 'staff'),
           fullName: u.fullName,
@@ -449,24 +387,18 @@ export const authService = {
           status: u.status as AccountApprovalStatus,
           submittedAt: new Date(u.createdAt).toLocaleDateString() + ' ' + new Date(u.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           refCode: `REG-${u.userId.substring(0, 8).toUpperCase()}`,
-        }));
+      }));
 
-        if (mapped.length > 0) {
-          const local = this.getRegistrations();
-          const merged = [...mapped];
-          for (const item of local) {
-            if (!merged.some((m) => m.email.toLowerCase() === item.email.toLowerCase())) {
-              merged.push(item);
-            }
-          }
-          localStorage.setItem(STORAGE_KEY_REGISTRATIONS, JSON.stringify(merged));
-          return merged;
-        }
-      }
-    } catch {
-      // Ignore network errors
-    }
-    return this.getRegistrations();
+      localStorage.setItem(STORAGE_KEY_REGISTRATIONS, JSON.stringify(mapped));
+      return mapped;
+  },
+
+  async getProtectedDocumentUrl(url: string): Promise<string> {
+    const token = localStorage.getItem(STORAGE_KEY_TOKEN);
+    if (!token) throw new Error('Sign in as an admin to view verification documents.');
+    const response = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    if (!response.ok) throw new Error('Verification document is unavailable.');
+    return URL.createObjectURL(await response.blob());
   },
 
   async fetchCompanies(): Promise<ApprovedCompanyOption[]> {
@@ -490,21 +422,23 @@ export const authService = {
     return this.getCompanies();
   },
 
-  async updateStatus(id: string, status: 'Approved' | 'Rejected'): Promise<RegistrationRecord[]> {
+  async updateStatus(id: string, status: 'Approved' | 'Rejected'): Promise<{ records: RegistrationRecord[]; emailSent: boolean }> {
     const current = this.getRegistrations();
     const target = current.find((r) => r.id === id || r.email.toLowerCase() === id.toLowerCase());
     const email = target?.email || id;
 
     // 1. Send status update to Backend API (sync directly with PostgreSQL)
     const endpoint = status === 'Approved' ? 'approve' : 'reject';
-    let res = await fetch(`${API_BASE}/admin/${endpoint}/${encodeURIComponent(id)}`, { method: 'POST' });
+    const headers = { Authorization: `Bearer ${localStorage.getItem(STORAGE_KEY_TOKEN) || ''}` };
+    let res = await fetch(`${API_BASE}/admin/${endpoint}/${encodeURIComponent(id)}`, { method: 'POST', headers });
     if (!res.ok && email) {
-      res = await fetch(`${API_BASE}/admin/${endpoint}/${encodeURIComponent(email)}`, { method: 'POST' });
+      res = await fetch(`${API_BASE}/admin/${endpoint}/${encodeURIComponent(email)}`, { method: 'POST', headers });
     }
     if (!res.ok) {
       const error = await res.json().catch(() => ({}));
       throw new Error(error.message || `Could not ${endpoint} this account.`);
     }
+    const decision = await res.json();
 
     // 2. Update local state
     const updated = current.map((r) => 
@@ -528,6 +462,6 @@ export const authService = {
       }
     }
 
-    return updated;
+    return { records: updated, emailSent: decision.emailSent === true };
   },
 };

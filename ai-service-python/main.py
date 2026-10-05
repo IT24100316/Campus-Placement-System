@@ -1,19 +1,20 @@
 import os
 import asyncio
-import uuid
 import json
+import hmac
+from contextlib import asynccontextmanager
 import requests
 import httpx
 from typing import List, Dict, Any
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Header, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, model_validator
 from dotenv import load_dotenv
 
 from langgraph.graph import StateGraph, START, END
-from langgraph.checkpoint.memory import MemorySaver
+from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
 from state import AgentState
 from agents.planner import planner_node
@@ -21,13 +22,29 @@ from agents.tier1 import tier1_node
 from agents.analysis import analysis_node
 from agents.action import action_node
 from agents.validation import validation_node, run_validation
+from tools.sql_filter_tool import fetch_all_student_ids, get_db_connection
 from tools.brevo_tool import send_email
 
 # Load environment variables from .env file
 load_dotenv()
 
+@asynccontextmanager
+async def lifespan(application: FastAPI):
+    database_url = os.getenv("DATABASE_URL")
+    if not database_url:
+        raise RuntimeError("DATABASE_URL is required for durable approval checkpoints.")
+    os.environ.setdefault("LANGGRAPH_STRICT_MSGPACK", "true")
+    async with AsyncPostgresSaver.from_conn_string(database_url) as checkpointer:
+        await checkpointer.setup()
+        application.state.graph = workflow.compile(
+            checkpointer=checkpointer,
+            interrupt_after=["validation"],
+        )
+        yield
+
+
 # Initialize FastAPI app
-app = FastAPI(title="Agent 3 - Evaluation Engine", version="1.0")
+app = FastAPI(title="Agent 3 - Evaluation Engine", version="1.0", lifespan=lifespan)
 
 # Add CORS Middleware
 app.add_middleware(
@@ -48,8 +65,8 @@ class CandidatePayload(BaseModel):
 def email_node(state: dict) -> dict:
     """
     Agent 5: Email Notification.
-    This node runs ONLY after the graph resumes from its HITL pause.
-    It checks human_approved and sends the final verdict email.
+    This runs ONLY after the graph resumes from its HITL pause.
+    It checks human_approved and sends the final verdict email!
     """
     human_approved = state.get("human_approved")
     candidates = state.get("candidates", [])
@@ -57,12 +74,22 @@ def email_node(state: dict) -> dict:
     
     if human_approved is None:
         print("No human approval recorded, skipping email.")
-        return {}
+        raise RuntimeError("A recorded human decision is required before notification.")
+    if len(analysis_results) != 1:
+        raise RuntimeError("Notification requires exactly one reviewed candidate.")
         
     for result in analysis_results:
         student_id = result.get("student_id")
         student_data = next((c for c in candidates if str(c.get("UserId")) == str(student_id)), {})
         email = student_data.get("Email")
+        if not email:
+            with get_db_connection() as connection:
+                with connection.cursor() as cursor:
+                    cursor.execute('SELECT "Email" FROM "Users" WHERE "Id" = %s', (student_id,))
+                    row = cursor.fetchone()
+                    email = row["Email"] if row else None
+        if not email:
+            raise RuntimeError("Student email address is unavailable; notification was not sent.")
         
         if email:
             if human_approved:
@@ -74,11 +101,13 @@ def email_node(state: dict) -> dict:
                 
             try:
                 print(f"Sending email to {email}...")
-                send_email(email, subject, message)
+                if not send_email(email, subject, message):
+                    raise RuntimeError("Brevo did not accept the notification.")
             except Exception as e:
                 print(f"Failed to send email to {email}: {e}")
+                raise
                 
-    return {}
+    return {"email_sent": True}
 
 # ==========================================
 # ORCHESTRATION GRAPH
@@ -103,14 +132,6 @@ workflow.add_edge("validation", "email")
 workflow.add_edge("email", END)
 
 
-memory = MemorySaver()
-
-# Compile Graph with HITL Pause
-app_graph = workflow.compile(
-    checkpointer=memory,
-    interrupt_after=["validation"]
-)
-
 # ==========================================
 # API ENDPOINTS
 # ==========================================
@@ -120,55 +141,69 @@ class AnalyzeRequest(BaseModel):
     evaluate_all: bool = False
 
 @app.post("/analyze")
-async def run_orchestration(request: AnalyzeRequest):
+async def run_orchestration(request: AnalyzeRequest, http_request: Request):
     """
-    Trigger the entire AI multi-agent orchestration workflow.
+    Triggers the entire AI multi-agent orchestration workflow!
+    It spins up the agents to match students with jobs, then pauses for human review.
     """
-    thread_id = str(uuid.uuid4())
-    config = {"configurable": {"thread_id": thread_id}}
-    
-    initial_state = {
-        "job_id": request.job_id,
-        "initial_student_ids": request.student_ids,
-        "evaluate_all": request.evaluate_all
-    }
-    
-    # Invoke the LangGraph (it will run until 'validation' node and pause)
-    final_state = await app_graph.ainvoke(initial_state, config=config)
-    
-    # We return the thread_id so the backend can resume it later
-    try:
-        with open("scratch/output.json", "w") as f:
-            f.write(json.dumps(final_state, default=str))
-    except Exception as e:
-        print("Could not dump final state:", e)
+    student_ids = fetch_all_student_ids() if request.evaluate_all else request.student_ids
+    results = []
+    thread_ids = {}
+    # A separate paused workflow is required for each application. Resuming one
+    # candidate must never send a decision email to every candidate in a job batch.
+    for student_id in dict.fromkeys(str(value) for value in student_ids):
+        thread_id = f"{request.job_id}:{student_id}"
+        config = {"configurable": {"thread_id": thread_id}}
+        final_state = await http_request.app.state.graph.ainvoke({
+            "job_id": request.job_id,
+            "initial_student_ids": [student_id],
+            "evaluate_all": False,
+        }, config=config)
+        results.extend(final_state.get("analysis_results", []))
+        thread_ids[student_id] = thread_id
 
     return {
         "status": "paused_for_human_review",
-        "thread_id": thread_id,
-        "results": final_state.get("analysis_results", [])
+        "thread_ids": thread_ids,
+        "results": results
     }
 
 class ResumeRequest(BaseModel):
     thread_id: str
     human_approved: bool
+    approved_by: str = Field(min_length=1)
+    decision_at: str
 
 @app.post("/resume")
-async def resume_orchestration(request: ResumeRequest):
+async def resume_orchestration(request: ResumeRequest, http_request: Request, x_webhook_secret: str | None = Header(default=None)):
     """
-    Resume the sleeping LangGraph after Human Admin approves/rejects.
+    Wakes up the sleeping LangGraph after a human Admin approves or rejects the AI's matches.
+    It then continues the workflow (like sending emails).
     """
+    configured_secret = os.getenv("WEBHOOK_SECRET")
+    if not configured_secret or not x_webhook_secret or not hmac.compare_digest(configured_secret, x_webhook_secret):
+        raise HTTPException(status_code=401, detail="Internal workflow credential is invalid.")
     config = {"configurable": {"thread_id": request.thread_id}}
+    snapshot = await http_request.app.state.graph.aget_state(config)
+    if not snapshot.values or "email" not in snapshot.next:
+        raise HTTPException(status_code=409, detail="Workflow is not paused for approval.")
+    if len(snapshot.values.get("analysis_results", [])) != 1:
+        raise HTTPException(status_code=409, detail="Approval must target one candidate workflow.")
     
     # Update the graph state with human's decision
-    await app_graph.aupdate_state(config, {"human_approved": request.human_approved})
+    await http_request.app.state.graph.aupdate_state(config, {
+        "human_approved": request.human_approved,
+        "approved_by": request.approved_by,
+        "decision_at": request.decision_at,
+    })
     
     # Resume the graph from where it paused (validation node)
-    final_state = await app_graph.ainvoke(None, config=config)
+    final_state = await http_request.app.state.graph.ainvoke(None, config=config)
     
     return {
         "status": "completed",
         "human_approved": request.human_approved,
+        "email_sent": final_state.get("email_sent", False),
         "results": final_state.get("analysis_results", [])
     }
 
@@ -196,6 +231,8 @@ class EmailRequest(BaseModel):
     message: str = Field(min_length=1, max_length=10_000)
 
 
+# Runs in the background to validate a student's CV against their profile.
+# When it's done, it fires a webhook back to the .NET server to let it know the result!
 def process_validation_background(request: ValidationRequest):
     webhook_url = os.getenv("DOTNET_WEBHOOK_URL")
     webhook_secret = os.getenv("WEBHOOK_SECRET")
@@ -242,4 +279,4 @@ def email_notification(request: EmailRequest):
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except Exception as exc:
-        raise HTTPException(status_code=502, detail="SendGrid delivery failed.") from exc
+        raise HTTPException(status_code=502, detail="Brevo delivery failed.") from exc

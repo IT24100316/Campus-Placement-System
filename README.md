@@ -103,10 +103,11 @@ The following components and foundations were established in the original projec
 #### Completed verification and AI workflow
 
 - Employer and campus-ID uploads now use multipart requests and a real storage service. With `Supabase:Url` and `Supabase:ServiceRoleKey`, files are written to the private `verification-docs` bucket; local development has a non-public disk fallback.
-- Account approvals and rejections send SendGrid notifications when configured.
+- Account approvals and rejections send Brevo notifications when configured; an absent API key is reported as unsent.
 - Student registration uploads the campus ID atomically, and CV PDFs can be uploaded through `POST /api/students/upload-cv`.
-- Agent 4 extracts text from the student's CV PDF, compares it with the generated summary, and returns evidence overlap plus unsupported terms.
-- Evaluated applications enter `Agent_Evaluated` and remain paused until `POST /api/applications/{id}/admin-approve` or `admin-reject` is called. Interview scheduling is rejected until approval succeeds.
+- Agent 4 reads the private CV PDF, compares it with the generated summary, and returns evidence overlap, unsupported qualifications, and CV excerpts for review.
+- Evaluated applications enter `Agent_Evaluated`. Only an admin can use `POST /api/applications/human-verify` to record a decision and resume that candidate's PostgreSQL-backed workflow. If continuation fails after the decision is saved, use `POST /api/applications/{id}/retry-workflow-resume`.
+- Admin-only verification documents are fetched with a bearer token; an absent email API key is reported as unsent.
 - The Flutter application reads live application state and displays an Interview Scheduled alert for `Company_Scheduled` applications.
 - Swagger XML documentation and backend/Python unit tests are included.
 - **In-Built Admin Account Seeding**:

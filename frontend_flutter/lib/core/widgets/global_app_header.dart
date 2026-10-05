@@ -1,9 +1,46 @@
 import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
 import 'campus_ai_logo.dart';
+import '../../features/notifications/data/student_notification_service.dart';
+import '../../features/notifications/presentation/screens/notification_center_screen.dart';
 
-class GlobalAppHeader extends StatelessWidget implements PreferredSizeWidget {
-  const GlobalAppHeader({super.key});
+class GlobalAppHeader extends StatefulWidget implements PreferredSizeWidget {
+  const GlobalAppHeader({super.key, this.onProfilePressed});
+
+  final VoidCallback? onProfilePressed;
+
+  @override
+  State<GlobalAppHeader> createState() => _GlobalAppHeaderState();
+
+  @override
+  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+}
+
+class _GlobalAppHeaderState extends State<GlobalAppHeader> {
+  final _notificationService = StudentNotificationService();
+  int _unreadCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUnreadCount();
+  }
+
+  Future<void> _loadUnreadCount() async {
+    try {
+      final count = await _notificationService.unreadCount();
+      if (mounted) setState(() => _unreadCount = count);
+    } catch (_) {
+      // A header must still render while a session is loading or unavailable.
+    }
+  }
+
+  Future<void> _openNotificationCenter() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const NotificationCenterScreen()),
+    );
+    _loadUnreadCount();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -52,43 +89,47 @@ class GlobalAppHeader extends StatelessWidget implements PreferredSizeWidget {
       ),
       actions: [
         IconButton(
-          icon: const Badge(
+          icon: Badge.count(
+            count: _unreadCount,
+            isLabelVisible: _unreadCount > 0,
             backgroundColor: Colors.red,
-            child: Icon(Icons.notifications_none),
+            child: const Icon(Icons.notifications_none),
           ),
           color: AppColors.textSecondaryLight,
-          onPressed: () {},
+          onPressed: _openNotificationCenter,
         ),
-        Container(
-          margin: const EdgeInsets.only(right: 16, left: 4),
-          alignment: Alignment.center,
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              const CircleAvatar(
-                radius: 16,
-                backgroundColor: AppColors.primary,
-                child: Icon(Icons.person, color: Colors.white, size: 18),
-              ),
-              Positioned(
-                bottom: -2,
-                right: -2,
-                child: Container(
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.verified, color: AppColors.primary, size: 14),
+        InkWell(
+          onTap: widget.onProfilePressed,
+          borderRadius: BorderRadius.circular(24),
+          child: Container(
+            margin: const EdgeInsets.only(right: 16, left: 4),
+            alignment: Alignment.center,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                const CircleAvatar(
+                  radius: 16,
+                  backgroundColor: AppColors.primary,
+                  child: Icon(Icons.person, color: Colors.white, size: 18),
                 ),
-              )
-            ],
+                Positioned(
+                  bottom: -2,
+                  right: -2,
+                  child: Container(
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.verified, color: AppColors.primary, size: 14),
+                  ),
+                )
+              ],
+            ),
           ),
         ),
       ],
     );
   }
 
-  @override
-  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
 }
 

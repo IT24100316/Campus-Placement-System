@@ -1,11 +1,12 @@
 import re
 import requests
 import asyncio
+import os
 
 def analyze_github_profile(cv_text: str) -> str:
     """
-    Extracts GitHub username from CV, calls GitHub API, 
-    and deeply analyzes the quality and authenticity of the repos.
+    Digs into a student's CV to find their GitHub username, 
+    then uses the GitHub API to check if they actually write good, original code!
     """
     # 1. Extract username
     match = re.search(r"github\.com/([a-zA-Z0-9-]+)", cv_text, re.IGNORECASE)
@@ -17,6 +18,10 @@ def analyze_github_profile(cv_text: str) -> str:
     # 2. Call GitHub API for Repositories
     url = f"https://api.github.com/users/{username}/repos?per_page=100&sort=pushed"
     headers = {"Accept": "application/vnd.github.v3+json"}
+    
+    github_token = os.getenv("GITHUB_TOKEN")
+    if github_token:
+        headers["Authorization"] = f"token {github_token}"
     
     try:
         response = requests.get(url, headers=headers, timeout=15)

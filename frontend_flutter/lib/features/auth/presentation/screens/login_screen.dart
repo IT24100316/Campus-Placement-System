@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/services/api_service.dart';
+import '../../../../core/widgets/campus_ai_logo.dart';
 import '../../../dashboard/presentation/screens/dashboard_shell_screen.dart';
 import 'account_pending_screen.dart';
+import 'forgot_password_screen.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -14,7 +16,6 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   bool _obscurePassword = true;
-  bool _rememberDevice = true;
   bool _isSubmitting = false;
   String? _error;
   final _email = TextEditingController();
@@ -28,9 +29,28 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _login() async {
+    final email = _email.text.trim();
+    final password = _password.text;
+    if (email.isEmpty && password.isEmpty) {
+      setState(() => _error = 'Enter your university email and password to sign in.');
+      return;
+    }
+    if (email.isEmpty) {
+      setState(() => _error = 'Enter your university email address.');
+      return;
+    }
+    if (password.isEmpty) {
+      setState(() => _error = 'Enter your password.');
+      return;
+    }
+    if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email)) {
+      setState(() => _error = 'Enter a valid university email address.');
+      return;
+    }
+
     setState(() { _isSubmitting = true; _error = null; });
     try {
-      final result = await ApiService().login(_email.text, _password.text);
+      final result = await ApiService().login(email, password);
       if (result['isPending'] == true) {
         if (!mounted) return;
         Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AccountPendingScreen()));
@@ -78,54 +98,113 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ),
         leadingWidth: 64,
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: AppColors.primary,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const CampusAILogo(size: 20, color: Colors.white),
+            ),
+            const SizedBox(width: 10),
+            const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'CampusAI',
+                  style: TextStyle(
+                    color: AppColors.textPrimaryLight,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    height: 1.1,
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  'STUDENT PORTAL',
+                  style: TextStyle(
+                    color: AppColors.primary,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.5,
+                    height: 1.1,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
+          padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Header
-              const Text(
-                'Welcome back',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimaryLight,
-                  letterSpacing: -0.5,
+              Container(
+                padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEAF2FF),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.12)),
+                ),
+                child: const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Welcome back',
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimaryLight,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    SizedBox(height: 7),
+                    Text(
+                      'Sign in to explore internship opportunities, manage applications, and stay updated on your placement journey.',
+                      style: TextStyle(fontSize: 14, color: AppColors.textSecondaryLight, height: 1.4),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 8),
-              const Text(
-                'Sign in to access your placement dashboard, scheduled drive interviews, and offers.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: AppColors.textSecondaryLight,
-                  height: 1.4,
-                ),
-              ),
-              const SizedBox(height: 36),
+              const SizedBox(height: 20),
 
               // Main Authentication Card
               Container(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(22),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: AppColors.borderLight.withValues(alpha: 0.8)),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.03),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
+                      color: Colors.black.withValues(alpha: 0.04),
+                      blurRadius: 18,
+                      offset: const Offset(0, 8),
                     ),
                   ],
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Email Field
+                    const Text(
+                      'Sign in to your student account',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimaryLight,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Use the email and password you registered with.',
+                      style: TextStyle(fontSize: 13, color: AppColors.textSecondaryLight),
+                    ),
+                    const SizedBox(height: 24),
                     _buildLabeledField(
                       label: 'University Student Email',
                       required: true,
@@ -139,7 +218,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 20),
 
-                    // Password Field
                     _buildLabeledField(
                       label: 'Password',
                       required: true,
@@ -153,57 +231,34 @@ class _LoginScreenState extends State<LoginScreen> {
                         });
                       },
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 16),
 
-                    // Utilities Row (Remember me & Forgot Password)
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: Checkbox(
-                                value: _rememberDevice,
-                                activeColor: AppColors.primary,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                                onChanged: (value) {
-                                  setState(() {
-                                    _rememberDevice = value ?? false;
-                                  });
-                                },
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            const Text(
-                              'Remember device',
-                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.textPrimaryLight),
-                            ),
-                          ],
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton.icon(
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => ForgotPasswordScreen(initialEmail: _email.text)),
                         ),
-                        TextButton(
-                          onPressed: () {},
-                          style: TextButton.styleFrom(
-                            padding: EdgeInsets.zero,
-                            minimumSize: const Size(0, 0),
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                          child: const Text(
-                            'Forgot Password?',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.primary,
-                            ),
-                          ),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 2),
+                          minimumSize: const Size(0, 0),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
-                      ],
+                        icon: const Icon(Icons.lock_reset_outlined, size: 17),
+                        label: const Text('Forgot password?', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                      ),
                     ),
                     const SizedBox(height: 24),
 
                     if (_error != null) ...[
-                      Text(_error!, style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withValues(alpha: 0.07),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(_error!, style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
+                      ),
                       const SizedBox(height: 12),
                     ],
 
@@ -232,28 +287,34 @@ class _LoginScreenState extends State<LoginScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 22),
 
               // Alternative SSO Divider
               const Row(
                 children: [
                   Expanded(child: Divider(color: AppColors.borderLight)),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 12),
+                    child: Text('FIRST TIME HERE?', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.grey, letterSpacing: 0.7)),
+                  ),
+                  Expanded(child: Divider(color: AppColors.borderLight)),
                 ],
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 18),
 
               // Registration Redirection Card
               Container(
-                padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.05),
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.borderLight),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const Text(
-                      'Don\'t have an approved account? ',
+                      'Need a student account? ',
                       style: TextStyle(fontSize: 13, color: AppColors.textSecondaryLight),
                     ),
                     GestureDetector(
@@ -277,17 +338,27 @@ class _LoginScreenState extends State<LoginScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 28),
 
               // Security & Compliance Badge
-              const Center(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 24.0),
-                  child: Text(
-                    'Secured end-to-end with 256-bit placement ledger encryption. Authorized access only.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 11, color: Colors.grey, height: 1.4),
-                  ),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.75),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.verified_user_outlined, size: 17, color: Colors.grey),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Secured end-to-end with 256-bit placement ledger encryption. Authorized access only.',
+                        style: TextStyle(fontSize: 11, color: Colors.grey, height: 1.4),
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 16),
@@ -350,7 +421,8 @@ class _LoginScreenState extends State<LoginScreen> {
               prefixIcon: Icon(icon, color: Colors.grey, size: 22),
               suffixIcon: onToggleVisibility != null
                   ? IconButton(
-                      icon: Icon(obscureText ? Icons.visibility_off : Icons.visibility, color: Colors.grey, size: 20),
+                      tooltip: obscureText ? 'Show password' : 'Hide password',
+                      icon: Icon(obscureText ? Icons.visibility : Icons.visibility_off, color: Colors.grey, size: 20),
                       onPressed: onToggleVisibility,
                     )
                   : trailing,

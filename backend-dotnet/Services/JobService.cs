@@ -445,7 +445,14 @@ public class JobService : IJobService
         }
         else if (sortBy.ToLower() == "deadline")
         {
-            query = query.OrderBy(j => j.ApplicationDeadline);
+            var now = DateTime.UtcNow;
+            query = query
+                .OrderBy(j => j.ApplicationDeadline <= now)
+                .ThenBy(j => j.ApplicationDeadline);
+        }
+        else if (sortBy.ToLower() == "company")
+        {
+            query = query.OrderBy(j => j.Company.CompanyName);
         }
         else if (sortBy.ToLower() == "gpa")
         {

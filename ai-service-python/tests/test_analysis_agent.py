@@ -1,5 +1,6 @@
 from unittest.mock import patch, MagicMock
-from agents.analysis import analysis_node, normalize_skill, normalize_skill_list
+from agents.analysis.analysis_node import analysis_node
+from agents.analysis.analysis_service import normalize_skill, normalize_skill_list
 from tools.skill_equivalence_tool import canonicalize_pair
 from state import AgentState
 
@@ -7,9 +8,9 @@ def test_normalization():
     assert normalize_skill(" Python ") == "python"
     assert normalize_skill_list([" ReactJS ", "Node.js"]) == ["reactjs", "node.js"]
 
-@patch('agents.analysis.check_skill_cache')
-@patch('agents.analysis.save_skill_equivalence')
-@patch('agents.analysis.check_llm_equivalence_batch')
+@patch('agents.analysis.analysis_service.check_skill_cache')
+@patch('agents.analysis.analysis_service.save_skill_equivalence')
+@patch('agents.analysis.analysis_service.check_llm_equivalence_batch')
 def test_analysis_node_filtering(mock_llm, mock_save, mock_cache):
     # Setup mock returns
     mock_cache.return_value = {

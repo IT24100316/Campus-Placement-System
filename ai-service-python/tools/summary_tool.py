@@ -1,5 +1,7 @@
 from pydantic import BaseModel, Field
 
+# This is the blueprint for the final report the AI writes for the human Admin.
+# It makes sure Gemini always returns the data in the exact same format!
 class AdminEvaluationSummary(BaseModel):
     technical_alignment: str = Field(
         description="Write a detailed paragraph (3-4 sentences) deeply analyzing how the candidate's technical skills (extracted from the Student Form and CV) align with the exact requirements of the Job Post. Provide concrete examples of matched technologies."

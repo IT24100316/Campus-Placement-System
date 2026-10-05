@@ -1,6 +1,6 @@
 import type { TargetDomain, JobTitle, CreateJobPayload, JobResponse } from '../types/job';
 
-const API_BASE = 'http://localhost:5168/api';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5168/api';
 
 export const jobService = {
   /**

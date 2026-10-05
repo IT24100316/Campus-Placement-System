@@ -6,6 +6,8 @@ from tools.summary_tool import AdminEvaluationSummary
 from tools.cv_tool import extract_cv_text_locally
 from tools.github_tool import analyze_github_profile
 
+# Takes all the pieces (CV, GitHub, Student Profile) and feeds them into Gemini!
+# Gemini then uses our special rubric to write a detailed evaluation summary.
 async def evaluate_single_candidate(student_data: dict, job_data: dict, cv_url: str, cv_text: str = None, evaluation_rubric: str = "") -> dict:
     # 1. Use pre-extracted CV text from Agent 1 if available
     if not cv_text:

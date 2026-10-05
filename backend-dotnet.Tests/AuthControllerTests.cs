@@ -78,6 +78,7 @@ public class AuthControllerTests
         var user = Assert.IsType<AuthUserDto>(ok.Value);
         Assert.Equal(john.Id, user.Id);
         Assert.Equal("john@example.edu", user.Email);
+        Assert.Equal(AccountStatus.Approved.ToString(), user.Status);
     }
 
     [Fact]

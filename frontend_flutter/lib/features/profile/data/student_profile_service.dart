@@ -28,7 +28,10 @@ class StudentProfileException implements Exception {
 }
 
 class StudentProfileService {
-  StudentProfileService({http.Client? client, Uri? profileEndpoint})
+  StudentProfileService({
+    http.Client? client,
+    Uri? profileEndpoint,
+  })
     : _client = client ?? http.Client(),
       _profileEndpoint =
           profileEndpoint ?? Uri.parse(ApiEndpoints.studentProfile);

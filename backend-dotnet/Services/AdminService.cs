@@ -83,6 +83,9 @@ public class AdminService : IAdminService
         if (user == null)
             return null;
 
+        if (user.Status != AccountStatus.Pending)
+            throw new InvalidOperationException("Only pending accounts can be approved.");
+
         user.Status = AccountStatus.Approved;
 
         // Ensure company has default placement jobs if none exist
@@ -161,6 +164,9 @@ public class AdminService : IAdminService
         if (user == null)
             return null;
 
+        if (user.Status != AccountStatus.Pending)
+            throw new InvalidOperationException("Only pending accounts can be rejected.");
+
         user.Status = AccountStatus.Rejected;
         await _context.SaveChangesAsync();
         var displayName = user.StudentProfile?.FullName ?? user.CompanyProfile?.ContactPersonName ?? user.CompanyStaffProfile?.FullName ?? user.Email;
@@ -207,7 +213,7 @@ public class AdminService : IAdminService
                 Status = AccountStatus.Approved,
                 CreatedAt = DateTime.UtcNow
             };
-            companyUser.PasswordHash = _passwordHasher.HashPassword(companyUser, "CampusAI#2025Secure!");
+            companyUser.PasswordHash = _passwordHasher.HashPassword(companyUser, Guid.NewGuid().ToString("N") + Guid.NewGuid().ToString("N"));
 
             company = new CompanyProfile
             {
@@ -234,8 +240,7 @@ public class AdminService : IAdminService
             CreatedAt = DateTime.UtcNow
         };
 
-        var pwd = string.IsNullOrWhiteSpace(dto.Password) ? "StaffPass@2025!" : dto.Password;
-        staffUser.PasswordHash = _passwordHasher.HashPassword(staffUser, pwd);
+        staffUser.PasswordHash = _passwordHasher.HashPassword(staffUser, dto.Password);
 
         var staffProfile = new CompanyStaffProfile
         {

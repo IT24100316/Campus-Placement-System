@@ -35,6 +35,37 @@ public class StudentEndpointAuthorizationTests
         (HttpMethod.Get, "/api/Applications/me")
     ];
 
+    private static readonly (HttpMethod Method, string Path)[] AdminActions =
+    [
+        (HttpMethod.Get, "/api/Admin/pending-approvals"),
+        (HttpMethod.Post, "/api/Admin/approve/test@example.edu"),
+        (HttpMethod.Post, "/api/Admin/reject/test@example.edu"),
+        (HttpMethod.Post, "/api/Admin/register-employee"),
+        (HttpMethod.Get, "/api/Documents/view?key=local%3A%2F%2Fcampus-ids%2Fid.jpg"),
+        (HttpMethod.Get, "/api/Applications/pending-admin-approval"),
+        (HttpMethod.Post, "/api/Applications/human-verify"),
+        (HttpMethod.Post, $"/api/Applications/{Guid.Empty}/retry-workflow-resume")
+    ];
+
+    [Fact]
+    public async Task AdminOperationsRejectAnonymousAndStudentRequests()
+    {
+        using var server = CreateServer();
+        using var client = server.CreateClient();
+        var student = new User { Id = Guid.NewGuid(), Email = "student@example.edu", Role = UserRole.Student };
+
+        foreach (var action in AdminActions)
+        {
+            using var anonymous = await client.SendAsync(new HttpRequestMessage(action.Method, action.Path));
+            Assert.Equal(HttpStatusCode.Unauthorized, anonymous.StatusCode);
+
+            using var request = new HttpRequestMessage(action.Method, action.Path);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", TokenFor(student));
+            using var forbidden = await client.SendAsync(request);
+            Assert.Equal(HttpStatusCode.Forbidden, forbidden.StatusCode);
+        }
+    }
+
     [Theory]
     [InlineData(0)]
     [InlineData(1)]
@@ -396,7 +427,7 @@ public class StudentEndpointAuthorizationTests
     private static StudentProfileUpsertRequest ValidProfileRequest() => new()
     {
         FullName = "Student One",
-        Phone = "+94111222333",
+        Phone = "0771234567",
         UniversityName = "Test University",
         AcademicStatus = "Full-time Student",
         DegreeProgram = "Software Engineering",

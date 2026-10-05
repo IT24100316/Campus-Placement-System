@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "http://campusplacementsystem.runasp.net/api/:path*"
+    }
+  ]
+}
