@@ -23,6 +23,7 @@ public enum ApplicationStatus
     Admin_Approved,
     Company_Scheduled,
     Student_Accepted,
+    Interview_Acknowledged,
     Processing,
     Evaluation_Failed
 }

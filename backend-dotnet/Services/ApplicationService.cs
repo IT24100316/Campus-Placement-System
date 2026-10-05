@@ -270,7 +270,14 @@ public class ApplicationService : IApplicationService
             ?? throw new KeyNotFoundException("Application not found or access denied.");
         if (application.Status != ApplicationStatus.Admin_Approved && application.Status != ApplicationStatus.Company_Scheduled)
             throw new InvalidOperationException("Application is not in a valid state for a student decision.");
-        application.Status = accepted ? ApplicationStatus.Student_Accepted : ApplicationStatus.Rejected;
+        if (accepted)
+        {
+            application.Status = application.Status == ApplicationStatus.Company_Scheduled ? ApplicationStatus.Interview_Acknowledged : ApplicationStatus.Student_Accepted;
+        }
+        else
+        {
+            application.Status = ApplicationStatus.Rejected;
+        }
         await _context.SaveChangesAsync(cancellationToken);
         return application;
     }
