@@ -1313,18 +1313,6 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                             </div>
                           </div>
                         </div>
-
-                        <div className="bg-slate-50 p-3 rounded-lg flex items-center justify-between mt-3 border border-slate-100 shadow-inner">
-                          <div className="flex flex-col">
-                            <span className="font-display text-base font-bold text-slate-900">
-                              {job.matchesVerified}
-                            </span>
-                            <span className="text-[10px] text-slate-500 font-medium">Matches Verified</span>
-                          </div>
-                          <span className="text-[11px] text-emerald-600 font-bold bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100">
-                            ✓ 100% Gated Match
-                          </span>
-                        </div>
                       </div>
 
                       <div className="pt-4 mt-4 border-t border-slate-100 flex flex-col gap-3">
@@ -1863,7 +1851,7 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                               {/* CV / Resume */}
                               <td className="py-3.5 px-4 text-center">
                                 <a
-                                  href={c.cvPdfUrl || '#'}
+                                  href={!c.cvPdfUrl ? '#' : c.cvPdfUrl.startsWith('http') ? c.cvPdfUrl : `https://hyxtmbncjolcepfvongh.supabase.co/storage/v1/object/public/student-cvs/${c.cvPdfUrl}`}
                                   target="_blank"
                                   rel="noreferrer"
                                   className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 text-[11px] font-semibold transition-colors shadow-xs"
@@ -2152,7 +2140,7 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
             <div className="p-6 overflow-y-auto flex-1 space-y-6">
               
               {/* Top Overview Cards */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
                   <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Duration</span>
                   <div className="text-sm font-semibold text-slate-900 mt-0.5">{selectedJobDetails.durationMonths} Months</div>
@@ -2164,10 +2152,6 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                 <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
                   <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Deadline</span>
                   <div className="text-sm font-semibold text-slate-900 mt-0.5">{new Date(selectedJobDetails.applicationDeadline).toLocaleDateString()}</div>
-                </div>
-                <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-100">
-                  <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-600">Matches Verified</span>
-                  <div className="text-sm font-bold text-emerald-700 mt-0.5">{selectedJobDetails.matchesVerified} 100% Matches</div>
                 </div>
               </div>
 

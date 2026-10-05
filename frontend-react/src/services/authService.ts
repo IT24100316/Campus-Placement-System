@@ -60,14 +60,17 @@ const INITIAL_COMPANIES: ApprovedCompanyOption[] = [
   },
 ];
 
+const INITIAL_REGISTRATIONS: RegistrationRecord[] = [];
+
 export const authService = {
   getRegistrations(): RegistrationRecord[] {
     const raw = localStorage.getItem(STORAGE_KEY_REGISTRATIONS);
-    if (!raw) return [];
+    if (!raw) return INITIAL_REGISTRATIONS;
     try {
-      return JSON.parse(raw) as RegistrationRecord[];
+      const parsed: RegistrationRecord[] = JSON.parse(raw);
+      return parsed;
     } catch {
-      return [];
+      return INITIAL_REGISTRATIONS;
     }
   },
 

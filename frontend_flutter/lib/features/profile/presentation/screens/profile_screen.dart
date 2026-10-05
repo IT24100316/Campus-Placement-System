@@ -12,6 +12,7 @@ import '../../../../core/constants/api_endpoints.dart';
 import '../../../../core/services/api_service.dart';
 import '../../../../core/services/cv_upload_service.dart';
 import '../../../auth/presentation/screens/landing_screen.dart';
+import '../../../dashboard/presentation/screens/dashboard_shell_screen.dart';
 import '../../data/student_profile_models.dart';
 import '../../data/student_profile_service.dart';
 
@@ -786,6 +787,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
             : 'A PDF CV is required to complete internship registration.';
         _profileMessageIsError = !_registrationComplete;
       });
+
+      if (_registrationComplete) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Internship registration completed successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const DashboardShellScreen()),
+          (route) => false,
+        );
+      }
     } on StudentProfileException catch (error) {
       _handleProfileSaveError(error);
     } on CvUploadException catch (error) {
