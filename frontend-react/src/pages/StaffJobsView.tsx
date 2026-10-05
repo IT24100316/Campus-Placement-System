@@ -63,7 +63,7 @@ export const StaffJobsView: React.FC = () => {
   // It then pops open a nice detailed modal so they can see everything in one place.
   const handleJobClick = async (job: JobFeedDto) => {
     try {
-      const res = await fetch(`${API_BASE}/Job/${job.jobId}`, {
+      const res = await fetch(`${API_BASE}/Jobs/${job.jobId}`, {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
       if (res.ok) {
