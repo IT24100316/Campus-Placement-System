@@ -248,18 +248,18 @@ export const StaffStudentsView: React.FC = () => {
                       <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Contact & Profile</h4>
                     </div>
                     <div className="space-y-3">
-                      <div className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-lg shadow-sm">
-                        <span className="text-xs font-semibold text-slate-500">Phone</span>
-                        <span className="text-sm font-medium text-slate-900">{selectedStudent.phone || 'N/A'}</span>
+                      <div className="flex items-start justify-between p-3 bg-white border border-slate-200 rounded-lg shadow-sm gap-4">
+                        <span className="text-xs font-semibold text-slate-500 mt-0.5 whitespace-nowrap">Phone</span>
+                        <span className="text-sm font-medium text-slate-900 text-right">{selectedStudent.phone || 'N/A'}</span>
                       </div>
-                      <div className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-lg shadow-sm">
-                        <span className="text-xs font-semibold text-slate-500">Degree</span>
-                        <span className="text-sm font-medium text-slate-900">{selectedStudent.degreeProgram || 'N/A'}</span>
+                      <div className="flex items-start justify-between p-3 bg-white border border-slate-200 rounded-lg shadow-sm gap-4">
+                        <span className="text-xs font-semibold text-slate-500 mt-0.5 whitespace-nowrap">Degree</span>
+                        <span className="text-sm font-medium text-slate-900 text-right">{selectedStudent.degreeProgram || 'N/A'}</span>
                       </div>
                       {selectedStudent.portfolioUrl && (
-                        <div className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-lg shadow-sm">
-                          <span className="text-xs font-semibold text-slate-500">Portfolio</span>
-                          <a href={selectedStudent.portfolioUrl} target="_blank" rel="noreferrer" className="text-sm font-medium text-blue-600 hover:underline">View Portfolio</a>
+                        <div className="flex items-start justify-between p-3 bg-white border border-slate-200 rounded-lg shadow-sm gap-4">
+                          <span className="text-xs font-semibold text-slate-500 mt-0.5 whitespace-nowrap">Portfolio</span>
+                          <a href={selectedStudent.portfolioUrl} target="_blank" rel="noreferrer" className="text-sm font-medium text-blue-600 hover:underline text-right break-all">View Portfolio</a>
                         </div>
                       )}
                     </div>
