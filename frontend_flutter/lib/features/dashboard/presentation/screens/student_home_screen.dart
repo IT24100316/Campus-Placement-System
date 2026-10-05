@@ -1447,6 +1447,7 @@ class _ApplicationCounts {
       history: applications.where((application) {
         final status = application['status'];
         return status == 'Student_Accepted' ||
+            status == 'Interview_Acknowledged' ||
             status == 'Rejected' ||
             status == 'Archived';
       }).length,
