@@ -48,8 +48,8 @@ class CandidatePayload(BaseModel):
 def email_node(state: dict) -> dict:
     """
     Agent 5: Email Notification.
-    This node runs ONLY after the graph resumes from its HITL pause.
-    It checks human_approved and sends the final verdict email.
+    This runs ONLY after the graph resumes from its HITL pause.
+    It checks human_approved and sends the final verdict email!
     """
     human_approved = state.get("human_approved")
     candidates = state.get("candidates", [])
@@ -122,7 +122,8 @@ class AnalyzeRequest(BaseModel):
 @app.post("/analyze")
 async def run_orchestration(request: AnalyzeRequest):
     """
-    Trigger the entire AI multi-agent orchestration workflow.
+    Triggers the entire AI multi-agent orchestration workflow!
+    It spins up the agents to match students with jobs, then pauses for human review.
     """
     thread_id = str(uuid.uuid4())
     config = {"configurable": {"thread_id": thread_id}}
@@ -156,7 +157,8 @@ class ResumeRequest(BaseModel):
 @app.post("/resume")
 async def resume_orchestration(request: ResumeRequest):
     """
-    Resume the sleeping LangGraph after Human Admin approves/rejects.
+    Wakes up the sleeping LangGraph after a human Admin approves or rejects the AI's matches.
+    It then continues the workflow (like sending emails).
     """
     config = {"configurable": {"thread_id": request.thread_id}}
     
@@ -196,6 +198,8 @@ class EmailRequest(BaseModel):
     message: str = Field(min_length=1, max_length=10_000)
 
 
+# Runs in the background to validate a student's CV against their profile.
+# When it's done, it fires a webhook back to the .NET server to let it know the result!
 def process_validation_background(request: ValidationRequest):
     webhook_url = os.getenv("DOTNET_WEBHOOK_URL")
     webhook_secret = os.getenv("WEBHOOK_SECRET")

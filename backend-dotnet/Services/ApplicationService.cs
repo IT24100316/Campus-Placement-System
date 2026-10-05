@@ -18,26 +18,26 @@ public class ApplicationService : IApplicationService
     private readonly IConfiguration _configuration;
     private readonly IEmailService _emailService;
     private readonly IDocumentStorageService _documentStorage;
+    private readonly INotificationService? _notificationService;
 
     public ApplicationService(
         AppDbContext context,
         IHttpClientFactory httpClientFactory,
         IConfiguration configuration,
         IEmailService emailService,
-        IDocumentStorageService documentStorage)
+        IDocumentStorageService documentStorage,
+        INotificationService? notificationService = null)
     {
         _context = context;
         _httpClientFactory = httpClientFactory;
         _configuration = configuration;
         _emailService = emailService;
         _documentStorage = documentStorage;
+        _notificationService = notificationService;
     }
 
-    /// <summary>
-    /// GetApplicationsByJobIdAsync
-    /// Fetches a paginated list of applications for a specific job, including the candidate's profile details.
-    /// Optionally filters the applications by their current status.
-    /// </summary>
+    // Fetches all the applications for a specific job, and grabs the candidate details too.
+    // It also allows filtering by application status, and returns a paginated list so it doesn't load everything at once!
     public async Task<IEnumerable<ApplicationResponseDto>> GetApplicationsByJobIdAsync(Guid jobId, int page, string status)
     {
         int pageSize = 10;
@@ -72,11 +72,7 @@ public class ApplicationService : IApplicationService
     }
 
 
-    /// <summary>
-    /// SearchApplicationsAsync
-    /// Searches through all applications by matching the search query against the candidate's full name 
-    /// or any of the skills listed in their profile.
-    /// </summary>
+    // Searches through all applications by checking if the student's name or their skills match the search text.
     public async Task<IEnumerable<ApplicationResponseDto>> SearchApplicationsAsync(string query)
     {
         var lowerQuery = string.IsNullOrWhiteSpace(query) ? string.Empty : query.ToLower();
@@ -106,11 +102,8 @@ public class ApplicationService : IApplicationService
 
 
 
-    /// <summary>
-    /// GetCvDownloadUrlAsync
-    /// Retrieves the CV download URL for a given application by fetching the associated student profile.
-    /// Returns an empty string if no CV URL is found.
-    /// </summary>
+    // Finds the application and grabs the link to download the student's CV.
+    // If it can't find one, it just returns an empty string.
     public async Task<string> GetCvDownloadUrlAsync(Guid appId)
     {
         var application = await _context.Applications
@@ -126,6 +119,8 @@ public class ApplicationService : IApplicationService
         return application.Student?.StudentProfile?.CvPdfUrl ?? string.Empty;
     }
 
+    // Handles the process when a student clicks "Apply" for a job.
+    // We double-check if their account is approved, make sure the job actually exists, and verify they haven't applied already!
     public async Task<Application> ApplyAsync(ApplyForJobDto request, CancellationToken cancellationToken = default)
     {
         var student = await _context.Users.FirstOrDefaultAsync(
@@ -144,10 +139,19 @@ public class ApplicationService : IApplicationService
             Status = ApplicationStatus.Pending, SummaryReport = "{}"
         };
         _context.Applications.Add(application);
+        _notificationService?.Add(
+            application.StudentId,
+            "application_received",
+            "Application received",
+            "Your application has been submitted and is awaiting review.",
+            "applications",
+            application.AppId);
         await _context.SaveChangesAsync(cancellationToken);
         return application;
     }
 
+    // Receives the results back from our AI Evaluation Engine.
+    // It updates the application with the AI's match score and feedback, or marks it as failed if something went wrong during the AI check.
     public async Task HandleEvaluationWebhookAsync(WebhookEvaluationResultDto payload, CancellationToken cancellationToken = default)
     {
         // Look up by ApplicationId OR by JobId + StudentId
@@ -177,6 +181,13 @@ public class ApplicationService : IApplicationService
             application.SummaryReport = payload.ResultJson ?? "{}";
             application.MatchScore = payload.MatchScore;
             application.Status = ApplicationStatus.Agent_Evaluated;
+            _notificationService?.Add(
+                application.StudentId,
+                "application_update",
+                "Application update",
+                "Your application has completed the initial review.",
+                "applications",
+                application.AppId);
         }
         else
         {
@@ -187,6 +198,7 @@ public class ApplicationService : IApplicationService
         await _context.SaveChangesAsync(cancellationToken);
     }
 
+    // Grabs a list of all applications that are waiting for the university admin to review and approve them.
     public async Task<IEnumerable<object>> GetPendingAdminApprovalAsync(CancellationToken cancellationToken = default)
     {
         var values = await _context.Applications
@@ -228,6 +240,8 @@ public class ApplicationService : IApplicationService
         return values.Cast<object>();
     }
 
+    // Processes the university admin's decision (approve or reject) for an application.
+    // If the admin approves it, the student is given 3 days to make their final decision!
     public async Task<Application> AdminDecisionAsync(Guid appId, bool approved, CancellationToken cancellationToken = default)
     {
         var application = await _context.Applications.FirstOrDefaultAsync(a => a.AppId == appId, cancellationToken)
@@ -238,10 +252,20 @@ public class ApplicationService : IApplicationService
         if (approved) {
             application.DecisionDeadline = DateTime.UtcNow.AddDays(3);
         }
+        _notificationService?.Add(
+            application.StudentId,
+            approved ? "action_required" : "application_update",
+            approved ? "Action required: respond to your offer" : "Application update",
+            approved
+                ? "You have been shortlisted. Review and respond to the offer within three days."
+                : "Your application was not selected on this occasion.",
+            "applications",
+            application.AppId);
         await _context.SaveChangesAsync(cancellationToken);
         return application;
     }
 
+    // Processes the student's final decision to either accept or reject the university-approved application.
     public async Task<Application> StudentDecisionAsync(Guid appId, Guid studentId, bool accepted, CancellationToken cancellationToken = default)
     {
         var application = await _context.Applications.FirstOrDefaultAsync(a => a.AppId == appId && a.StudentId == studentId, cancellationToken)
@@ -253,6 +277,7 @@ public class ApplicationService : IApplicationService
         return application;
     }
 
+    // Gets all the applications a specific student has made so they can view their status on their dashboard.
     public async Task<IEnumerable<object>> GetStudentApplicationsAsync(Guid studentId, CancellationToken cancellationToken = default)
     {
         var values = await _context.Applications
@@ -273,6 +298,8 @@ public class ApplicationService : IApplicationService
         return values.Cast<object>();
     }
 
+    // Books an interview for the student!
+    // It sets the date and time, emails the student with a calendar invite, and updates the application status to show they're scheduled.
     public async Task<bool> ScheduleInterviewAsync(ScheduleInterviewRequestDto request)
     {
         // 1. Strict Validation: Verify Application exists for this specific Student and Job relationship
@@ -317,12 +344,20 @@ public class ApplicationService : IApplicationService
         // 5. Database Consistency: Only save state to DB if the third-party SendGrid request succeeded
         application.InterviewStatus = InterviewStatus.Invited;
         application.Status = ApplicationStatus.Company_Scheduled;
+        _notificationService?.Add(
+            application.StudentId,
+            "interview",
+            "Interview scheduled",
+            $"Your interview for {jobTitle} has been scheduled.",
+            "applications",
+            application.AppId);
 
         await _context.SaveChangesAsync();
 
         return true;
     }
 
+    // Marks a candidate as rejected by the company, and optionally emails them the reason so they know what happened.
     public async Task<bool> RejectCandidateAsync(RejectCandidateRequestDto request)
     {
         var application = await _context.Applications
@@ -353,6 +388,13 @@ public class ApplicationService : IApplicationService
 
         application.Status = ApplicationStatus.Rejected;
         application.CompanyMessage = request.Reason; // Save reason in CompanyMessage or just leave it for now.
+        _notificationService?.Add(
+            application.StudentId,
+            "application_update",
+            "Application update",
+            $"Your application for {jobTitle} was not selected.",
+            "applications",
+            application.AppId);
 
         await _context.SaveChangesAsync();
         return true;

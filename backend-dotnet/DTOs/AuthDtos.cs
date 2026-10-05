@@ -38,6 +38,7 @@ public class AuthUserDto
     public string? FullName { get; set; }
     public string Email { get; set; } = string.Empty;
     public string Role { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
 }
 
 public class RegisterCompanyHrDto
@@ -165,6 +166,21 @@ public class ChangePasswordDto
 
     [Required]
     [MinLength(8)]
+    public string NewPassword { get; set; } = string.Empty;
+}
+
+public class RequestPasswordResetDto
+{
+    [Required, EmailAddress]
+    public string Email { get; set; } = string.Empty;
+}
+
+public class ResetPasswordDto
+{
+    [Required, EmailAddress]
+    public string Email { get; set; } = string.Empty;
+
+    [Required, MinLength(8)]
     public string NewPassword { get; set; } = string.Empty;
 }
 

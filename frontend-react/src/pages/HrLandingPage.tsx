@@ -33,6 +33,8 @@ import {
 import type { CompanyDashboardData } from '../types/company';
 import { companyService } from '../services/companyService';
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5168/api';
+
 interface HrLandingPageProps {
   userEmail?: string;
   initialCompanyName?: string;
@@ -216,7 +218,7 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
     if (!jobToRepost) return;
     
     try {
-      const response = await fetch(`http://localhost:5168/api/Jobs/${jobToRepost.jobId}/repost`, {
+      const response = await fetch(`${API_BASE}/Jobs/${jobToRepost.jobId}/repost`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

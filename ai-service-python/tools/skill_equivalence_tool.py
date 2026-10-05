@@ -4,15 +4,10 @@ from psycopg2.extras import RealDictCursor
 from typing import Tuple, List, Dict, Any
 
 def get_db_connection():
-    return psycopg2.connect(
-        host="db.hyxtmbncjolcepfvongh.supabase.co",
-        port="5432",
-        dbname="postgres",
-        user="postgres",
-        password="Sef@project#123",
-        sslmode="require",
-        cursor_factory=RealDictCursor
-    )
+    db_url = os.getenv("DATABASE_URL")
+    if not db_url:
+        raise ValueError("DATABASE_URL environment variable is not set")
+    return psycopg2.connect(db_url, cursor_factory=RealDictCursor)
 
 def canonicalize_pair(term_a: str, term_b: str) -> Tuple[str, str]:
     """

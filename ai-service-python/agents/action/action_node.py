@@ -3,8 +3,9 @@ from agents.action.action_service import evaluate_single_candidate
 
 async def action_node(state: AgentState) -> dict:
     """
-    Agent 3: Summary Writer. 
-    Takes passing candidates from Analysis and writes the AdminEvaluationSummary using Gemini.
+    Agent 3: Summary Writer!
+    It takes the students who passed the initial AI screening 
+    and writes up a nice summary report for the human Admin to read.
     """
     job_posting = state.get("job_posting", {})
     rubric = state.get("evaluation_rubric", "")

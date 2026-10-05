@@ -24,6 +24,7 @@ public class AutoDeclineBackgroundService : BackgroundService
             try
             {
                 await ProcessExpiredApplicationsAsync(stoppingToken);
+                await NotifyEligibleCvReplacementsAsync(stoppingToken);
             }
             catch (Exception ex)
             {
@@ -56,5 +57,33 @@ public class AutoDeclineBackgroundService : BackgroundService
 
             await context.SaveChangesAsync(cancellationToken);
         }
+    }
+
+    private async Task NotifyEligibleCvReplacementsAsync(CancellationToken cancellationToken)
+    {
+        using var scope = _serviceProvider.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var notificationService = scope.ServiceProvider.GetRequiredService<INotificationService>();
+        var eligibleStudents = await context.StudentProfiles
+            .AsNoTracking()
+            .Where(profile =>
+                profile.CvUploadedAt.HasValue &&
+                profile.CvUploadedAt.Value <= DateTime.UtcNow.AddDays(-7) &&
+                !context.Notifications.Any(notification =>
+                    notification.UserId == profile.UserId &&
+                    notification.Type == "cv_replacement_available"))
+            .Select(profile => profile.UserId)
+            .ToListAsync(cancellationToken);
+
+        foreach (var studentId in eligibleStudents)
+        {
+            notificationService.AddIfMissing(
+                studentId,
+                "cv_replacement_available",
+                "CV update available",
+                "You can now upload a newer CV if you need to update it.",
+                "resume");
+        }
+        if (eligibleStudents.Count > 0) await context.SaveChangesAsync(cancellationToken);
     }
 }

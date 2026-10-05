@@ -5,7 +5,16 @@ import '../../../../features/jobs/presentation/screens/job_details_screen.dart';
 import '../../../../core/widgets/global_app_header.dart';
 
 class ApplicationsTrackingScreen extends StatefulWidget {
-  const ApplicationsTrackingScreen({super.key});
+  const ApplicationsTrackingScreen({
+    super.key,
+    this.initialTab = 0,
+    this.selectionRequest = 0,
+    this.onProfilePressed,
+  });
+
+  final int initialTab;
+  final int selectionRequest;
+  final VoidCallback? onProfilePressed;
 
   @override
   State<ApplicationsTrackingScreen> createState() => _ApplicationsTrackingScreenState();
@@ -13,11 +22,14 @@ class ApplicationsTrackingScreen extends StatefulWidget {
 
 class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen> {
 
+  static const _cardsPerPage = 5;
+
   final Color backgroundColor = AppColors.backgroundLight;
   final Color onSurface = AppColors.textPrimaryLight;
   final Color onSurfaceVariant = AppColors.textSecondaryLight;
 
   int _selectedTab = 0; // 0: Action, 1: Pending, 2: History
+  final List<int> _currentPages = [0, 0, 0];
   List<Map<String, dynamic>> _applications = [];
   bool _isLoading = true;
   String? _errorMessage;
@@ -25,8 +37,20 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
   @override
   void initState() {
     super.initState();
+    _selectedTab = _normalizeTab(widget.initialTab);
     _fetchData();
   }
+
+  @override
+  void didUpdateWidget(covariant ApplicationsTrackingScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (widget.selectionRequest != oldWidget.selectionRequest) {
+      setState(() => _selectedTab = _normalizeTab(widget.initialTab));
+    }
+  }
+
+  int _normalizeTab(int tab) => tab.clamp(0, 2).toInt();
 
   Future<void> _fetchData() async {
     try {
@@ -34,6 +58,7 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
       if (mounted) {
         setState(() {
           _applications = data;
+          _currentPages.setAll(0, [0, 0, 0]);
           _isLoading = false;
           _errorMessage = null;
         });
@@ -55,6 +80,7 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
       if (mounted) {
         setState(() {
           _applications = data;
+          _currentPages.setAll(0, [0, 0, 0]);
           _errorMessage = null;
         });
       }
@@ -70,7 +96,7 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
     if (_isLoading) {
       return Scaffold(
         backgroundColor: backgroundColor,
-        appBar: const GlobalAppHeader(),
+        appBar: GlobalAppHeader(onProfilePressed: widget.onProfilePressed),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
@@ -78,7 +104,7 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
     if (_errorMessage != null && _applications.isEmpty) {
       return Scaffold(
         backgroundColor: backgroundColor,
-        appBar: const GlobalAppHeader(),
+        appBar: GlobalAppHeader(onProfilePressed: widget.onProfilePressed),
         body: Center(
           child: Text('Could not load applications.\n$_errorMessage', textAlign: TextAlign.center),
         ),
@@ -92,7 +118,7 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
 
     return Scaffold(
       backgroundColor: backgroundColor,
-      appBar: const GlobalAppHeader(),
+      appBar: GlobalAppHeader(onProfilePressed: widget.onProfilePressed),
       body: RefreshIndicator(
         onRefresh: _refresh,
         child: SingleChildScrollView(
@@ -223,6 +249,7 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
   }
 
   Widget _buildActionRequiredView(List<Map<String, dynamic>> items) {
+    final visibleItems = _itemsForCurrentPage(items, 0);
     return Column(
       children: [
         if (items.isNotEmpty)
@@ -248,10 +275,11 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
             ),
           ),
         const SizedBox(height: 16),
-        ...items.map((item) => Padding(
+        ...visibleItems.map((item) => Padding(
           padding: const EdgeInsets.only(bottom: 16),
           child: _buildActionCard(item),
         )),
+        _buildPaginationControls(items.length, 0),
       ],
     );
   }
@@ -544,8 +572,10 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
 }
 
   Widget _buildPendingView(List<Map<String, dynamic>> items) {
+    final visibleItems = _itemsForCurrentPage(items, 1);
     return Column(
-      children: items.map((item) {
+      children: [
+        ...visibleItems.map((item) {
         String company = item['companyName']?.toString() ?? 'Unknown Company';
         String title = item['jobTitle']?.toString() ?? 'Role';
         String status = item['status']?.toString() ?? 'Pending';
@@ -573,7 +603,9 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
             ),
           ),
         );
-      }).toList(),
+        }),
+        _buildPaginationControls(items.length, 1),
+      ],
     );
   }
 
@@ -647,8 +679,10 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
   }
 
   Widget _buildHistoryView(List<Map<String, dynamic>> items) {
+    final visibleItems = _itemsForCurrentPage(items, 2);
     return Column(
-      children: items.map((item) {
+      children: [
+        ...visibleItems.map((item) {
         String company = item['companyName']?.toString() ?? 'Unknown Company';
         String title = item['jobTitle']?.toString() ?? 'Role';
         String status = item['status']?.toString() ?? 'Archived';
@@ -677,7 +711,57 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
             ),
           ),
         );
-      }).toList(),
+        }),
+        _buildPaginationControls(items.length, 2),
+      ],
+    );
+  }
+
+  List<Map<String, dynamic>> _itemsForCurrentPage(
+    List<Map<String, dynamic>> items,
+    int tabIndex,
+  ) {
+    final pageCount = _pageCount(items.length);
+    if (pageCount == 0) return const [];
+    final currentPage = _currentPages[tabIndex].clamp(0, pageCount - 1).toInt();
+    final start = currentPage * _cardsPerPage;
+    final end = (start + _cardsPerPage).clamp(0, items.length).toInt();
+    return items.sublist(start, end);
+  }
+
+  int _pageCount(int itemCount) =>
+      itemCount == 0 ? 0 : (itemCount + _cardsPerPage - 1) ~/ _cardsPerPage;
+
+  Widget _buildPaginationControls(int itemCount, int tabIndex) {
+    final pageCount = _pageCount(itemCount);
+    if (pageCount <= 1) return const SizedBox.shrink();
+
+    final currentPage = _currentPages[tabIndex].clamp(0, pageCount - 1).toInt();
+    return Padding(
+      padding: const EdgeInsets.only(top: 4, bottom: 12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          OutlinedButton.icon(
+            onPressed: currentPage == 0
+                ? null
+                : () => setState(() => _currentPages[tabIndex]--),
+            icon: const Icon(Icons.chevron_left, size: 18),
+            label: const Text('Previous'),
+          ),
+          Text(
+            'Page ${currentPage + 1} of $pageCount',
+            style: TextStyle(color: onSurfaceVariant, fontSize: 12, fontWeight: FontWeight.w600),
+          ),
+          ElevatedButton.icon(
+            onPressed: currentPage == pageCount - 1
+                ? null
+                : () => setState(() => _currentPages[tabIndex]++),
+            icon: const Icon(Icons.chevron_right, size: 18),
+            label: const Text('Next'),
+          ),
+        ],
+      ),
     );
   }
 

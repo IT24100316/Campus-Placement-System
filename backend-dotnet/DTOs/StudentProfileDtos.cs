@@ -1,76 +1,28 @@
-using System.ComponentModel.DataAnnotations;
-
 namespace backend_dotnet.DTOs;
 
 public class StudentProfileUpsertRequest
 {
-    [Required, StringLength(255)]
-    public string FullName { get; set; } = string.Empty;
-
-    [Required, RegularExpression(@"^\+?[0-9][0-9\s\-()]{6,24}$")]
-    public string Phone { get; set; } = string.Empty;
-
-    [StringLength(2048)]
-    public string CampusIdPhotoUrl { get; set; } = string.Empty;
-
-    [StringLength(2048)]
+    // Draft requests intentionally accept partial values. The controller
+    // applies the full internship-registration requirements when IsDraft is false.
+    public string? FullName { get; set; }
+    public string? Phone { get; set; }
+    public string? CampusIdPhotoUrl { get; set; }
     public string? PortfolioUrl { get; set; }
-
-    [Required, StringLength(255)]
-    public string UniversityName { get; set; } = string.Empty;
-
-    [Required, StringLength(100)]
-    public string AcademicStatus { get; set; } = string.Empty;
-
-    [Required, StringLength(255)]
-    public string DegreeProgram { get; set; } = string.Empty;
-
-    [Range(1, 8)]
-    public int CurrentYearOfStudy { get; set; }
-
-    [Range(typeof(decimal), "0", "4.00")]
-    public decimal GPA { get; set; }
-
-    [Required, FutureOrToday]
+    public string? UniversityName { get; set; }
+    public string? AcademicStatus { get; set; }
+    public string? DegreeProgram { get; set; }
+    public int? CurrentYearOfStudy { get; set; }
+    public decimal? GPA { get; set; }
     public DateTime? ExpectedGraduationDate { get; set; }
-
-    [Required, StringLength(255)]
-    public string DesiredJobTitle { get; set; } = string.Empty;
-
-    [Required, StringLength(150)]
-    public string PrimaryDomain { get; set; } = string.Empty;
-
-    [Required, StringLength(1000)]
-    public string CareerObjectivesSummary { get; set; } = string.Empty;
-
-    [MinLength(1)]
-    public string[] Skills { get; set; } = Array.Empty<string>();
-
-    [MinLength(1)]
-    public string[] ToolsAndTechnologies { get; set; } = Array.Empty<string>();
-
-    [MinLength(1)]
-    public string[] InternshipType { get; set; } = Array.Empty<string>();
-
-    [Required, StringLength(100)]
-    public string LectureScheduleType { get; set; } = string.Empty;
-
-    [MinLength(1)]
-    public string[] PreferredLocations { get; set; } = Array.Empty<string>();
-
-}
-
-public sealed class FutureOrTodayAttribute : ValidationAttribute
-{
-    public FutureOrTodayAttribute()
-        : base("The expected graduation date must be today or later.")
-    {
-    }
-
-    public override bool IsValid(object? value)
-    {
-        return value is DateTime date && date.Date >= DateTime.UtcNow.Date;
-    }
+    public string? DesiredJobTitle { get; set; }
+    public string? PrimaryDomain { get; set; }
+    public string? CareerObjectivesSummary { get; set; }
+    public string[]? Skills { get; set; }
+    public string[]? ToolsAndTechnologies { get; set; }
+    public string[]? InternshipType { get; set; }
+    public string? LectureScheduleType { get; set; }
+    public string[]? PreferredLocations { get; set; }
+    public bool IsDraft { get; set; }
 }
 
 public class StudentProfileResponse
@@ -95,6 +47,8 @@ public class StudentProfileResponse
     public string LectureScheduleType { get; set; } = string.Empty;
     public string[] PreferredLocations { get; set; } = Array.Empty<string>();
     public string CvPdfUrl { get; set; } = string.Empty;
+    public DateTime? CvUploadedAt { get; set; }
+    public DateTime? CvNextEligibleUploadAt { get; set; }
     public bool IsLookingForInternship { get; set; }
 }
 

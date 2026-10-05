@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'dart:convert';
+import 'dart:async';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
@@ -13,7 +14,6 @@ import '../../../../core/services/cv_upload_service.dart';
 import '../../../auth/presentation/screens/landing_screen.dart';
 import '../../data/student_profile_models.dart';
 import '../../data/student_profile_service.dart';
-import '../../../../core/widgets/global_app_header.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({
@@ -22,21 +22,56 @@ class ProfileScreen extends StatefulWidget {
     this.referenceClient,
     this.cvUploadService,
     this.pickCvFile,
+    this.showBackButton = false,
+    this.scrollToCv = false,
   });
 
   final StudentProfileService? profileService;
   final http.Client? referenceClient;
   final CvUploadService? cvUploadService;
   final Future<PlatformFile?> Function()? pickCvFile;
+  final bool showBackButton;
+  final bool scrollToCv;
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _CvUploadedStatus extends StatelessWidget {
+  const _CvUploadedStatus();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColors.accent.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.accent.withValues(alpha: 0.16)),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.check_circle_outline, color: AppColors.accent, size: 18),
+          SizedBox(width: 8),
+          Text(
+            'CV uploaded',
+            style: TextStyle(
+              color: AppColors.accent,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
   static const int _maxCvFileSizeBytes = 10 * 1024 * 1024;
 
   final _formKey = GlobalKey<FormState>();
+  final _cvUploadSectionKey = GlobalKey();
   final List<String> _skills = [];
   final List<String> _tools = [];
 
@@ -62,13 +97,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   bool _isLoadingProfile = true;
   bool _isSavingProfile = false;
-  String _saveButtonText = 'Complete Internship Registration';
-  IconData _saveButtonIcon = Icons.save_outlined;
+  bool _isCompletingRegistration = false;
   String? _profileMessage;
   bool _profileMessageIsError = false;
   bool _profileLoadFailed = false;
   bool _sessionExpired = false;
   bool _registrationComplete = false;
+  bool _showFinalValidation = false;
 
   List<dynamic> _domains = [];
   List<dynamic> _jobTitles = [];
@@ -85,6 +120,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? _cvSelectionError;
   String? _cvUploadError;
   String? _uploadedCvStorageKey;
+  DateTime? _cvNextEligibleUploadAt;
+  Timer? _cvCooldownRefreshTimer;
   bool _isSelectingCv = false;
 
   late final StudentProfileService _profileService;
@@ -106,12 +143,69 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _profileService = widget.profileService ?? StudentProfileService();
     _cvUploadService = widget.cvUploadService ?? CvUploadService();
     _referenceClient = widget.referenceClient ?? http.Client();
+    for (final controller in [
+      _fullNameController,
+      _phoneController,
+      _universityController,
+      _gpaController,
+      _expectedGraduationController,
+      _careerObjectivesController,
+    ]) {
+      controller.addListener(_refreshPrimaryAction);
+    }
     _initializeProfile();
+  }
+
+  void _refreshPrimaryAction() {
+    if (mounted && !_isLoadingProfile) setState(() {});
+  }
+
+  bool get _isCvReplacementCooldownActive {
+    final nextEligible = _cvNextEligibleUploadAt;
+    return _uploadedCvStorageKey != null &&
+        nextEligible != null &&
+        DateTime.now().toUtc().isBefore(nextEligible);
+  }
+
+  void _scheduleCvCooldownRefresh() {
+    _cvCooldownRefreshTimer?.cancel();
+    final nextEligible = _cvNextEligibleUploadAt;
+    if (nextEligible == null || _uploadedCvStorageKey == null) return;
+    final wait = nextEligible.difference(DateTime.now().toUtc());
+    if (wait <= Duration.zero) return;
+    _cvCooldownRefreshTimer = Timer(wait, () {
+      if (mounted) setState(() {});
+    });
+  }
+
+  String _formatNextEligibleUpload(BuildContext context) {
+    final nextEligible = _cvNextEligibleUploadAt;
+    if (nextEligible == null) return '';
+    final local = nextEligible.toLocal();
+    final localizations = MaterialLocalizations.of(context);
+    return '${localizations.formatMediumDate(local)} at '
+        '${localizations.formatTimeOfDay(TimeOfDay.fromDateTime(local))}';
   }
 
   Future<void> _initializeProfile() async {
     await _fetchDomains();
     await _loadProfile();
+    _scrollToCvIfRequested();
+  }
+
+  void _scrollToCvIfRequested() {
+    if (!widget.scrollToCv) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final targetContext = _cvUploadSectionKey.currentContext;
+      if (mounted && targetContext != null) {
+        Scrollable.ensureVisible(
+          targetContext,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+          alignment: 0.12,
+        );
+      }
+    });
   }
 
   Future<void> _fetchDomains() async {
@@ -246,23 +340,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _uploadedCvStorageKey = profile.cvPdfUrl.isEmpty
           ? null
           : profile.cvPdfUrl;
+      _cvNextEligibleUploadAt = profile.cvNextEligibleUploadAt;
       _registrationComplete =
-          _uploadedCvStorageKey != null &&
-          profile.fullName.trim().isNotEmpty &&
-          profile.phone.trim().isNotEmpty &&
-          profile.universityName.trim().isNotEmpty &&
-          profile.degreeProgram.trim().isNotEmpty &&
-          profile.academicStatus.trim().isNotEmpty &&
-          profile.currentYearOfStudy >= 1 &&
-          profile.expectedGraduationDate != null &&
-          profile.desiredJobTitle.trim().isNotEmpty &&
-          profile.primaryDomain.trim().isNotEmpty &&
-          profile.careerObjectivesSummary.trim().isNotEmpty &&
-          profile.skills.isNotEmpty &&
-          profile.toolsAndTechnologies.isNotEmpty &&
-          profile.internshipType.isNotEmpty &&
-          profile.lectureScheduleType.trim().isNotEmpty &&
-          profile.preferredLocations.isNotEmpty;
+          _uploadedCvStorageKey != null && _isStoredProfileComplete(profile);
 
       final matchingDomain = _domains.where(
         (domain) =>
@@ -279,6 +359,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _selectedDomainId = -2;
       }
     });
+    _scheduleCvCooldownRefresh();
 
     if (_selectedDomainId != null && _selectedDomainId! > 0) {
       await _fetchJobTitles(_selectedDomainId!);
@@ -304,22 +385,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   void _addSkill() {
     final text = _skillController.text.trim();
-    if (text.isNotEmpty && !_skills.contains(text)) {
-      setState(() {
+    final error = _tagEntryError(text, _skills, 'skill');
+    setState(() {
+      _skillsError = error;
+      if (error == null) {
         _skills.add(text);
         _skillController.clear();
-      });
-    }
+      }
+    });
   }
 
   void _addTool() {
     final text = _toolController.text.trim();
-    if (text.isNotEmpty && !_tools.contains(text)) {
-      setState(() {
+    final error = _tagEntryError(text, _tools, 'tool or technology');
+    setState(() {
+      _toolsError = error;
+      if (error == null) {
         _tools.add(text);
         _toolController.clear();
-      });
+      }
+    });
+  }
+
+  String? _tagEntryError(String value, List<String> items, String label) {
+    if (value.isEmpty) return 'Enter a $label before adding it.';
+    if (items.any((item) => item.trim().toLowerCase() == value.toLowerCase())) {
+      return 'This $label has already been added.';
     }
+    return null;
   }
 
   Future<void> _selectCvFile() async {
@@ -460,17 +553,141 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return bytes;
   }
 
-  Future<void> _saveProfile() async {
-    if (_isLoadingProfile || _isSavingProfile) {
-      return;
-    }
+  bool get _canCompleteRegistration =>
+      _hasCompleteProfileInputs() &&
+      _cvSelectionError == null &&
+      (_selectedCvFile != null || _uploadedCvStorageKey != null);
 
+  static const _requiredResumeFieldCount = 16;
+
+  int get _completedResumeFieldCount {
+    final graduation = DateTime.tryParse(
+      _expectedGraduationController.text.trim(),
+    );
+    final today = DateTime.now();
+    final gpa = double.tryParse(_gpaController.text.trim());
+    return <bool>[
+      _validateFullName(_fullNameController.text, required: true) == null,
+      _validatePhone(_phoneController.text, required: true) == null,
+      _validateUniversityName(_universityController.text, required: true) ==
+          null,
+      _selectedAcademicStatus?.trim().isNotEmpty == true,
+      _selectedDegree?.trim().isNotEmpty == true,
+      (_selectedYearOfStudy ?? 0) >= 1 && (_selectedYearOfStudy ?? 0) <= 8,
+      gpa != null && gpa >= 0 && gpa <= 4,
+      graduation != null &&
+          !DateTime(
+            graduation.year,
+            graduation.month,
+            graduation.day,
+          ).isBefore(DateTime(today.year, today.month, today.day)),
+      _selectedReferenceValue(
+            _jobTitles,
+            _selectedJobTitleId,
+            'title',
+          )?.trim().isNotEmpty ==
+          true,
+      _selectedReferenceValue(
+            _domains,
+            _selectedDomainId,
+            'name',
+          )?.trim().isNotEmpty ==
+          true,
+      _validateCareerObjectives(
+            _careerObjectivesController.text,
+            required: true,
+          ) ==
+          null,
+      _skills.isNotEmpty,
+      _tools.isNotEmpty,
+      _selectedWorkArrangements.isNotEmpty,
+      _selectedSchedule?.trim().isNotEmpty == true,
+      _selectedLocations.isNotEmpty,
+    ].where((isComplete) => isComplete).length;
+  }
+
+  int _completedIn(List<bool> requirements) =>
+      requirements.where((isComplete) => isComplete).length;
+
+  String get _primaryButtonText {
+    if (_isSavingProfile) {
+      return _isCompletingRegistration
+          ? 'Completing registration...'
+          : 'Saving progress...';
+    }
+    return _canCompleteRegistration
+        ? 'Complete Internship Registration'
+        : 'Save to continue later';
+  }
+
+  IconData get _primaryButtonIcon => _canCompleteRegistration
+      ? Icons.check_circle_outline
+      : Icons.save_outlined;
+
+  Future<void> _handlePrimaryAction() async {
+    if (_isLoadingProfile || _isSavingProfile) return;
+    if (_canCompleteRegistration) {
+      await _completeRegistration();
+    } else {
+      await _saveDraft();
+    }
+  }
+
+  Future<void> _saveDraft() async {
+    if (!_hasActiveSession()) return;
+    if (!_validateDraftValues()) return;
+
+    setState(() {
+      _isSavingProfile = true;
+      _isCompletingRegistration = false;
+      _profileMessage = null;
+      _profileLoadFailed = false;
+    });
+
+    try {
+      final result = await _profileService.saveProfile(
+        profile: _buildProfileRequest(isDraft: true),
+        bearerToken: StudentSession.token ?? '',
+      );
+      if (!mounted) return;
+      setState(() {
+        _campusIdPhotoUrl = result.campusIdPhotoUrl;
+        _uploadedCvStorageKey = result.cvPdfUrl.isEmpty
+            ? null
+            : result.cvPdfUrl;
+        _cvNextEligibleUploadAt = result.cvNextEligibleUploadAt;
+        _registrationComplete =
+            _uploadedCvStorageKey != null && _isStoredProfileComplete(result);
+        _profileMessage = 'Your progress has been saved.';
+        _profileMessageIsError = false;
+      });
+      _scheduleCvCooldownRefresh();
+    } on StudentProfileException catch (error) {
+      _handleProfileSaveError(error);
+    } catch (_) {
+      _showSaveFailure();
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSavingProfile = false;
+          _isCompletingRegistration = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _completeRegistration() async {
+    if (!_hasActiveSession()) return;
+
+    setState(() => _showFinalValidation = true);
     final isFormValid = _formKey.currentState?.validate() ?? false;
     setState(() {
-      _skillsError = _skills.isEmpty ? 'Add at least one skill.' : null;
-      _toolsError = _tools.isEmpty
-          ? 'Add at least one tool or technology.'
-          : null;
+      _skillsError = _validateTagItems(_skills, label: 'skill', required: true);
+      _toolsError = _validateTagItems(
+        _tools,
+        label: 'tool or technology',
+        required: true,
+      );
       _internshipTypeError = _selectedWorkArrangements.isEmpty
           ? 'Select at least one internship type.'
           : null;
@@ -483,20 +700,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _skillsError != null ||
         _toolsError != null ||
         _internshipTypeError != null ||
-        _locationError != null) {
+        _locationError != null ||
+        !_hasCompleteProfileInputs()) {
       return;
     }
 
-    if (StudentSession.token?.trim().isNotEmpty != true) {
-      setState(() {
-        _expireSession();
-        _profileMessage = 'Your session has expired. Please sign in again.';
-        _profileMessageIsError = true;
-      });
-      return;
-    }
-
-    if (_selectedCvFile == null && _uploadedCvStorageKey == null) {
+    final selectedCv = _selectedCvFile;
+    if (selectedCv == null && _uploadedCvStorageKey == null) {
       setState(() {
         _cvSelectionError = 'Select a valid PDF CV to complete registration.';
         _profileMessage =
@@ -506,68 +716,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return;
     }
 
-    if (_cvSelectionError != null) {
-      return;
-    }
-
     setState(() {
       _isSavingProfile = true;
+      _isCompletingRegistration = true;
       _profileMessage = null;
       _profileLoadFailed = false;
-      _saveButtonText = 'Completing registration...';
     });
 
     try {
-      final selectedCv = _selectedCvFile;
       final cvBytes = selectedCv == null
           ? null
           : await _validatedPdfBytes(selectedCv);
-      final graduation = DateTime.parse(
-        _expectedGraduationController.text.trim(),
-      );
-      final domain = _domains.firstWhere(
-        (item) => item['id'] == _selectedDomainId,
-      );
-      final title = _jobTitles.firstWhere(
-        (item) => item['id'] == _selectedJobTitleId,
-      );
-      final request = StudentProfileUpsertRequest(
-        fullName: _fullNameController.text.trim(),
-        phone: _phoneController.text.trim(),
-        campusIdPhotoUrl: _campusIdPhotoUrl,
-        portfolioUrl: _portfolioUrlController.text.trim().isEmpty
-            ? null
-            : _portfolioUrlController.text.trim(),
-        universityName: _universityController.text.trim(),
-        academicStatus: _selectedAcademicStatus!,
-        degreeProgram: _selectedDegree!,
-        currentYearOfStudy: _selectedYearOfStudy!,
-        gpa: double.parse(_gpaController.text.trim()),
-        expectedGraduationDate: DateTime.utc(
-          graduation.year,
-          graduation.month,
-          graduation.day,
-        ),
-        desiredJobTitle: title['title'].toString(),
-        primaryDomain: domain['name'].toString(),
-        careerObjectivesSummary: _careerObjectivesController.text.trim(),
-        skills: List.of(_skills),
-        toolsAndTechnologies: List.of(_tools),
-        internshipType: _selectedWorkArrangements.toList(),
-        lectureScheduleType: _selectedSchedule!,
-        preferredLocations: _selectedLocations.toList(),
-      );
       final result = await _profileService.saveProfile(
-        profile: request,
+        profile: _buildProfileRequest(isDraft: false),
         bearerToken: StudentSession.token ?? '',
       );
-
       if (!mounted) return;
 
       setState(() {
         _campusIdPhotoUrl = result.campusIdPhotoUrl;
         if (result.cvPdfUrl.isNotEmpty) _uploadedCvStorageKey = result.cvPdfUrl;
+        _cvNextEligibleUploadAt = result.cvNextEligibleUploadAt;
       });
+      _scheduleCvCooldownRefresh();
 
       if (selectedCv != null && cvBytes != null) {
         try {
@@ -579,10 +750,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
           if (!mounted) return;
           setState(() {
             _uploadedCvStorageKey = uploaded.storageKey;
+            _cvNextEligibleUploadAt = uploaded.nextEligibleUploadAt;
             _selectedCvFile = null;
             _selectedCvFileSize = null;
             _cvUploadError = null;
           });
+          _scheduleCvCooldownRefresh();
         } on CvUploadException catch (error) {
           if (!mounted) return;
           if (error.statusCode == 401) _expireSession();
@@ -591,8 +764,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 'Profile saved, but the CV still needs to be uploaded. ${error.message}';
             _profileMessageIsError = true;
             _cvUploadError = error.message;
-            _saveButtonText = 'Complete Internship Registration';
-            _saveButtonIcon = Icons.upload_file;
             _registrationComplete = false;
           });
           return;
@@ -601,60 +772,221 @@ class _ProfileScreenState extends State<ProfileScreen> {
           setState(() {
             _profileMessage = 'Profile saved, but the CV still needs to be uploaded. Please retry.';
             _profileMessageIsError = true;
-            _saveButtonText = 'Complete Internship Registration';
-            _saveButtonIcon = Icons.upload_file;
             _registrationComplete = false;
           });
           return;
         }
       }
 
+      if (!mounted) return;
       setState(() {
-        _registrationComplete = true;
-        _profileMessage = 'Internship registration completed successfully';
-        _profileMessageIsError = false;
-        _saveButtonText = 'Complete Internship Registration';
-        _saveButtonIcon = Icons.check_circle;
+        _registrationComplete = _uploadedCvStorageKey != null;
+        _profileMessage = _registrationComplete
+            ? 'Internship registration completed successfully'
+            : 'A PDF CV is required to complete internship registration.';
+        _profileMessageIsError = !_registrationComplete;
       });
     } on StudentProfileException catch (error) {
-      if (mounted) {
-        if (error.type == StudentProfileErrorType.unauthorized) {
-          _expireSession();
-        }
-        setState(() {
-          _profileMessage = error.message;
-          _profileMessageIsError = true;
-          _saveButtonText = 'Complete Internship Registration';
-          _saveButtonIcon = Icons.save_outlined;
-        });
-      }
+      _handleProfileSaveError(error);
     } on CvUploadException catch (error) {
       if (mounted) {
         setState(() {
           _cvSelectionError = error.message;
           _profileMessage = error.message;
           _profileMessageIsError = true;
-          _saveButtonText = 'Complete Internship Registration';
+          _registrationComplete = false;
         });
       }
     } catch (_) {
-      if (mounted) {
-        setState(() {
-          _profileMessage = 'Unable to save your profile. Please check the form and try again.';
-          _profileMessageIsError = true;
-          _saveButtonText = 'Complete Internship Registration';
-          _saveButtonIcon = Icons.save_outlined;
-        });
-      }
+      _showSaveFailure();
     } finally {
       if (mounted) {
-        setState(() => _isSavingProfile = false);
+        setState(() {
+          _isSavingProfile = false;
+          _isCompletingRegistration = false;
+        });
       }
     }
   }
 
+  bool _hasActiveSession() {
+    if (StudentSession.token?.trim().isNotEmpty == true) return true;
+    setState(() {
+      _expireSession();
+      _profileMessage = 'Your session has expired. Please sign in again.';
+      _profileMessageIsError = true;
+    });
+    return false;
+  }
+
+  void _handleProfileSaveError(StudentProfileException error) {
+    if (!mounted) return;
+    if (error.type == StudentProfileErrorType.unauthorized) _expireSession();
+    setState(() {
+      _profileMessage = error.message;
+      _profileMessageIsError = true;
+      _registrationComplete = false;
+    });
+  }
+
+  void _showSaveFailure() {
+    if (!mounted) return;
+    setState(() {
+      _profileMessage =
+          'Unable to save your profile. Please check the form and try again.';
+      _profileMessageIsError = true;
+      _registrationComplete = false;
+    });
+  }
+
+  StudentProfileUpsertRequest _buildProfileRequest({required bool isDraft}) {
+    final graduation = DateTime.tryParse(
+      _expectedGraduationController.text.trim(),
+    );
+    return StudentProfileUpsertRequest(
+      fullName: _fullNameController.text.trim(),
+      phone: _phoneController.text.trim(),
+      campusIdPhotoUrl: _campusIdPhotoUrl,
+      portfolioUrl: _portfolioUrlController.text.trim().isEmpty
+          ? null
+          : _portfolioUrlController.text.trim(),
+      universityName: _universityController.text.trim(),
+      academicStatus: _selectedAcademicStatus,
+      degreeProgram: _selectedDegree,
+      currentYearOfStudy: _selectedYearOfStudy,
+      gpa: double.tryParse(_gpaController.text.trim()),
+      expectedGraduationDate: graduation == null
+          ? null
+          : DateTime.utc(graduation.year, graduation.month, graduation.day),
+      desiredJobTitle: _selectedReferenceValue(
+        _jobTitles,
+        _selectedJobTitleId,
+        'title',
+      ),
+      primaryDomain: _selectedReferenceValue(
+        _domains,
+        _selectedDomainId,
+        'name',
+      ),
+      careerObjectivesSummary: _careerObjectivesController.text.trim(),
+      skills: List.of(_skills),
+      toolsAndTechnologies: List.of(_tools),
+      internshipType: _selectedWorkArrangements.toList(),
+      lectureScheduleType: _selectedSchedule,
+      preferredLocations: _selectedLocations.toList(),
+      isDraft: isDraft,
+    );
+  }
+
+  String? _selectedReferenceValue(
+    List<dynamic> values,
+    int? selectedId,
+    String property,
+  ) {
+    if (selectedId == null) return null;
+    for (final value in values) {
+      if (value['id'] == selectedId) return value[property]?.toString();
+    }
+    return null;
+  }
+
+  bool _hasCompleteProfileInputs() {
+    final graduation = DateTime.tryParse(
+      _expectedGraduationController.text.trim(),
+    );
+    final today = DateTime.now();
+    final gpa = double.tryParse(_gpaController.text.trim());
+    return _validateFullName(_fullNameController.text, required: true) ==
+            null &&
+        _validatePhone(_phoneController.text, required: true) == null &&
+        _validateUniversityName(_universityController.text, required: true) ==
+            null &&
+        _selectedAcademicStatus?.trim().isNotEmpty == true &&
+        _selectedDegree?.trim().isNotEmpty == true &&
+        (_selectedYearOfStudy ?? 0) >= 1 &&
+        (_selectedYearOfStudy ?? 0) <= 8 &&
+        gpa != null &&
+        gpa >= 0 &&
+        gpa <= 4 &&
+        graduation != null &&
+        !DateTime(
+          graduation.year,
+          graduation.month,
+          graduation.day,
+        ).isBefore(DateTime(today.year, today.month, today.day)) &&
+        _selectedReferenceValue(
+              _jobTitles,
+              _selectedJobTitleId,
+              'title',
+            )?.trim().isNotEmpty ==
+            true &&
+        _selectedReferenceValue(
+              _domains,
+              _selectedDomainId,
+              'name',
+            )?.trim().isNotEmpty ==
+            true &&
+        _validateCareerObjectives(
+              _careerObjectivesController.text,
+              required: true,
+            ) ==
+            null &&
+        _validateOptionalUrl(_portfolioUrlController.text) == null &&
+        _validateTagItems(_skills, label: 'skill', required: true) == null &&
+        _validateTagItems(
+              _tools,
+              label: 'tool or technology',
+              required: true,
+            ) ==
+            null &&
+        _selectedWorkArrangements.isNotEmpty &&
+        _selectedSchedule?.trim().isNotEmpty == true &&
+        _selectedLocations.isNotEmpty;
+  }
+
+  bool _isStoredProfileComplete(StudentProfileResponse profile) {
+    final today = DateTime.now();
+    final graduation = profile.expectedGraduationDate;
+    return _validateFullName(profile.fullName, required: true) == null &&
+        _validatePhone(profile.phone, required: true) == null &&
+        _validateUniversityName(profile.universityName, required: true) ==
+            null &&
+        profile.academicStatus.trim().isNotEmpty &&
+        profile.degreeProgram.trim().isNotEmpty &&
+        profile.currentYearOfStudy >= 1 &&
+        profile.currentYearOfStudy <= 8 &&
+        profile.gpa >= 0 &&
+        profile.gpa <= 4 &&
+        graduation != null &&
+        !DateTime(
+          graduation.year,
+          graduation.month,
+          graduation.day,
+        ).isBefore(DateTime(today.year, today.month, today.day)) &&
+        profile.desiredJobTitle.trim().isNotEmpty &&
+        profile.primaryDomain.trim().isNotEmpty &&
+        _validateCareerObjectives(
+              profile.careerObjectivesSummary,
+              required: true,
+            ) ==
+            null &&
+        _validateOptionalUrl(profile.portfolioUrl) == null &&
+        _validateTagItems(profile.skills, label: 'skill', required: true) ==
+            null &&
+        _validateTagItems(
+              profile.toolsAndTechnologies,
+              label: 'tool or technology',
+              required: true,
+            ) ==
+            null &&
+        profile.internshipType.isNotEmpty &&
+        profile.lectureScheduleType.trim().isNotEmpty &&
+        profile.preferredLocations.isNotEmpty;
+  }
+
   @override
   void dispose() {
+    _cvCooldownRefreshTimer?.cancel();
     _skillController.dispose();
     _toolController.dispose();
     _fullNameController.dispose();
@@ -671,7 +1003,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
-      appBar: const GlobalAppHeader(),
+      appBar: AppBar(
+        automaticallyImplyLeading: widget.showBackButton,
+        leading: widget.showBackButton
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back_rounded),
+                onPressed: () => Navigator.of(context).pop(),
+              )
+            : null,
+        backgroundColor: AppColors.backgroundLight,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        title: const Text(
+          'Build your resume',
+          style: TextStyle(
+            color: AppColors.textPrimaryLight,
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
       body: Stack(
         children: [
           SingleChildScrollView(
@@ -683,63 +1034,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             child: Form(
               key: _formKey,
+              autovalidateMode: AutovalidateMode.onUserInteraction,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Header & Completeness
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'STUDENT INTERNSHIP',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.primary,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                            SizedBox(height: 2),
-                            Text(
-                              'Internship Registration',
-                              style: TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.w800,
-                                color: AppColors.textPrimaryLight,
-                              ),
-                            ),
-                            SizedBox(height: 4),
-                            Text(
-                              'Complete your profile and upload a PDF CV to register',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: AppColors.textSecondaryLight,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(
-                          Icons.description,
-                          color: AppColors.primary,
-                          size: 28,
-                        ),
-                      ),
-                    ],
+                  const Text(
+                    'Complete your details to unlock CV upload.',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppColors.textSecondaryLight,
+                    ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 14),
 
                   if (_isLoadingProfile) ...[
                     const LinearProgressIndicator(),
@@ -777,17 +1083,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ],
 
                   _buildCompletenessMeter(),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 20),
 
                   _buildCardSection(
                     icon: Icons.person_outline,
-                    title: 'Personal Information',
+                    title: 'Personal information',
+                    completedFields: _completedIn([
+                      _validateFullName(
+                            _fullNameController.text,
+                            required: true,
+                          ) ==
+                          null,
+                      _validatePhone(_phoneController.text, required: true) ==
+                          null,
+                    ]),
+                    totalFields: 2,
                     children: [
                       _buildInputField(
                         'Full Name',
                         Icons.person_outline,
                         _fullNameController,
-                        validator: _validateRequired,
+                        validator: (value) => _validateFullName(
+                          value,
+                          required: _showFinalValidation,
+                        ),
                       ),
                       const SizedBox(height: 16),
                       _buildInputField(
@@ -795,23 +1114,51 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         Icons.phone_outlined,
                         _phoneController,
                         keyboardType: TextInputType.phone,
-                        validator: _validatePhone,
+                        validator: (value) => _validatePhone(
+                          value,
+                          required: _showFinalValidation,
+                        ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
 
                   // Academic Information Section
                   _buildCardSection(
                     icon: Icons.school,
-                    title: 'Academic Information',
-                    headerBadgeIcon: Icons.verified_user,
+                    title: 'Academic background',
+                    completedFields: _completedIn([
+                      _validateUniversityName(
+                            _universityController.text,
+                            required: true,
+                          ) ==
+                          null,
+                      _selectedDegree?.trim().isNotEmpty == true,
+                      _selectedAcademicStatus?.trim().isNotEmpty == true,
+                      (_selectedYearOfStudy ?? 0) >= 1 &&
+                          (_selectedYearOfStudy ?? 0) <= 8,
+                      double.tryParse(_gpaController.text.trim()) != null &&
+                          (double.tryParse(_gpaController.text.trim()) ?? -1) >=
+                              0 &&
+                          (double.tryParse(_gpaController.text.trim()) ?? 5) <=
+                              4,
+                      _validateExpectedGraduationDate(
+                            _expectedGraduationController.text,
+                            required: true,
+                          ) ==
+                          null,
+                      _selectedSchedule?.trim().isNotEmpty == true,
+                    ]),
+                    totalFields: 7,
                     children: [
                       _buildInputField(
                         'University / Institution',
                         Icons.account_balance,
                         _universityController,
-                        validator: _validateRequired,
+                        validator: (value) => _validateUniversityName(
+                          value,
+                          required: _showFinalValidation,
+                        ),
                       ),
                       const SizedBox(height: 16),
                       _buildDegreeDropdown(),
@@ -835,7 +1182,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               _expectedGraduationController,
                               hintText: 'YYYY-MM-DD',
                               keyboardType: TextInputType.datetime,
-                              validator: _validateExpectedGraduationDate,
+                              validator: (value) =>
+                                  _validateExpectedGraduationDate(
+                                    value,
+                                    required: _showFinalValidation,
+                                  ),
                             ),
                           ),
                         ],
@@ -844,12 +1195,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       _buildScheduleDropdown(),
                     ],
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
 
                   // Career Goals & Preferences Section
                   _buildCardSection(
                     icon: Icons.track_changes,
-                    title: 'Career Goals & Preferences',
+                    title: 'Career goals and preferences',
+                    completedFields: _completedIn([
+                      _selectedReferenceValue(
+                            _domains,
+                            _selectedDomainId,
+                            'name',
+                          )?.trim().isNotEmpty ==
+                          true,
+                      _selectedReferenceValue(
+                            _jobTitles,
+                            _selectedJobTitleId,
+                            'title',
+                          )?.trim().isNotEmpty ==
+                          true,
+                      _validateCareerObjectives(
+                            _careerObjectivesController.text,
+                            required: true,
+                          ) ==
+                          null,
+                      _selectedWorkArrangements.isNotEmpty,
+                      _selectedLocations.isNotEmpty,
+                    ]),
+                    totalFields: 5,
                     children: [
                       _buildInputField(
                         'Portfolio URL',
@@ -866,7 +1239,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       _buildTextAreaField(
                         'Career Objectives Summary',
                         _careerObjectivesController,
-                        validator: _validateCareerObjectives,
+                        validator: (value) => _validateCareerObjectives(
+                          value,
+                          required: _showFinalValidation,
+                        ),
                       ),
                       const SizedBox(height: 16),
                       _buildInternshipTypeChips(),
@@ -874,14 +1250,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       _buildPreferredLocationsChips(),
                     ],
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
 
                   // Technical Profile Section
                   _buildCardSection(
                     icon: Icons.code,
-                    title: 'Technical Profile',
-                    headerBadgeText: 'Sync Engine',
-                    headerBadgeIcon: Icons.auto_awesome,
+                    title: 'Skills and tools',
+                    completedFields: _completedIn([
+                      _skills.isNotEmpty,
+                      _tools.isNotEmpty,
+                    ]),
+                    totalFields: 2,
                     children: [
                       _buildTagsSection(
                         title: 'Core Programming & Skills',
@@ -906,34 +1285,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
 
-                  // Document Upload Section
-                  _buildSectionHeader(
-                    'upload_file',
-                    'Document Upload',
-                    badgeText: 'Primary Source',
-                  ),
-                  const SizedBox(height: 12),
-                  _buildDocumentUploadDropzone(),
-                  const SizedBox(height: 12),
-                  if (_uploadedCvStorageKey != null) ...[
-                    const Row(
+                  KeyedSubtree(
+                    key: _cvUploadSectionKey,
+                    child: _buildCardSection(
+                      icon: Icons.upload_file_outlined,
+                      title: 'CV upload',
+                      completedFields: _uploadedCvStorageKey == null ? 0 : 1,
+                      totalFields: 1,
                       children: [
-                        Icon(Icons.check_circle, color: Colors.teal, size: 18),
-                        SizedBox(width: 8),
-                        Text(
-                          'CV uploaded',
-                          style: TextStyle(
-                            color: Colors.teal,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
+                        if (!_hasCompleteProfileInputs())
+                          _buildCvLockedState()
+                        else ...[
+                          _buildDocumentUploadDropzone(),
+                          const SizedBox(height: 12),
+                          if (_uploadedCvStorageKey != null) ...[
+                            const _CvUploadedStatus(),
+                            const SizedBox(height: 12),
+                          ],
+                          _buildUploadedFileItem(),
+                        ],
                       ],
                     ),
-                    const SizedBox(height: 12),
-                  ],
-                  _buildUploadedFileItem(),
+                  ),
                 ],
               ),
             ),
@@ -957,7 +1332,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 onPressed:
                     _isLoadingProfile || _isSavingProfile || _sessionExpired
                     ? null
-                    : _saveProfile,
+                    : _handlePrimaryAction,
                 icon: _isSavingProfile
                     ? const SizedBox(
                         height: 20,
@@ -967,9 +1342,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           strokeWidth: 2,
                         ),
                       )
-                    : Icon(_saveButtonIcon, size: 20),
+                    : Icon(_primaryButtonIcon, size: 20),
                 label: Text(
-                  _saveButtonText,
+                  _primaryButtonText,
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -995,174 +1370,74 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildCompletenessMeter() {
+    final completed = _completedResumeFieldCount;
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 13),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.borderLight),
       ),
       child: Column(
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Expanded(
-                child: Row(
-                  children: [
-                    Icon(Icons.verified, color: AppColors.primary, size: 18),
-                    SizedBox(width: 6),
-                    Flexible(
-                      child: Text(
-                        'Profile Completeness',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
+              const Text(
+                'Resume progress',
+                style: TextStyle(
+                  color: AppColors.textPrimaryLight,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: AppColors.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Text(
-                  '85% Complete',
-                  style: TextStyle(
+                child: Text(
+                  '$completed of $_requiredResumeFieldCount details',
+                  style: const TextStyle(
                     color: AppColors.primary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: const LinearProgressIndicator(
-              value: 0.85,
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: completed / _requiredResumeFieldCount,
               backgroundColor: AppColors.borderLight,
-              valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
-              minHeight: 8,
+              valueColor: const AlwaysStoppedAnimation<Color>(
+                AppColors.primary,
+              ),
+              minHeight: 6,
             ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Row(
-                  children: [
-                    Container(
-                      width: 6,
-                      height: 6,
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.5),
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    const Flexible(
-                      child: Text(
-                        '13 of 15 parameters optimized',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppColors.textSecondaryLight,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const Text(
-                'View Gaps',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildSectionHeader(
-    String iconName,
-    String title, {
-    String? badgeText,
-  }) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Expanded(
-          child: Row(
-            children: [
-              Icon(Icons.upload_file, color: AppColors.primary, size: 20),
-              const SizedBox(width: 8),
-              Flexible(
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimaryLight,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-        ),
-        if (badgeText != null)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade200,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              badgeText,
-              style: const TextStyle(
-                fontSize: 11,
-                color: AppColors.textSecondaryLight,
-              ),
-            ),
-          ),
-      ],
     );
   }
 
   Widget _buildDocumentUploadDropzone() {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: AppColors.primary.withValues(alpha: 0.03),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppColors.primary.withValues(alpha: 0.2),
-        ), // Approximating dashed with a light solid border
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
       ),
       child: Column(
         children: [
           Container(
-            width: 48,
-            height: 48,
+            width: 42,
+            height: 42,
             decoration: BoxDecoration(
               color: AppColors.primary.withValues(alpha: 0.1),
               shape: BoxShape.circle,
@@ -1170,7 +1445,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: const Icon(
               Icons.cloud_upload_outlined,
               color: AppColors.primary,
-              size: 26,
+              size: 22,
             ),
           ),
           const SizedBox(height: 12),
@@ -1186,15 +1461,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Text.rich(
             TextSpan(
               children: [
-                const TextSpan(text: 'Drag & drop or '),
-                const TextSpan(
-                  text: 'tap to browse',
-                  style: TextStyle(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const TextSpan(text: ' from device. Maximum 10MB.'),
+                const TextSpan(text: 'Choose a PDF from your device. '),
+                const TextSpan(text: 'Maximum 10MB.'),
               ],
             ),
             textAlign: TextAlign.center,
@@ -1203,52 +1471,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
               color: AppColors.textSecondaryLight,
             ),
           ),
-          const SizedBox(height: 12),
-          Wrap(
-            alignment: WrapAlignment.center,
-            runSpacing: 8,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(4),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
-                      blurRadius: 2,
-                    ),
-                  ],
-                ),
-                child: const Text(
-                  'PDF format only',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: AppColors.textSecondaryLight,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: const Text(
-                  'Campus AI OCR',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
-          ),
           const SizedBox(height: 16),
           OutlinedButton.icon(
-            onPressed: _isSelectingCv || _isSavingProfile
+            onPressed:
+                _isSelectingCv ||
+                    _isSavingProfile ||
+                    _isCvReplacementCooldownActive
                 ? null
                 : _selectCvFile,
             icon: _isSelectingCv
@@ -1260,6 +1488,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 : const Icon(Icons.attach_file),
             label: Text(_selectedCvFile == null ? 'Select PDF' : 'Change PDF'),
           ),
+          if (_isCvReplacementCooldownActive) ...[
+            const SizedBox(height: 10),
+            Text(
+              'You can update your CV again on ${_formatNextEligibleUpload(context)}.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: AppColors.textSecondaryLight,
+                fontSize: 12,
+                height: 1.35,
+              ),
+            ),
+          ],
           if (_cvSelectionError != null)
             Padding(
               padding: const EdgeInsets.only(top: 8),
@@ -1278,6 +1518,61 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 style: const TextStyle(color: Colors.red, fontSize: 12),
               ),
             ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCvLockedState() {
+    final remaining = _requiredResumeFieldCount - _completedResumeFieldCount;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.045),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.16)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(
+              Icons.lock_outline_rounded,
+              color: AppColors.primary,
+              size: 18,
+            ),
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'CV upload is locked',
+                  style: TextStyle(
+                    color: AppColors.textPrimaryLight,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  'Complete the required resume details to unlock CV upload.${remaining > 0 ? ' $remaining remaining.' : ''}',
+                  style: const TextStyle(
+                    color: AppColors.textSecondaryLight,
+                    fontSize: 12,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -1366,18 +1661,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ],
                 ),
-                if (_uploadedCvStorageKey != null) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    'Existing CV storage ID: $_uploadedCvStorageKey',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: AppColors.textSecondaryLight,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
               ],
             ),
           ),
@@ -1403,22 +1686,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildCardSection({
     required IconData icon,
     required String title,
-    IconData? headerBadgeIcon,
-    String? headerBadgeText,
+    required int completedFields,
+    required int totalFields,
     required List<Widget> children,
   }) {
+    final isComplete = completedFields == totalFields;
+    final stateLabel = isComplete
+        ? 'Complete'
+        : '${totalFields - completedFields} ${totalFields - completedFields == 1 ? 'field' : 'fields'} remaining';
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.borderLight),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1430,11 +1711,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: Row(
                   children: [
                     Container(
-                      width: 32,
-                      height: 32,
+                      width: 34,
+                      height: 34,
                       decoration: BoxDecoration(
                         color: AppColors.primary.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                       child: Icon(icon, color: AppColors.primary, size: 18),
                     ),
@@ -1443,8 +1724,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       child: Text(
                         title,
                         style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
                           color: AppColors.textPrimaryLight,
                         ),
                         overflow: TextOverflow.ellipsis,
@@ -1453,23 +1734,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ],
                 ),
               ),
-              if (headerBadgeIcon != null && headerBadgeText == null)
-                Icon(headerBadgeIcon, color: AppColors.primary, size: 20),
-              if (headerBadgeIcon != null && headerBadgeText != null)
-                Row(
-                  children: [
-                    Icon(headerBadgeIcon, color: AppColors.primary, size: 16),
-                    const SizedBox(width: 4),
-                    Text(
-                      headerBadgeText,
-                      style: const TextStyle(
-                        color: AppColors.primary,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: (isComplete ? AppColors.accent : AppColors.primary)
+                      .withValues(alpha: 0.09),
+                  borderRadius: BorderRadius.circular(8),
                 ),
+                child: Text(
+                  stateLabel,
+                  style: TextStyle(
+                    color: isComplete ? AppColors.accent : AppColors.primary,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 16),
@@ -1485,17 +1765,50 @@ class _ProfileScreenState extends State<ProfileScreen> {
         : null;
   }
 
-  String? _validatePhone(String? value) {
-    final phone = value?.trim() ?? '';
-    if (phone.isEmpty) return 'Phone number is required.';
-    return RegExp(r'^\+?[0-9][0-9\s\-()]{6,24}$').hasMatch(phone)
+  String? _validateFullName(String? value, {required bool required}) {
+    final name = value?.trim() ?? '';
+    if (name.isEmpty) return required ? 'Full name is required.' : null;
+    final validName = RegExp(
+      r"^[\p{L}\p{M}]+(?:[ '\-][\p{L}\p{M}]+)*$",
+      unicode: true,
+    );
+    return name.length >= 2 && name.length <= 100 && validName.hasMatch(name)
         ? null
-        : 'Enter a valid phone number.';
+        : 'Enter a valid full name using 2 to 100 letters.';
   }
 
-  String? _validateExpectedGraduationDate(String? value) {
+  String? _validatePhone(String? value, {required bool required}) {
+    final phone = value?.trim() ?? '';
+    if (phone.isEmpty) return required ? 'Phone number is required.' : null;
+    return RegExp(r'^(?:07\d{8}|\+947\d{8})$').hasMatch(phone)
+        ? null
+        : 'Enter a valid Sri Lankan mobile number, for example 0771234567.';
+  }
+
+  String? _validateUniversityName(String? value, {required bool required}) {
+    final university = value?.trim() ?? '';
+    if (university.isEmpty) {
+      return required ? 'University name is required.' : null;
+    }
+    final hasLetter = RegExp(r'\p{L}', unicode: true).hasMatch(university);
+    final hasControlCharacter = RegExp(
+      r'[\p{Cc}\p{Cf}]',
+      unicode: true,
+    ).hasMatch(university);
+    return university.length >= 2 &&
+            university.length <= 255 &&
+            hasLetter &&
+            !hasControlCharacter
+        ? null
+        : 'Enter a valid university name using 2 to 255 characters.';
+  }
+
+  String? _validateExpectedGraduationDate(
+    String? value, {
+    required bool required,
+  }) {
     if (value == null || value.trim().isEmpty) {
-      return 'Expected graduation date is required.';
+      return required ? 'Expected graduation date is required.' : null;
     }
 
     final date = DateTime.tryParse(value.trim());
@@ -1513,17 +1826,69 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
 
     final uri = Uri.tryParse(value.trim());
-    return uri != null && uri.hasScheme && uri.hasAuthority
+    return uri != null &&
+            uri.isAbsolute &&
+            uri.scheme == 'https' &&
+            uri.host.isNotEmpty
         ? null
-        : 'Enter a valid URL.';
+        : 'Enter a valid HTTPS URL.';
   }
 
-  String? _validateCareerObjectives(String? value) {
+  String? _validateCareerObjectives(String? value, {required bool required}) {
     if (value == null || value.trim().isEmpty) {
-      return 'Career objectives are required.';
+      return required ? 'Career objectives are required.' : null;
     }
 
-    return value.trim().length < 20 ? 'Enter at least 20 characters.' : null;
+    final length = value.trim().length;
+    if (length < 20) return 'Enter at least 20 characters.';
+    if (length > 1000) {
+      return 'Keep career objectives to 1000 characters or fewer.';
+    }
+    return null;
+  }
+
+  String? _validateGpa(String? value, {required bool required}) {
+    if (value == null || value.trim().isEmpty) {
+      return required ? 'GPA is required.' : null;
+    }
+    final gpa = double.tryParse(value.trim());
+    return gpa != null && gpa >= 0 && gpa <= 4
+        ? null
+        : 'Enter a GPA from 0.00 to 4.00.';
+  }
+
+  String? _validateTagItems(
+    List<String> items, {
+    required String label,
+    required bool required,
+  }) {
+    if (items.isEmpty) return required ? 'Add at least one $label.' : null;
+    if (items.any((item) => item.trim().isEmpty)) {
+      return '${label[0].toUpperCase()}${label.substring(1)} cannot be empty.';
+    }
+    final normalized = items.map((item) => item.trim().toLowerCase()).toSet();
+    return normalized.length == items.length
+        ? null
+        : 'Duplicate $label entries are not allowed.';
+  }
+
+  bool _validateDraftValues() {
+    final formValid = _formKey.currentState?.validate() ?? false;
+    final skillsError = _validateTagItems(
+      _skills,
+      label: 'skill',
+      required: false,
+    );
+    final toolsError = _validateTagItems(
+      _tools,
+      label: 'tool or technology',
+      required: false,
+    );
+    setState(() {
+      _skillsError = skillsError;
+      _toolsError = toolsError;
+    });
+    return formValid && skillsError == null && toolsError == null;
   }
 
   Widget _buildInputField(
@@ -1537,36 +1902,60 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
+        Text.rich(
+          TextSpan(
+            text: label,
+            children: validator == null
+                ? const []
+                : const [
+                    TextSpan(
+                      text: ' *',
+                      style: TextStyle(color: AppColors.statusRejected),
+                    ),
+                  ],
+          ),
           style: const TextStyle(
-            fontSize: 11,
+            fontSize: 12,
             color: AppColors.textSecondaryLight,
+            fontWeight: FontWeight.w600,
           ),
         ),
-        const SizedBox(height: 4),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-          decoration: BoxDecoration(
-            color: Colors.grey.shade100,
-            borderRadius: BorderRadius.circular(8),
+        const SizedBox(height: 6),
+        TextFormField(
+          controller: controller,
+          keyboardType: keyboardType,
+          validator: validator,
+          style: const TextStyle(
+            fontSize: 14,
+            color: AppColors.textPrimaryLight,
           ),
-          child: TextFormField(
-            controller: controller,
-            keyboardType: keyboardType,
-            validator: validator,
-            style: const TextStyle(
-              fontSize: 14,
-              color: AppColors.textPrimaryLight,
+          decoration: InputDecoration(
+            prefixIcon: icon != null
+                ? Icon(icon, color: AppColors.textSecondaryLight, size: 19)
+                : null,
+            hintText: hintText,
+            hintStyle: const TextStyle(color: AppColors.textSecondaryLight),
+            filled: true,
+            fillColor: Colors.white,
+            isDense: true,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 14,
             ),
-            decoration: InputDecoration(
-              icon: icon != null
-                  ? Icon(icon, color: Colors.grey, size: 20)
-                  : null,
-              hintText: hintText,
-              border: InputBorder.none,
-              isDense: true,
-              contentPadding: const EdgeInsets.symmetric(vertical: 12),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(11),
+              borderSide: const BorderSide(color: AppColors.borderLight),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(11),
+              borderSide: const BorderSide(color: AppColors.borderLight),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(11),
+              borderSide: const BorderSide(
+                color: AppColors.primary,
+                width: 1.4,
+              ),
             ),
           ),
         ),
@@ -1615,7 +2004,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     .toList(),
             onChanged: (status) =>
                 setState(() => _selectedAcademicStatus = status),
-            validator: _validateRequired,
+            validator: (value) =>
+                _showFinalValidation ? _validateRequired(value) : null,
           ),
         ),
       ],
@@ -1656,7 +2046,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               return DropdownMenuItem(value: year, child: Text('Year $year'));
             }),
             onChanged: (year) => setState(() => _selectedYearOfStudy = year),
-            validator: (year) => year == null ? 'Select a year.' : null,
+            validator: (year) =>
+                _showFinalValidation && year == null ? 'Select a year.' : null,
           ),
         ),
       ],
@@ -1675,18 +2066,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Expanded(
-              child: Text(
-                label,
+              child: Text.rich(
+                TextSpan(
+                  text: label,
+                  children: validator == null
+                      ? const []
+                      : const [
+                          TextSpan(
+                            text: ' *',
+                            style: TextStyle(color: AppColors.statusRejected),
+                          ),
+                        ],
+                ),
                 style: const TextStyle(
-                  fontSize: 11,
+                  fontSize: 12,
                   color: AppColors.textSecondaryLight,
+                  fontWeight: FontWeight.w600,
                 ),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            const Text(
-              '174 / 300',
-              style: TextStyle(
+            Text(
+              '${controller.text.trim().length} / 1000',
+              style: const TextStyle(
                 fontSize: 11,
                 color: AppColors.textSecondaryLight,
               ),
@@ -1764,7 +2166,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 setState(() => _selectedSchedule = newValue);
               }
             },
-            validator: _validateRequired,
+            validator: (value) =>
+                _showFinalValidation ? _validateRequired(value) : null,
           ),
         ),
       ],
@@ -1928,16 +2331,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               isDense: true,
               contentPadding: EdgeInsets.symmetric(vertical: 12),
             ),
-            validator: (value) {
-              if (value == null || value.trim().isEmpty) {
-                return 'GPA is required.';
-              }
-              final numValue = double.tryParse(value);
-              if (numValue == null || numValue < 0.0 || numValue > 4.0) {
-                return 'Enter a GPA from 0.00 to 4.00.';
-              }
-              return null;
-            },
+            validator: (value) =>
+                _validateGpa(value, required: _showFinalValidation),
           ),
         ),
       ],
@@ -1981,20 +2376,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
               color: AppColors.textPrimaryLight,
             ),
             dropdownColor: Colors.white,
-            items:
-                {
-                  ...degreePrograms,
-                  ?_selectedDegree,
-                }.map((String value) {
-                  return DropdownMenuItem<String>(
-                    value: value,
-                    child: Text(value, overflow: TextOverflow.ellipsis),
-                  );
-                }).toList(),
+            items: {...degreePrograms, ?_selectedDegree}.map((String value) {
+              return DropdownMenuItem<String>(
+                value: value,
+                child: Text(value, overflow: TextOverflow.ellipsis),
+              );
+            }).toList(),
             onChanged: (newValue) {
               setState(() => _selectedDegree = newValue);
             },
-            validator: _validateRequired,
+            validator: (value) =>
+                _showFinalValidation ? _validateRequired(value) : null,
           ),
         ),
       ],
@@ -2073,7 +2465,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 if (newValue > 0) _fetchJobTitles(newValue);
               }
             },
-            validator: (domainId) => domainId == null || domainId == -1
+            validator: (domainId) =>
+                _showFinalValidation && (domainId == null || domainId == -1)
                 ? 'Select a primary domain.'
                 : null,
           ),
@@ -2153,7 +2546,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       });
                     }
                   },
-            validator: (jobTitleId) => jobTitleId == null || jobTitleId == -1
+            validator: (jobTitleId) =>
+                _showFinalValidation && (jobTitleId == null || jobTitleId == -1)
                 ? 'Select a target job title.'
                 : null,
           ),

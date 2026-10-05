@@ -19,6 +19,8 @@ interface JobFeedDto {
   allowedYears?: number[];
 }
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5168/api';
+
 export const StaffJobsView: React.FC = () => {
   const [jobs, setJobs] = useState<JobFeedDto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -27,10 +29,12 @@ export const StaffJobsView: React.FC = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [selectedJob, setSelectedJob] = useState<JobFeedDto | null>(null);
 
+  // Fetches the latest job postings from the server, including pagination and searching!
+  // We grab a dozen jobs at a time to keep things loading nice and fast.
   const fetchJobs = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`http://localhost:5168/api/Jobs/feed?search=${encodeURIComponent(search)}&page=${page}&pageSize=12`, {
+      const res = await fetch(`${API_BASE}/Jobs/feed?search=${encodeURIComponent(search)}&page=${page}&pageSize=12`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
@@ -46,6 +50,8 @@ export const StaffJobsView: React.FC = () => {
     }
   };
 
+  // Listens for changes when the user types in the search box.
+  // It waits half a second before searching so we don't spam the server with every single keystroke!
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
       fetchJobs();
@@ -53,9 +59,11 @@ export const StaffJobsView: React.FC = () => {
     return () => clearTimeout(delayDebounceFn);
   }, [search, page]);
 
+  // When a staff member clicks on a job card, this fetches the full details (like nice-to-have skills or GPA limits).
+  // It then pops open a nice detailed modal so they can see everything in one place.
   const handleJobClick = async (job: JobFeedDto) => {
     try {
-      const res = await fetch(`http://localhost:5168/api/Job/${job.jobId}`, {
+      const res = await fetch(`${API_BASE}/Job/${job.jobId}`, {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
       if (res.ok) {
