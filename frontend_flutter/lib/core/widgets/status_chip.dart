@@ -9,6 +9,7 @@ class StatusChip extends StatelessWidget {
     switch (status.toLowerCase()) {
       case 'approved':
       case 'student_accepted':
+      case 'interview_acknowledged':
         return Colors.green;
       case 'pending':
         return Colors.orange;

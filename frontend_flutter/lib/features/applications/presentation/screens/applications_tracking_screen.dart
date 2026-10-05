@@ -114,7 +114,7 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
     // Categorize applications
     final actionRequired = _applications.where((app) => app['status'] == 'Admin_Approved' || app['status'] == 'Company_Scheduled').toList();
     final pending = _applications.where((app) => app['status'] == 'Pending' || app['status'] == 'Agent_Evaluated').toList();
-    final history = _applications.where((app) => app['status'] == 'Student_Accepted' || app['status'] == 'Rejected' || app['status'] == 'Archived').toList();
+    final history = _applications.where((app) => app['status'] == 'Student_Accepted' || app['status'] == 'Interview_Acknowledged' || app['status'] == 'Rejected' || app['status'] == 'Archived').toList();
 
     return Scaffold(
       backgroundColor: backgroundColor,
