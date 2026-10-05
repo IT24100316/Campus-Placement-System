@@ -1,29 +1,28 @@
+import asyncio
 import json
 from dotenv import load_dotenv
 
 load_dotenv()
 
-from main import app_graph
+from main import app, lifespan
 
-def test_full_pipeline():
-    # Replace these IDs with real GUIDs from your Supabase database
-    # to actually test the full pipeline flow
+async def run_full_pipeline():
+    # Replace these IDs with real GUIDs from your database to run the live flow.
+    job_id = "00000000-0000-0000-0000-000000000000"
+    student_id = "11111111-1111-1111-1111-111111111111"
     initial_state = {
-        "job_id": "00000000-0000-0000-0000-000000000000",
-        "initial_student_ids": [
-            "11111111-1111-1111-1111-111111111111",
-            "22222222-2222-2222-2222-222222222222"
-        ]
+        "job_id": job_id,
+        "initial_student_ids": [student_id],
+        "evaluate_all": False,
     }
+    config = {"configurable": {"thread_id": f"{job_id}:{student_id}"}}
 
-    print("Running the Orchestration Graph (Tier 1 -> Planner -> Action -> Analysis -> Validation)...")
-    try:
-        final_state = app_graph.invoke(initial_state)
-        print("\nPipeline execution complete! Final Analysis Results (Passed Candidates):")
-        print(json.dumps(final_state.get("analysis_results", []), indent=2))
-        print("\nCheck 'analysis_run_log.txt' for the full detailed breakdown!")
-    except Exception as e:
-        print(f"\nPipeline failed. Ensure you put real database IDs in the script. Error: {e}")
+    print("Running the orchestration graph through validation...")
+    async with lifespan(app):
+        final_state = await app.state.graph.ainvoke(initial_state, config=config)
+    print("\nPipeline paused for human review. Analysis results:")
+    print(json.dumps(final_state.get("analysis_results", []), indent=2))
+    print("\nCheck 'analysis_run_log.txt' for the full detailed breakdown!")
 
 if __name__ == "__main__":
-    test_full_pipeline()
+    asyncio.run(run_full_pipeline())
