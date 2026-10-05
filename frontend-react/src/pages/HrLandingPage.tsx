@@ -1855,11 +1855,11 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                                       <span>View Feedback</span>
                                     </button>
                                   </div>
-                                ) : isInvited || c.status === "Interview Confirmed" ? (
+                                ) : isInvited || c.status === "Interview Confirmed" || c.status === "Accepted" ? (
                                   <div className="flex items-center justify-end gap-2">
                                     <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700">
                                       <CheckCircle2 className="w-3.5 h-3.5" />
-                                      <span>Confirmed</span>
+                                      <span>{c.status === "Accepted" ? "Accepted" : "Confirmed"}</span>
                                     </span>
                                     <button
                                       type="button"
