@@ -56,6 +56,7 @@ interface ApplicationsPageProps {
   userEmail?: string;
   onLogout?: () => void;
   hideHeader?: boolean;
+  forceMemoFilter?: 'all' | 'action_required' | 'no_action_required';
 }
 
 export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
@@ -64,6 +65,7 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
   userEmail,
   onLogout,
   hideHeader = false,
+  forceMemoFilter,
 }) => {
   const savedUserStr = typeof window !== 'undefined' ? localStorage.getItem('campusai_auth_user') : null;
   const savedUser = savedUserStr ? JSON.parse(savedUserStr) : null;
@@ -80,6 +82,14 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
 
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const [memoFilter, setMemoFilter] = useState<'all' | 'action_required' | 'no_action_required'>('all');
+
+  useEffect(() => {
+    if (forceMemoFilter) {
+      setMemoFilter(forceMemoFilter);
+    }
+  }, [forceMemoFilter]);
   // Grabs all the pending applications from the backend API.
   // It also parses the complex AI validation reports so they look nice in the UI!
   const fetchCandidates = async () => {
@@ -171,8 +181,6 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
   const [viewingStudentFor, setViewingStudentFor] = useState<Candidate | null>(null);
   const [pendingAction, setPendingAction] = useState<{id: string, action: 'approve' | 'reject', name: string} | null>(null);
   const [globalPendingMemos, setGlobalPendingMemos] = useState<Record<string, boolean>>({});
-  const [memoFilter, setMemoFilter] = useState<'all' | 'action_required' | 'no_action_required'>('all');
-
   // Fetches a quick list of all applications that have unresolved memos.
   // We use this to disable the "Approve/Reject" buttons until staff resolve their discussions.
   const fetchPendingMemosSummary = async () => {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Users, Building2, Sparkles, LogOut, ShieldCheck, Bell, UserCircle2, X } from 'lucide-react';
 import { StaffStudentsView } from './StaffStudentsView';
 import { StaffJobsView } from './StaffJobsView';
@@ -10,13 +10,33 @@ interface StaffDashboardPageProps {
   userEmail?: string;
 }
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5168/api';
+
 // This is the main dashboard shell for University Staff!
 // It acts as a container, holding the top navigation bar and switching between the Students, Jobs, and Applications views.
 export const StaffDashboardPage: React.FC<StaffDashboardPageProps> = ({ onLogout, userEmail }) => {
   const [activeTab, setActiveTab] = useState<'students' | 'jobs' | 'applications'>('applications');
   const [profilePanelOpen, setProfilePanelOpen] = useState(false);
+  const [memoCount, setMemoCount] = useState(0);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [forceMemoFilter, setForceMemoFilter] = useState<'all' | 'action_required' | 'no_action_required'>('all');
   
   const email = userEmail || 'staff@campusai.edu';
+
+  useEffect(() => {
+    const fetchMemoCount = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/Applications/memos/action-required/count`);
+        if (res.ok) {
+          const data = await res.json();
+          setMemoCount(data.count || 0);
+        }
+      } catch (err) {
+        console.error('Failed to fetch memo count', err);
+      }
+    };
+    fetchMemoCount();
+  }, []);
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 font-sans">
@@ -87,10 +107,60 @@ export const StaffDashboardPage: React.FC<StaffDashboardPageProps> = ({ onLogout
             </div>
 
             {/* Notification Bell */}
-            <button className="relative w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer focus:outline-none ml-1">
-              <Bell className="w-4 h-4" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-blue-700 rounded-full ring-2 ring-white"></span>
-            </button>
+            <div className="relative">
+              <button 
+                onClick={() => setNotificationsOpen(!notificationsOpen)}
+                className="relative w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer focus:outline-none ml-1"
+              >
+                <Bell className="w-4 h-4" />
+                {memoCount > 0 && (
+                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-blue-700 rounded-full ring-2 ring-white"></span>
+                )}
+              </button>
+              
+              {/* Notification Dropdown */}
+              {notificationsOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setNotificationsOpen(false)}></div>
+                  <div className="absolute right-0 mt-2 w-80 bg-white border border-slate-200 shadow-xl rounded-xl z-50 overflow-hidden flex flex-col">
+                    <div className="px-4 py-3 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+                      <h3 className="text-sm font-bold text-slate-800">Alerts</h3>
+                      <span className="text-[10px] font-semibold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                        {memoCount > 0 ? 1 : 0} New
+                      </span>
+                    </div>
+                    
+                    <div className="max-h-[300px] overflow-y-auto">
+                      {memoCount === 0 ? (
+                        <div className="p-6 text-center text-slate-500 text-sm">
+                          No new notifications at this time.
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setNotificationsOpen(false);
+                            setActiveTab('applications');
+                            setForceMemoFilter('action_required');
+                          }}
+                          className="w-full text-left px-4 py-3 border-b border-slate-50 hover:bg-slate-50 transition-colors cursor-pointer flex items-start gap-3"
+                        >
+                          <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 mt-0.5">
+                            <Sparkles className="w-4 h-4" />
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-xs text-slate-600 leading-snug">
+                              <span className="font-bold text-slate-900">You have {memoCount} Action Required Memos</span> to review.
+                            </p>
+                            <p className="text-[10px] text-slate-400 mt-1">Click to view applications</p>
+                          </div>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
             
             {/* My Profile Button */}
             <button
@@ -116,7 +186,7 @@ export const StaffDashboardPage: React.FC<StaffDashboardPageProps> = ({ onLogout
 
       {/* Main Content Area */}
       <div className="flex-1 w-full pt-16 pb-20 xl:pb-0">
-        {activeTab === 'applications' && <ApplicationsPage hideHeader={true} userEmail={email} onLogout={onLogout} />}
+        {activeTab === 'applications' && <ApplicationsPage hideHeader={true} userEmail={email} onLogout={onLogout} forceMemoFilter={forceMemoFilter} />}
         
         {activeTab === 'students' && (
           <main className="max-w-7xl w-full mx-auto px-6 py-8">

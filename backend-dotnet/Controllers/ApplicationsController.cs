@@ -3,6 +3,7 @@ using backend_dotnet.DTOs;
 using backend_dotnet.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace backend_dotnet.Controllers;
 
@@ -268,6 +269,19 @@ public class ApplicationsController : ControllerBase
 
         return Ok(applications);
     }
+
+    // Returns the count of all action-required memos (used for the staff notification bell).
+    [HttpGet("memos/action-required/count")]
+    public async Task<IActionResult> GetActionRequiredMemosCount(
+        [FromServices] backend_dotnet.Data.AppDbContext dbContext,
+        CancellationToken cancellationToken)
+    {
+        var count = await dbContext.Memos
+            .CountAsync(m => m.Status == "Pending", cancellationToken);
+
+        return Ok(new { count = count });
+    }
+
 
 
     // Fetches the direct URL to download a student's CV for a specific application.
