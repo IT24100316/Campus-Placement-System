@@ -1841,7 +1841,7 @@ export const HrLandingPage: React.FC<HrLandingPageProps> = ({
                               {/* CV / Resume */}
                               <td className="py-3.5 px-4 text-center">
                                 <a
-                                  href={c.cvPdfUrl || '#'}
+                                  href={!c.cvPdfUrl ? '#' : c.cvPdfUrl.startsWith('http') ? c.cvPdfUrl : `https://hyxtmbncjolcepfvongh.supabase.co/storage/v1/object/public/student-cvs/${c.cvPdfUrl}`}
                                   target="_blank"
                                   rel="noreferrer"
                                   className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 text-[11px] font-semibold transition-colors shadow-xs"
