@@ -377,29 +377,31 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
             ],
           ),
           const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(color: const Color(0xFFFFDAD6).withValues(alpha: 0.5), borderRadius: BorderRadius.circular(8)),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Row(
-                    children: [
-                      const Icon(Icons.timer, color: Color(0xFF93000A), size: 16),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(deadlineText, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Color(0xFF93000A), fontSize: 11, fontWeight: FontWeight.bold)),
-                      ),
-                    ],
+          if (item['status'] != 'Company_Scheduled') ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(color: const Color(0xFFFFDAD6).withValues(alpha: 0.5), borderRadius: BorderRadius.circular(8)),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Row(
+                      children: [
+                        const Icon(Icons.timer, color: Color(0xFF93000A), size: 16),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(deadlineText, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Color(0xFF93000A), fontSize: 11, fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                Text(closesText, style: const TextStyle(color: Color(0xFF93000A), fontSize: 11, fontWeight: FontWeight.w500)),
-              ],
+                  const SizedBox(width: 8),
+                  Text(closesText, style: const TextStyle(color: Color(0xFF93000A), fontSize: 11, fontWeight: FontWeight.w500)),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
+            const SizedBox(height: 16),
+          ],
           Row(
             children: [
               if (item['status'] == 'Admin_Approved') ...[
@@ -549,17 +551,33 @@ class _ApplicationsTrackingScreenState extends State<ApplicationsTrackingScreen>
                 ),
               ] else if (item['status'] == 'Company_Scheduled') ...[
                 Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(color: const Color(0xFFECFDF5), borderRadius: BorderRadius.circular(8)),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.check_circle, color: Color(0xFF059669), size: 18),
-                        const SizedBox(width: 8),
-                        const Text('Interview Confirmed (Check Email)', style: TextStyle(color: Color(0xFF059669), fontWeight: FontWeight.bold, fontSize: 13)),
-                      ],
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF059669),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
+                    onPressed: () async {
+                      try {
+                        setState(() {
+                          item['status'] = 'Student_Accepted';
+                        });
+                        await ApiService().acceptOffer(item['applicationId']?.toString() ?? '');
+                        if (!mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Acknowledged! Moved to History.')));
+                        _refresh();
+                      } catch (e) {
+                        setState(() {
+                          item['status'] = 'Company_Scheduled';
+                        });
+                        if (!mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                      }
+                    },
+                    icon: const Icon(Icons.check_circle, size: 18),
+                    label: const Text('Acknowledge & Close', style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
                 ),
               ],
