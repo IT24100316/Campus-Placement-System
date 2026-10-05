@@ -19,6 +19,13 @@ interface StudentProfile {
   lectureScheduleType?: string;
   preferredLocations?: string[];
   cvUrl?: string;
+  applications?: {
+    appId: string;
+    jobId: string;
+    jobTitle: string;
+    companyName: string;
+    status: string;
+  }[];
 }
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5168/api';
@@ -30,6 +37,29 @@ export const StaffStudentsView: React.FC = () => {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [selectedStudent, setSelectedStudent] = useState<StudentProfile | null>(null);
+
+  const handleApprove = async (appId: string) => {
+    try {
+      const res = await fetch(`${API_BASE}/Applications/human-verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ appId, approved: true })
+      });
+      if (res.ok) {
+        alert('Approved! An email has been sent to the student.');
+        fetchStudents(); // Refresh to get updated status
+        setSelectedStudent(null);
+      } else {
+        alert('Failed to approve application.');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Error approving application.');
+    }
+  };
 
   // Reaches out to the server to grab a paginated list of all student profiles.
   // We use this to fill the directory grid!
@@ -276,7 +306,44 @@ export const StaffStudentsView: React.FC = () => {
                         </div>
                       )}
                     </div>
+                </div>
+
+                  {/* Added Applications Section */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-3 mt-6">
+                      <span className="material-symbols-outlined text-[18px] text-blue-600">business_center</span>
+                      <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wider">AI Selections</h4>
+                    </div>
+                    {selectedStudent.applications && selectedStudent.applications.length > 0 ? (
+                      <div className="space-y-3">
+                        {selectedStudent.applications.map(app => (
+                          <div key={app.appId} className="flex flex-col p-3 bg-white border border-slate-200 rounded-lg shadow-sm">
+                            <div className="flex justify-between items-start mb-2">
+                              <div>
+                                <span className="block text-sm font-bold text-slate-900">{app.jobTitle}</span>
+                                <span className="block text-xs font-semibold text-slate-500">{app.companyName}</span>
+                              </div>
+                              <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${app.status === 'PendingAdminApproval' ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}`}>
+                                {app.status}
+                              </span>
+                            </div>
+                            {app.status === 'PendingAdminApproval' && (
+                              <button
+                                onClick={() => handleApprove(app.appId)}
+                                className="mt-2 w-full py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-md transition-colors shadow-sm flex items-center justify-center gap-1"
+                              >
+                                <span className="material-symbols-outlined text-[14px]">check_circle</span>
+                                Approve & Notify Student
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-slate-500">No active selections.</p>
+                    )}
                   </div>
+
                 </div>
 
                 {/* Right Column */}

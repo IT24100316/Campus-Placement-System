@@ -50,6 +50,16 @@ public class StudentProfileResponse
     public DateTime? CvUploadedAt { get; set; }
     public DateTime? CvNextEligibleUploadAt { get; set; }
     public bool IsLookingForInternship { get; set; }
+    public List<StudentApplicationDto> Applications { get; set; } = new();
+}
+
+public class StudentApplicationDto
+{
+    public Guid AppId { get; set; }
+    public Guid JobId { get; set; }
+    public string JobTitle { get; set; } = string.Empty;
+    public string CompanyName { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
 }
 
 public class UpdateInternshipStatusDto

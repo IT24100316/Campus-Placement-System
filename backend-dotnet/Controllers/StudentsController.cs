@@ -559,7 +559,17 @@ public class StudentsController : ControllerBase
                 LectureScheduleType = sp.LectureScheduleType,
                 PreferredLocations = sp.PreferredLocations,
                 CvPdfUrl = sp.CvPdfUrl,
-                CvUploadedAt = sp.CvUploadedAt
+                CvUploadedAt = sp.CvUploadedAt,
+                Applications = _context.Applications
+                    .Where(a => a.StudentId == sp.UserId)
+                    .Select(a => new StudentApplicationDto
+                    {
+                        AppId = a.AppId,
+                        JobId = a.JobId,
+                        JobTitle = a.Job.JobTitle,
+                        CompanyName = a.Job.Company.CompanyName,
+                        Status = a.Status.ToString()
+                    }).ToList()
             })
             .ToListAsync();
 
