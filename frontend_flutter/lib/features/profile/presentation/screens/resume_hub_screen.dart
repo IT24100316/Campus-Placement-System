@@ -13,10 +13,12 @@ class ResumeHubScreen extends StatefulWidget {
     super.key,
     this.isActive = true,
     this.profileService,
+    this.onProfilePressed,
   });
 
   final bool isActive;
   final StudentProfileService? profileService;
+  final VoidCallback? onProfilePressed;
 
   @override
   State<ResumeHubScreen> createState() => _ResumeHubScreenState();
@@ -100,7 +102,7 @@ class _ResumeHubScreenState extends State<ResumeHubScreen> {
     final snapshot = _ResumeSnapshot.fromProfile(_profile);
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
-      appBar: const GlobalAppHeader(),
+      appBar: GlobalAppHeader(onProfilePressed: widget.onProfilePressed),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _loadResume,

@@ -10,13 +10,16 @@ import 'job_details_screen.dart';
 enum _JobSort { newest, closingSoon, companyAZ }
 
 class JobFeedScreen extends StatefulWidget {
-  const JobFeedScreen({super.key});
+  const JobFeedScreen({super.key, this.onProfilePressed});
+
+  final VoidCallback? onProfilePressed;
 
   @override
   State<JobFeedScreen> createState() => _JobFeedScreenState();
 }
 
 class _JobFeedScreenState extends State<JobFeedScreen> {
+  static const _jobsPerPage = 10;
   static const _workLabels = {
     'onsite': 'On-site',
     'hybrid': 'Hybrid',
@@ -29,14 +32,12 @@ class _JobFeedScreenState extends State<JobFeedScreen> {
   };
 
   final _repository = JobRepository();
-  final _scrollController = ScrollController();
   final _searchController = TextEditingController();
   final Set<String> _supportedWorkTypes = {};
   List<JobFeedModel> _jobs = [];
   int _currentPage = 1;
   int _totalJobs = 0;
   bool _isLoading = false;
-  bool _hasMore = true;
   String? _errorMessage;
   String _searchQuery = '';
   RangeValues _gpaRange = const RangeValues(2, 4);
@@ -48,17 +49,10 @@ class _JobFeedScreenState extends State<JobFeedScreen> {
   void initState() {
     super.initState();
     _fetchJobs();
-    _scrollController.addListener(() {
-      final nearEnd =
-          _scrollController.position.pixels >=
-          _scrollController.position.maxScrollExtent - 200;
-      if (nearEnd && !_isLoading && _hasMore) _fetchNextPage();
-    });
   }
 
   @override
   void dispose() {
-    _scrollController.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -76,7 +70,6 @@ class _JobFeedScreenState extends State<JobFeedScreen> {
       setState(() {
         _jobs = result.items;
         _totalJobs = result.totalCount;
-        _hasMore = _jobs.length < _totalJobs;
         _recordWorkTypes(result.items, reset: _selectedWorkTypes.isEmpty);
         _isLoading = false;
       });
@@ -90,23 +83,26 @@ class _JobFeedScreenState extends State<JobFeedScreen> {
     }
   }
 
-  Future<void> _fetchNextPage() async {
-    setState(() => _isLoading = true);
-    final nextPage = _currentPage + 1;
+  Future<void> _goToPage(int page) async {
+    if (page < 1 || page > _totalPages || _isLoading) return;
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
     try {
-      final result = await _fetchPage(nextPage);
+      final result = await _fetchPage(page);
       if (!mounted) return;
       setState(() {
-        _currentPage = nextPage;
-        _jobs.addAll(result.items);
-        _hasMore = _jobs.length < _totalJobs;
+        _currentPage = result.page;
+        _jobs = result.items;
+        _totalJobs = result.totalCount;
         _recordWorkTypes(result.items);
         _isLoading = false;
       });
     } catch (error) {
       if (!mounted) return;
       setState(() {
-        _errorMessage = 'Unable to load more jobs. Please try again.';
+        _errorMessage = 'Unable to load this page. Please try again.';
         _isLoading = false;
       });
       debugPrint('Unable to load more jobs: $error');
@@ -116,6 +112,7 @@ class _JobFeedScreenState extends State<JobFeedScreen> {
   Future<PaginatedJobFeed> _fetchPage(int page) {
     return _repository.fetchJobFeed(
       page: page,
+      pageSize: _jobsPerPage,
       search: _searchQuery,
       minGpa: _gpaRange.start,
       maxGpa: _gpaRange.end,
@@ -126,6 +123,9 @@ class _JobFeedScreenState extends State<JobFeedScreen> {
       sortBy: _sortByApiValue,
     );
   }
+
+  int get _totalPages =>
+      _totalJobs == 0 ? 0 : (_totalJobs + _jobsPerPage - 1) ~/ _jobsPerPage;
 
   void _recordWorkTypes(Iterable<JobFeedModel> jobs, {bool reset = false}) {
     if (reset) _supportedWorkTypes.clear();
@@ -191,9 +191,8 @@ class _JobFeedScreenState extends State<JobFeedScreen> {
     final jobs = _visibleJobs;
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
-      appBar: const GlobalAppHeader(),
+      appBar: GlobalAppHeader(onProfilePressed: widget.onProfilePressed),
       body: CustomScrollView(
-        controller: _scrollController,
         slivers: [
           SliverToBoxAdapter(child: _buildPageIntro()),
           SliverToBoxAdapter(child: _buildSearchBar()),
@@ -206,13 +205,18 @@ class _JobFeedScreenState extends State<JobFeedScreen> {
                   vertical: 24,
                   horizontal: 24,
                 ),
-                child: Text(
-                  'Showing ${jobs.length} of $_totalJobs campus drives',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: AppColors.textSecondaryLight,
-                    fontSize: 12,
-                  ),
+                child: Column(
+                  children: [
+                    Text(
+                      'Showing ${jobs.length} of $_totalJobs campus drives',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: AppColors.textSecondaryLight, fontSize: 12),
+                    ),
+                    if (_totalPages > 1) ...[
+                      const SizedBox(height: 14),
+                      _buildPaginationControls(),
+                    ],
+                  ],
                 ),
               ),
             ),
@@ -314,14 +318,6 @@ class _JobFeedScreenState extends State<JobFeedScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
       sliver: SliverList(
         delegate: SliverChildBuilderDelegate((context, index) {
-          if (index == jobs.length) {
-            return const Padding(
-              padding: EdgeInsets.all(16),
-              child: Center(
-                child: CircularProgressIndicator(color: AppColors.primary),
-              ),
-            );
-          }
           final job = jobs[index];
           return JobCard(
             onTap: () {
@@ -339,10 +335,34 @@ class _JobFeedScreenState extends State<JobFeedScreen> {
             tags: job.tags,
             applicationDeadline: job.applicationDeadline,
           );
-        }, childCount: jobs.length + (_hasMore ? 1 : 0)),
+        }, childCount: jobs.length),
       ),
     );
   }
+
+  Widget _buildPaginationControls() => Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          OutlinedButton.icon(
+            onPressed: _currentPage <= 1 ? null : () => _goToPage(_currentPage - 1),
+            icon: const Icon(Icons.chevron_left, size: 18),
+            label: const Text('Previous'),
+          ),
+          Text(
+            'Page $_currentPage of $_totalPages',
+            style: const TextStyle(
+              color: AppColors.textSecondaryLight,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          ElevatedButton.icon(
+            onPressed: _currentPage >= _totalPages ? null : () => _goToPage(_currentPage + 1),
+            icon: const Icon(Icons.chevron_right, size: 18),
+            label: const Text('Next'),
+          ),
+        ],
+      );
 
   Widget _buildSearchBar() {
     return Padding(

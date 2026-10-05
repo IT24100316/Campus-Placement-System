@@ -5,7 +5,9 @@ import '../../features/notifications/data/student_notification_service.dart';
 import '../../features/notifications/presentation/screens/notification_center_screen.dart';
 
 class GlobalAppHeader extends StatefulWidget implements PreferredSizeWidget {
-  const GlobalAppHeader({super.key});
+  const GlobalAppHeader({super.key, this.onProfilePressed});
+
+  final VoidCallback? onProfilePressed;
 
   @override
   State<GlobalAppHeader> createState() => _GlobalAppHeaderState();
@@ -96,29 +98,33 @@ class _GlobalAppHeaderState extends State<GlobalAppHeader> {
           color: AppColors.textSecondaryLight,
           onPressed: _openNotificationCenter,
         ),
-        Container(
-          margin: const EdgeInsets.only(right: 16, left: 4),
-          alignment: Alignment.center,
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              const CircleAvatar(
-                radius: 16,
-                backgroundColor: AppColors.primary,
-                child: Icon(Icons.person, color: Colors.white, size: 18),
-              ),
-              Positioned(
-                bottom: -2,
-                right: -2,
-                child: Container(
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.verified, color: AppColors.primary, size: 14),
+        InkWell(
+          onTap: widget.onProfilePressed,
+          borderRadius: BorderRadius.circular(24),
+          child: Container(
+            margin: const EdgeInsets.only(right: 16, left: 4),
+            alignment: Alignment.center,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                const CircleAvatar(
+                  radius: 16,
+                  backgroundColor: AppColors.primary,
+                  child: Icon(Icons.person, color: Colors.white, size: 18),
                 ),
-              )
-            ],
+                Positioned(
+                  bottom: -2,
+                  right: -2,
+                  child: Container(
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.verified, color: AppColors.primary, size: 14),
+                  ),
+                )
+              ],
+            ),
           ),
         ),
       ],
