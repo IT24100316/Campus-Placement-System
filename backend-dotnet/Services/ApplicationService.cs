@@ -254,11 +254,9 @@ public class ApplicationService : IApplicationService
         }
         _notificationService?.Add(
             application.StudentId,
-            approved ? "action_required" : "application_update",
-            approved ? "Action required: respond to your offer" : "Application update",
-            approved
-                ? "You have been shortlisted. Review and respond to the offer within three days."
-                : "Your application was not selected on this occasion.",
+            "email_notification",
+            approved ? "Approved" : "Rejected",
+            "Check your email",
             "applications",
             application.AppId);
         await _context.SaveChangesAsync(cancellationToken);

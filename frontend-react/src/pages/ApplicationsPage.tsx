@@ -23,6 +23,7 @@ interface Candidate {
   avatarBgClass: string;
   avatarTextClass: string;
   role: string;
+  companyName?: string;
   cvUrl?: string;
   jobDescription?: string;
   jobDuration?: number;
@@ -149,6 +150,7 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
           avatarBgClass: 'bg-blue-50 border-blue-100',
           avatarTextClass: 'text-blue-600',
           role: item.jobTitle || 'Unknown Role',
+          companyName: item.companyName || 'Unknown Company',
           jobDescription: item.jobDescription || 'No description provided.',
           jobDuration: item.jobDuration || 6,
           jobStipend: item.jobStipend || false,
@@ -782,18 +784,18 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
                       <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Contact & Profile</h4>
                     </div>
                     <div className="space-y-3">
-                      <div className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-lg shadow-sm">
-                        <span className="text-xs font-semibold text-slate-500">Phone</span>
-                        <span className="text-sm font-medium text-slate-900">{viewingStudentFor.phone || 'N/A'}</span>
+                      <div className="flex items-start justify-between p-3 bg-white border border-slate-200 rounded-lg shadow-sm gap-4">
+                        <span className="text-xs font-semibold text-slate-500 mt-0.5 whitespace-nowrap">Phone</span>
+                        <span className="text-sm font-medium text-slate-900 text-right">{viewingStudentFor.phone || 'N/A'}</span>
                       </div>
-                      <div className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-lg shadow-sm">
-                        <span className="text-xs font-semibold text-slate-500">Degree</span>
-                        <span className="text-sm font-medium text-slate-900">{viewingStudentFor.degreeProgram || 'N/A'}</span>
+                      <div className="flex items-start justify-between p-3 bg-white border border-slate-200 rounded-lg shadow-sm gap-4">
+                        <span className="text-xs font-semibold text-slate-500 mt-0.5 whitespace-nowrap">Degree</span>
+                        <span className="text-sm font-medium text-slate-900 text-right">{viewingStudentFor.degreeProgram || 'N/A'}</span>
                       </div>
                       {viewingStudentFor.portfolioUrl && (
-                        <div className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-lg shadow-sm">
-                          <span className="text-xs font-semibold text-slate-500">Portfolio</span>
-                          <a href={viewingStudentFor.portfolioUrl} target="_blank" rel="noreferrer" className="text-sm font-medium text-blue-600 hover:underline">View Portfolio</a>
+                        <div className="flex items-start justify-between p-3 bg-white border border-slate-200 rounded-lg shadow-sm gap-4">
+                          <span className="text-xs font-semibold text-slate-500 mt-0.5 whitespace-nowrap">Portfolio</span>
+                          <a href={viewingStudentFor.portfolioUrl} target="_blank" rel="noreferrer" className="text-sm font-medium text-blue-600 hover:underline text-right break-all">{viewingStudentFor.portfolioUrl}</a>
                         </div>
                       )}
                     </div>
@@ -951,6 +953,8 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
               <div>
                 <h3 className="text-xl font-bold text-slate-900">{viewingJobFor.role}</h3>
                 <div className="text-sm font-medium text-slate-500 mt-1 flex items-center gap-2">
+                  <span className="font-semibold text-slate-700">{viewingJobFor.companyName}</span>
+                  <span>•</span>
                   <span>Software Engineering</span>
                   <span>•</span>
                   <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[16px]">location_on</span> Remote</span>
@@ -970,16 +974,16 @@ export const ApplicationsPage: React.FC<ApplicationsPageProps> = ({
               {/* 3 Metric Cards */}
               <div className="grid grid-cols-3 gap-4">
                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex flex-col items-center justify-center text-center">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Duration</span>
-                  <span className="text-base font-semibold text-slate-900">{viewingJobFor.jobDuration} Months</span>
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Duration</span>
+                  <span className="text-base font-semibold text-slate-900 flex items-center h-6">{viewingJobFor.jobDuration} Months</span>
                 </div>
                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex flex-col items-center justify-center text-center">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Compensation</span>
-                  <span className="text-base font-semibold text-slate-900">{viewingJobFor.jobStipend ? 'Stipend Offered' : 'Unpaid'}</span>
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Compensation</span>
+                  <span className="text-base font-semibold text-slate-900 flex items-center h-6">{viewingJobFor.jobStipend ? 'Stipend Offered' : 'Unpaid'}</span>
                 </div>
                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex flex-col items-center justify-center text-center">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Matches Verified</span>
-                  <span className="text-sm font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 mt-1">100% Match</span>
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Matches Verified</span>
+                  <span className="text-sm font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 flex items-center h-6">100% Match</span>
                 </div>
               </div>
 
