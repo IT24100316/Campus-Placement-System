@@ -25,6 +25,7 @@ class StudentSession {
 }
 
 class ApiService {
+  // Sends the student's registration details and campus ID image to the backend to create a new account.
   Future<Map<String, dynamic>> registerStudent({
     required String fullName,
     required String email,
@@ -64,6 +65,7 @@ class ApiService {
     return _decode(response);
   }
 
+  // Logs the user in by sending their email/password. If successful, it securely saves their JWT token in the StudentSession.
   Future<Map<String, dynamic>> login(String email, String password) async {
     StudentSession.clear();
     final response = await http.post(
@@ -111,6 +113,7 @@ class ApiService {
     };
   }
 
+  // Fetches a list of all job applications (matches) for the currently logged-in student.
   Future<List<Map<String, dynamic>>> getApplications() async {
     final token = StudentSession.token;
     if (token == null || token.trim().isEmpty) {
@@ -126,6 +129,7 @@ class ApiService {
     return (jsonDecode(response.body) as List).cast<Map<String, dynamic>>();
   }
 
+  // Tells the backend that the student has clicked "Accept" on a job offer.
   Future<void> acceptOffer(String appId) async {
     final token = StudentSession.token;
     if (token == null) throw Exception('Not authenticated.');
@@ -138,6 +142,7 @@ class ApiService {
     }
   }
 
+  // Tells the backend that the student has clicked "Decline" on a job offer.
   Future<void> declineOffer(String appId) async {
     final token = StudentSession.token;
     if (token == null) throw Exception('Not authenticated.');
@@ -150,6 +155,7 @@ class ApiService {
     }
   }
 
+  // Allows a logged-in user to securely change their password.
   Future<void> changePassword({
     required String currentPassword,
     required String newPassword,
@@ -172,6 +178,7 @@ class ApiService {
     _decode(response);
   }
 
+  // Triggers an email to be sent to the user if they forgot their password.
   Future<String> requestPasswordReset(String email) async {
     final response = await http.post(
       Uri.parse(ApiEndpoints.requestPasswordReset),
@@ -182,6 +189,7 @@ class ApiService {
         'If this is an approved student account, a reset code has been sent.';
   }
 
+  // Sets a brand new password for the user after they click the reset link in their email.
   Future<void> resetPassword({
     required String email,
     required String newPassword,
@@ -197,6 +205,8 @@ class ApiService {
     _decode(response);
   }
 
+  // A helper function that decodes the JSON response from the server.
+  // If the server returns an error (like a 400 or 500 status code), this throws an Exception automatically!
   Map<String, dynamic> _decode(http.Response response) {
     final data = response.body.isEmpty
         ? <String, dynamic>{}
